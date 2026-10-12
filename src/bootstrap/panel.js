@@ -85,7 +85,7 @@ export async function bootstrapPanel({ core } = {}) {
   // last, or they swallow what comes after them.
   installFinalHandlers();
 
-  const port = settings.get("port");
+  const port = (process.env.PORT ? Number(process.env.PORT) : null) || settings.get("port");
   const host = resolveBindAddress();
   const androidSock = isAndroidHost() ? androidPanelSocketPath() : null;
 

@@ -237,7 +237,7 @@ export const translations = {
     exportSavedTo: "حُفظ في",
     exportSettingsError: "تعذر تصدير الإعدادات",
     importSettings: "استيراد من ملف",
-    importSettingsError: "ملف غير صالح — يجب أن يكون ملفًا صادرًا من إعدادات Levix",
+    importSettingsError: "ملف غير صالح — يجب أن يكون ملفًا صادرًا من إعدادات Yuxli",
     importTitle: "استيراد الإعدادات",
     importSummary: "سيُطبّق على هذا الجهاز:",
     importSettingsCount: "إعداد",
@@ -752,7 +752,7 @@ export const translations = {
     forEveryone: "احذف لدى الجميع عندما يمكن ذلك",
     forEveryoneHint:
       "تُحذف رسائل الآخرين لدى الجميع فقط في المجموعات التي يكون فيها الحساب المرتبط مشرفًا. وإلا تُزال من هذا الجهاز فقط.",
-    keepCopy: "احتفظ بنسخة في Levix",
+    keepCopy: "احتفظ بنسخة في Yuxli",
     keepCopyHint:
       "يُحفظ النص أو التعليق فقط، ولا تُحفظ الوسائط أبدًا. تتبع النسخ إعداد «أيام الاحتفاظ بنسخ الحذف التلقائي».",
     keepCopyPrivacy: "تبقى النسخ على هذا الجهاز مع بيانات البوت. وهي ليست نسخة احتياطية للمحادثة.",
@@ -1053,7 +1053,7 @@ export const translations = {
     exportSavedTo: "Saved to",
     exportSettingsError: "Couldn't export the settings",
     importSettings: "Import from file",
-    importSettingsError: "Invalid file — expected a Levix settings export",
+    importSettingsError: "Invalid file — expected a Yuxli settings export",
     importTitle: "Import settings",
     importSummary: "This will apply to this install:",
     importSettingsCount: "settings",
@@ -1249,7 +1249,7 @@ export const translations = {
     tabFeedback: "Feedback & Support",
     feedbackTitle: "Send feedback to the developer",
     feedbackDesc:
-      "A bug, an idea, or a question — it is delivered straight to the person who builds Levix. No middle layer, no ticket queue.",
+      "A bug, an idea, or a question — it is delivered straight to the person who builds Yuxli. No middle layer, no ticket queue.",
     feedbackTopicLabel: "What is this about?",
     feedbackTopicBug: "Something is broken",
     feedbackTopicIdea: "An idea or request",
@@ -1260,18 +1260,18 @@ export const translations = {
     feedbackMessagePlaceholder:
       "What happened, what you expected, and what you were doing at the time. Detail helps — it is read by a person.",
     feedbackCharsNeeded: "more characters",
-    feedbackRatingLabel: "How is Levix working out? (optional)",
+    feedbackRatingLabel: "How is Yuxli working out? (optional)",
     feedbackContactLabel: "How to reach you (optional)",
     feedbackContactPlaceholder: "Email, or a WhatsApp/Telegram handle — only if you want an answer",
     feedbackSendBtn: "Send feedback",
     feedbackSending: "Sending...",
     feedbackSent: "Sent. Thank you!",
     feedbackSentDesc:
-      "It reached the developer of Levix. If you left a way to reach you, expect a reply.",
+      "It reached the developer of Yuxli. If you left a way to reach you, expect a reply.",
     feedbackSendAnother: "Send something else",
     feedbackWhatIsSent: "What goes with your message",
     feedbackWhatIsSentDesc:
-      "Your text, the topic, and the rating and contact if you added them, the file you attached if any, plus the Levix version and the platform it runs on. No WhatsApp message, chat, contact or key is ever attached, and nothing is sent until you press Send.",
+      "Your text, the topic, and the rating and contact if you added them, the file you attached if any, plus the Yuxli version and the platform it runs on. No WhatsApp message, chat, contact or key is ever attached, and nothing is sent until you press Send.",
     feedbackRuntimeLabel: "Attached to the message",
     feedbackGithubHint:
       "For reproducible bugs you want tracked in public with logs, open a GitHub issue.",
@@ -1572,7 +1572,7 @@ export const translations = {
     forEveryone: "Delete for everyone when possible",
     forEveryoneHint:
       "Other people's messages are deleted for everyone only in groups where the linked account is an admin. Otherwise they are removed only from this device.",
-    keepCopy: "Keep a copy in Levix",
+    keepCopy: "Keep a copy in Yuxli",
     keepCopyHint:
       "Stores the text or caption only, never the media. Copies follow the “Auto-delete copies kept (days)” setting.",
     keepCopyPrivacy:

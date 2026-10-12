@@ -52,13 +52,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const isInApp = typeof (window as any).LevixHost?.closePanel === "function";
 
   const brand = (window as any).__BRAND__ || {
-    name: "Levix",
+    name: "Yuxli",
     tagline: "Private control room",
     version: "",
-    developer: "Abdelrhman Diab",
-    studio: "Leviro",
-    developerSite: "https://github.com/Abdodiab2005",
-    studioSite: "https://leviro.net",
+    developer: "Yuxli",
+    studio: "Yuxli",
+    developerSite: "",
+    studioSite: "",
   };
 
   const navItems = [

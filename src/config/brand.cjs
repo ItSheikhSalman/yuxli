@@ -11,19 +11,19 @@
 // render was one `<%= %>` away from putting them on a web page.
 
 const BRAND = Object.freeze({
-  name: "Levix",
-  nameAr: "ليفيكس",
+  name: "Yuxli",
+  nameAr: "يوكسلي",
   tagline: "Personal WhatsApp Bot",
   taglineAr: "بوت واتساب شخصي",
 
   copyrightYear: 2026,
-  developer: "Abdelrhman Diab",
-  developerAr: "عبدالرحمن دياب",
-  developerSite: "https://abdelrhman.leviro.net",
-  studio: "Leviro",
-  studioSite: "https://leviro.net",
+  developer: "Yuxli",
+  developerAr: "يوكسلي",
+  developerSite: "",
+  studio: "Yuxli",
+  studioSite: "",
 
-  repo: "https://github.com/Abdodiab2005/levix",
+  repo: "",
 });
 
 module.exports = BRAND;

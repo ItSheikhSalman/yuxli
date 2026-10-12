@@ -160,6 +160,14 @@ app.locals.brand = { ...brand, version: pkg.version };
 app.use(express.static(assetPath("public")));
 app.use(express.urlencoded({ extended: true, limit: "100kb" }));
 
+// --- Health check (unauthenticated) ---------------------------------------
+// Render, UptimeRobot, and the built-in self-ping all hit this. It must live
+// before the session middleware so it never creates a cookie or touches the
+// store, and it must not require a login.
+app.get("/healthz", (req, res) => {
+  res.status(200).json({ status: "ok", uptime: Math.floor(process.uptime()) });
+});
+
 // Levix is intentionally one process and one operator, so a small expiring
 // in-memory store is enough. Unlike express-session's development MemoryStore,
 // it is explicitly bounded and prunes expired entries instead of growing for

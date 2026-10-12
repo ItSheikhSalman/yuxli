@@ -258,6 +258,11 @@ async function startWithPanel({ open }) {
   line("  Press Ctrl+C to stop.");
   line();
 
+  // On free-tier cloud hosts (Render, Railway) the self-ping keeps the
+  // container awake. Locally this is a harmless no-op.
+  const keepAlive = require("./utils/keepAlive.cjs");
+  keepAlive.start({ port: panel.port });
+
   return { ...core, panel, url };
 }
 

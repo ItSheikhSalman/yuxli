@@ -262,7 +262,14 @@ function withTimeout(promise, ms, label) {
 function isAgentEnabled() {
   // The key that matters is the active provider's: a panel switch from gemini
   // to openai must not keep the agent gated on (or running on) a Gemini key.
-  return Boolean(settings.get(activeProviderKeySetting())) && settings.get("ai_agent");
+  //
+  // Exception: an OpenAI-compatible endpoint often needs no key at all (a free
+  // gateway like flip-ia, or a local Ollama / LM Studio). For `openai`, having
+  // a base URL configured is enough to turn the agent on — the key is optional.
+  const provider = settings.get("ai_provider");
+  const hasKey = Boolean(settings.get(activeProviderKeySetting()));
+  const keylessOpenai = provider === "openai" && Boolean(settings.get("openai_base_url"));
+  return (hasKey || keylessOpenai) && settings.get("ai_agent");
 }
 
 // ===========================================================================

@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: yuxli-whatsapp-bot
+    runtime: docker
+    plan: free
+    autoDeploy: true
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_ENV
+        value: production
