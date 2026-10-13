@@ -112,6 +112,9 @@ function verifyDashboardPassword(candidate) {
 let setupCode = null;
 
 function getSetupCode() {
+  if (process.env.SETUP_CODE || process.env.LEVIX_SETUP_CODE) {
+    return (process.env.SETUP_CODE || process.env.LEVIX_SETUP_CODE).trim().toUpperCase();
+  }
   if (!setupCode) {
     setupCode = crypto.randomBytes(4).toString("hex").toUpperCase();
   }

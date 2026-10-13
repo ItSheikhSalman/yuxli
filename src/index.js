@@ -239,6 +239,7 @@ async function startWithPanel({ open }) {
     line("  Opening it from another machine also needs this code:");
     line();
     line(`  ${secrets.formatSetupCodeLine()}`);
+    logger.info(`🔑 ${secrets.formatSetupCodeLine()}`);
   }
 
   if (open) {
