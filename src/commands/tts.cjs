@@ -19,6 +19,7 @@ const { promisify } = require("node:util");
 const logger = require("../utils/logger.cjs");
 const { createStatus } = require("../utils/statusMessage.cjs");
 const { sendBotMessage } = require("../utils/sendBotMessage.cjs");
+const settings = require("../config/settings.cjs");
 
 const execFileAsync = promisify(execFile);
 
@@ -32,7 +33,29 @@ function tmpPath(ext) {
   );
 }
 
-async function synthesizeMp3(text, mp3Path, lang = "ar") {
+function resolveTtsLang(text = "", requestedLang) {
+  if (requestedLang && requestedLang !== "auto") return requestedLang;
+  const botLang = settings.get("bot_language") || "ur";
+  if (botLang === "ur") return "ur";
+  if (botLang === "en") return "en";
+  if (botLang === "ar") return "ar";
+
+  const clean = String(text || "").trim();
+  if (/[\u0679\u0688\u0691\u06BA\u06C1\u06D2\u06BE\u067E\u0686\u06AF\u0698]/.test(clean)) {
+    return "ur";
+  }
+  if (/[\u0600-\u06FF]/.test(clean)) {
+    return botLang === "ar" ? "ar" : "ur";
+  }
+  if (/^[a-zA-Z0-9\s.,!?'"-]+$/.test(clean)) {
+    const commonEnglish = /\b(the|is|are|you|how|what|why|who|where|when|this|that|with|for|from|have|has)\b/i;
+    if (commonEnglish.test(clean)) return "en";
+    return "ur";
+  }
+  return "ur";
+}
+
+async function synthesizeMp3(text, mp3Path, lang = "ur") {
   const parts = await googleTTS.getAllAudioBase64(text, {
     lang,
     slow: false,
@@ -112,10 +135,11 @@ async function transcodeToOpus(mp3Path) {
  * proper push-to-talk note when ffmpeg can transcode, raw MP3 otherwise.
  * Temp files are cleaned up here either way.
  */
-async function synthesizeVoice(text, lang = "ar") {
+async function synthesizeVoice(text, lang) {
+  const chosenLang = resolveTtsLang(text, lang);
   const mp3Path = tmpPath("mp3");
   try {
-    await synthesizeMp3(text, mp3Path, lang);
+    await synthesizeMp3(text, mp3Path, chosenLang);
 
     const oggPath = await transcodeToOpus(mp3Path);
     if (oggPath && fs.existsSync(oggPath)) {
@@ -133,13 +157,15 @@ async function synthesizeVoice(text, lang = "ar") {
 
 module.exports = {
   name: "tts",
-  aliases: ["tovoice", "speak"],
+  aliases: ["tovoice", "speak", "بول", "صوت"],
   description: {
-    en: "Converts text to speech (free — no API costs).",
+    en: "Converts text to speech in Urdu/English (free — no API costs).",
+    ur: "ٹیکسٹ کو اردو یا انگلش آواز میں تبدیل کرتا ہے (بالکل مفت).",
     ar: "يحوّل النص إلى كلام مسموع (مجاني — بدون تكلفة API).",
   },
   usage: {
     en: "tts <text>   (or reply to a text message)",
+    ur: "tts <ٹیکسٹ>   (یا کسی میسج کو !tts لکھ کر ریپلائی کریں)",
     ar: "tts <النص>   (أو ردّ على رسالة نصية)",
   },
   chat: "all",
@@ -147,10 +173,29 @@ module.exports = {
   async execute(sock, msg, args) {
     const chatId = msg.key.remoteJid;
 
-    let textToConvert = args.join(" ");
+    let textToConvert = args.join(" ").trim();
     const quotedMsg =
       msg.message?.extendedTextMessage?.contextInfo?.quotedMessage?.conversation ||
       msg.message?.extendedTextMessage?.contextInfo?.quotedMessage?.extendedTextMessage?.text;
+
+    const LANG_CODES = {
+      ur: "ur",
+      urdu: "ur",
+      "اردو": "ur",
+      en: "en",
+      english: "en",
+      ar: "ar",
+      arabic: "ar",
+      "عربي": "ar",
+      hi: "hi",
+      hindi: "hi",
+    };
+    let explicitLang = null;
+    const firstWord = (args[0] || "").toLowerCase();
+    if (LANG_CODES[firstWord] && (args.length > 1 || quotedMsg)) {
+      explicitLang = LANG_CODES[firstWord];
+      textToConvert = args.slice(1).join(" ").trim();
+    }
 
     if (!textToConvert && quotedMsg) textToConvert = quotedMsg;
 
@@ -160,8 +205,9 @@ module.exports = {
         chatId,
         {
           text: tr(
-            "📢 Usage:\n!tts <text>\n\nor reply to a text message with !tts\n\n✨ Completely free — no costs!",
+            "📢 Usage:\n!tts <text>\n!tts ur <text>\n!tts en <text>\n\nor reply to a text message with !tts\n\n✨ Completely free — no costs!",
             "📢 الاستخدام:\n!tts <النص>\n\nأو ردّ على رسالة نصية بالأمر !tts\n\n✨ الخدمة مجانية!",
+            "📢 استعمال:\n!tts <ٹیکسٹ>\n!tts ur <اردو ٹیکسٹ>\n!tts en <انگلش ٹیکسٹ>\n\nیا کسی میسج کو !tts لکھ کر ریپلائی کریں\n\n✨ بالکل مفت!",
           ),
         },
         { replyTo: msg },
@@ -172,14 +218,14 @@ module.exports = {
     const status = await createStatus(
       sock,
       chatId,
-      tr("🎙️ Turning the text into speech...", "🎙️ بحوّل النص لصوت..."),
+      tr("🎙️ Turning the text into speech...", "🎙️ بحوّل النص لصوت...", "🎙️ آواز تیار کی جا رہی ہے..."),
       {
         replyTo: msg,
       },
     );
 
     try {
-      const voice = await synthesizeVoice(textToConvert);
+      const voice = await synthesizeVoice(textToConvert, explicitLang);
 
       if (voice.ptt) {
         await sendBotMessage(
@@ -193,8 +239,7 @@ module.exports = {
           { replyTo: msg, typing: false },
         );
       } else {
-        // Fallback: send the raw MP3 with the correct mimetype. Cannot be
-        // PTT — WhatsApp requires Opus for that — but at least it plays.
+        // Fallback: send the raw MP3 with the correct mimetype.
         await sendBotMessage(
           sock,
           chatId,
@@ -207,15 +252,18 @@ module.exports = {
         );
       }
 
-      // The voice note IS the answer — drop the status line instead of
-      // leaving a dangling "converting..." above it.
+      // The voice note IS the answer — drop the status line.
       await status.remove();
-      logger.info("[TTS] Successfully delivered TTS audio");
+      logger.info("[TTS] Successfully delivered TTS audio in Urdu/selected voice");
     } catch (error) {
       logger.error({ err: error }, "[TTS] Error converting text to speech");
       await status.fail(
         error,
-        tr("Something went wrong turning the text into speech", "حصلت مشكلة وأنا بحوّل النص لصوت"),
+        tr(
+          "Something went wrong turning the text into speech",
+          "حصلت مشكلة وأنا بحوّل النص لصوت",
+          "ٹیکسٹ کو آواز میں تبدیل کرنے میں مسئلہ پیش آیا",
+        ),
       );
     }
   },

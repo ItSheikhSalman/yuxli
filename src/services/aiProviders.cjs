@@ -35,7 +35,7 @@ const { assertProviderBaseUrl, safeProviderFetch } = require("../utils/providerU
 const { baseMimeType, downloadMedia } = require("../utils/geminiMedia.cjs");
 
 // Shown in place of a media part, on the wire and in the canonical history.
-const MEDIA_NOTE = "[تم إرفاق ملف/وسائط في الرسالة]";
+const MEDIA_NOTE = "[پیغام میں میڈیا/فائل منسلک ہے · تم إرفاق وسائط]";
 
 const API_TIMEOUT_MS = 120000;
 
@@ -139,7 +139,11 @@ async function prepareInlineImageMedia(
     }
   }
   parts.push({
-    text: `[تم إرفاق وسائط (${mime}) — المزود الحالي لا يستطيع قراءة هذا النوع من الوسائط أو تم تعطيل ميزة تحليل الصور]`,
+    text: tr(
+      `[Media attached (${mime}) — current provider cannot read this media type or vision is disabled]`,
+      `[تم إرفاق وسائط (${mime}) — المزود الحالي لا يستطيع قراءة هذا النوع من الوسائط أو تم تعطيل ميزة تحليل الصور]`,
+      `[میڈیا منسلک ہے (${mime}) — موجودہ AI ماڈل تصاویر پڑھنے کو سپورٹ نہیں کرتا یا ویژن بند ہے]`,
+    ),
   });
   return null;
 }
@@ -620,9 +624,10 @@ function requestFor(
     };
   }
 
+  const effectiveKey = (apiKey && String(apiKey).trim()) || "dummy";
   return {
     url: `${baseUrl}/chat/completions`,
-    headers: { Authorization: `Bearer ${apiKey}` },
+    headers: { Authorization: `Bearer ${effectiveKey}` },
     body: {
       model,
       messages: [...adapter.systemMessage(systemInstruction), ...messages],

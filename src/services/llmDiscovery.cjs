@@ -141,7 +141,7 @@ class OpenAIDiscoveryAdapter extends BaseDiscoveryAdapter {
   }
 
   async discover({ apiKey, baseUrl = "https://api.openai.com/v1" }) {
-    const key = this.validateCredentials(apiKey);
+    const key = (apiKey && String(apiKey).trim()) || "dummy";
     const rootUrl = assertProviderBaseUrl(baseUrl || "https://api.openai.com/v1", {
       allowLoopback: true,
     });
@@ -415,14 +415,17 @@ async function discoverProviderModels(optionsOrProvider = "gemini", maybeOptions
     };
   }
 
-  if (!apiKey || !String(apiKey).trim()) {
-    return seedOnlyResult(
-      provKey,
-      `Please connect your ${provKey} API key to discover models available to your account.`,
-    );
+  const hasKey = Boolean(apiKey && String(apiKey).trim());
+  if (!hasKey) {
+    if (provKey !== "openai" || !baseUrl) {
+      return seedOnlyResult(
+        provKey,
+        `Please connect your ${provKey} API key to discover models available to your account.`,
+      );
+    }
   }
 
-  const cleanKey = String(apiKey).trim();
+  const cleanKey = hasKey ? String(apiKey).trim() : "dummy";
 
   if (!refresh) {
     const cached = getCachedDiscovery(provKey, cleanKey, baseUrl);

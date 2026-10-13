@@ -29,6 +29,11 @@ class BaseAIProvider {
   }
 
   isConfigured() {
+    if (this.id === "openai") {
+      const baseUrl = (this.getBaseUrl() || "").trim().toLowerCase().replace(/\/+$/, "");
+      const isCustomEndpoint = baseUrl && baseUrl !== "https://api.openai.com/v1" && baseUrl !== "https://api.openai.com";
+      return Boolean(this.getKey()) || Boolean(isCustomEndpoint);
+    }
     return Boolean(this.getKey());
   }
 
@@ -58,9 +63,13 @@ class BaseAIProvider {
   }
 
   async prepareMedia(parts, mediaMessage, mimeOverride, _context = {}) {
-    const mime = mimeOverride || mediaMessage?.mimetype || "ملف";
+    const mime = mimeOverride || mediaMessage?.mimetype || "فائل";
     parts.push({
-      text: `[تم إرفاق وسائط (${mime}) — المزود الحالي لا يدعم هذا النوع من الوسائط]`,
+      text: tr(
+        `[Media attached (${mime}) — current provider does not support this media type]`,
+        `[تم إرفاق وسائط (${mime}) — المزود الحالي لا يدعم هذا النوع من الوسائط]`,
+        `[میڈیا منسلک ہے (${mime}) — موجودہ AI ماڈل اس قسم کے میڈیا کو سپورٹ نہیں کرتا]`,
+      ),
     });
     return null;
   }
@@ -83,7 +92,7 @@ function getProvider(id = settings.get("ai_provider")) {
   const key = String(id || "gemini").toLowerCase();
   const provider = REGISTRY.get(key);
   if (!provider) {
-    throw new Error(tr(`Unknown provider: ${id}`, `مزود غير معروف: ${id}`));
+    throw new Error(tr(`Unknown provider: ${id}`, `مزود غير معروف: ${id}`, `مزود غير معروف (نامعلوم فراہم کنندہ): ${id}`));
   }
   return provider;
 }

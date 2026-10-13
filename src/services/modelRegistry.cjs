@@ -101,6 +101,40 @@ function ensureBaselineModels(models, provider) {
   const baselines = {
     openai: [
       {
+        id: "Olmo-3.1-32B-Instruct",
+        displayName: "Olmo 3.1 32B Instruct (Free / flip-ia)",
+        recommended: true,
+        status: "active",
+        aliases: ["olmo-3.1-32b", "olmo-3.1-32b-instruct"],
+        capabilitySource: "official-docs",
+        capabilities: {
+          textInput: true,
+          textOutput: true,
+          vision: false,
+          audioInput: false,
+          stt: false,
+          videoInput: false,
+          pdfInput: false,
+        },
+      },
+      {
+        id: "Olmo-3-7B-Instruct",
+        displayName: "Olmo 3 7B Instruct (Free / flip-ia)",
+        recommended: false,
+        status: "active",
+        aliases: ["olmo-3-7b", "olmo-3-7b-instruct"],
+        capabilitySource: "official-docs",
+        capabilities: {
+          textInput: true,
+          textOutput: true,
+          vision: false,
+          audioInput: false,
+          stt: false,
+          videoInput: false,
+          pdfInput: false,
+        },
+      },
+      {
         id: "gpt-4o",
         displayName: "GPT-4o",
         recommended: false,

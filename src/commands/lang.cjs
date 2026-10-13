@@ -13,8 +13,8 @@ module.exports = {
     ar: "يعرض لغة البوت أو يغيّرها.",
   },
   usage: {
-    en: "lang [en|ar|auto]",
-    ar: "lang [en|ar|auto]",
+    en: "lang [ur|en|ar|auto]",
+    ar: "lang [ur|en|ar|auto]",
   },
   chat: "all",
 
@@ -24,11 +24,23 @@ module.exports = {
     const prefix = runtimeConfig.getPrefix();
     const currentLang = settings.get("bot_language") || "auto";
 
-    const firstArg = args?.[0] ? String(args[0]).toLowerCase().trim() : "";
+    const rawFirst = args?.[0] ? String(args[0]).toLowerCase().trim() : "";
+    const LANG_MAP = {
+      ur: "ur",
+      urdu: "ur",
+      "اردو": "ur",
+      ar: "ar",
+      arabic: "ar",
+      en: "en",
+      english: "en",
+      auto: "auto",
+    };
+    const firstArg = LANG_MAP[rawFirst] || "";
 
     if (!args || args.length === 0) {
       const labels = {
-        auto: tr("Auto (follows each message)", "تلقائي (حسب لغة رسالتك)"),
+        auto: tr("Auto (follows each message)", "تلقائي (حسب لغة رسالتك)", "آٹو (ہر میسج کی زبان کے مطابق)"),
+        ur: "اردو (Urdu)",
         ar: tr("Arabic", "العربية الفصحى"),
         en: tr("English", "الإنجليزية"),
       };
@@ -36,29 +48,42 @@ module.exports = {
         `🌐 *Bot language*
 
 ⚙️ *Current:* \`${labels[currentLang] || currentLang}\`
-• \`${prefix}lang ar\` — Modern Standard Arabic, always
+• \`${prefix}lang ur\` — Urdu (اردو) always
 • \`${prefix}lang en\` — English always
+• \`${prefix}lang ar\` — Modern Standard Arabic always
 • \`${prefix}lang auto\` — follow the language of each message
 
-Commands, !help and the AI all answer in it.
+Commands, !help, TTS and the AI all answer in it.
 
 🔢 *To convert digits* use \`${prefix}digit\` — e.g. \`${prefix}digit 12345\``,
         `🌐 *لغة البوت*
 
 ⚙️ *اللغة الحالية:* \`${labels[currentLang] || currentLang}\`
+• \`${prefix}lang ur\` — الأردية (اردو) دائمًا
 • \`${prefix}lang ar\` — العربية الفصحى دائماً
 • \`${prefix}lang en\` — English always
 • \`${prefix}lang auto\` — تلقائي حسب لغة الرسالة
 
-ستستخدمها جميع الأوامر و!help والذكاء الاصطناعي في الردود.
+ستستخدمها جميع الأوامر و!help والصوت والذكاء الاصطناعي في الردود.
 
 🔢 *لتحويل الأرقام* استخدم \`${prefix}digit\` — مثال: \`${prefix}digit 12345\``,
+        `🌐 *بوٹ کی زبان*
+
+⚙️ *موجودہ زبان:* \`${labels[currentLang] || currentLang}\`
+• \`${prefix}lang ur\` — ہمیشہ اردو میں جواب دے
+• \`${prefix}lang en\` — ہمیشہ انگلش میں جواب دے
+• \`${prefix}lang ar\` — ہمیشہ عربی میں جواب دے
+• \`${prefix}lang auto\` — ہر میسج کی اپنی زبان کے مطابق
+
+تمام کمانڈز، !help، ٹیکسٹ ٹو وائس (TTS) اور AI اسی زبان میں جواب دیں گے۔
+
+🔢 *ہندسے تبدیل کرنے کے لیے:* \`${prefix}digit 12345\``
       );
       await sock.sendMessage(chatId, { text }, { quoted: msg });
       return;
     }
 
-    if (firstArg === "ar" || firstArg === "en" || firstArg === "auto") {
+    if (firstArg) {
       if (args.length > 1) {
         await sock.sendMessage(
           chatId,
@@ -92,7 +117,15 @@ Commands, !help and the AI all answer in it.
       settings.set("bot_language", firstArg);
       logger.info(`[Language] Bot response language set to: ${firstArg}`);
 
-      if (firstArg === "ar") {
+      if (firstArg === "ur") {
+        await sock.sendMessage(
+          chatId,
+          {
+            text: "✅ بوٹ کی زبان *اردو* پر سیٹ کر دی گئی ہے۔ تمام کمانڈز، AI اور ٹیکسٹ ٹو وائس اب اردو میں جواب دیں گے۔\n✅ Bot language set to *Urdu* (اردو).",
+          },
+          { quoted: msg },
+        );
+      } else if (firstArg === "ar") {
         await sock.sendMessage(
           chatId,
           {
@@ -115,6 +148,7 @@ Commands, !help and the AI all answer in it.
             text: tr(
               "✅ Language set to *Auto*. The bot will answer each message in the language it is written in.",
               "✅ تم ضبط اللغة على *التلقائي (Auto)*. سيرد البوت بحسب لغة كل رسالة ترسلها له تلقائياً.",
+              "✅ زبان *آٹو (Auto)* پر سیٹ کر دی گئی۔ بوٹ ہر میسج کی زبان کے مطابق جواب دے گا۔"
             ),
           },
           { quoted: msg },
@@ -127,8 +161,9 @@ Commands, !help and the AI all answer in it.
       chatId,
       {
         text: tr(
-          `❌ Unknown option.\nUse:\n• \`${prefix}lang ar\` / \`${prefix}lang en\` / \`${prefix}lang auto\` for the bot's language\n• \`${prefix}digit 12345\` to convert digits`,
-          `❌ خيار غير صحيح.\nاستخدم:\n• \`${prefix}lang ar\` / \`${prefix}lang en\` / \`${prefix}lang auto\` للغة البوت\n• \`${prefix}digit 12345\` لتحويل الأرقام`,
+          `❌ Unknown option.\nUse:\n• \`${prefix}lang ur\` / \`${prefix}lang en\` / \`${prefix}lang ar\` / \`${prefix}lang auto\` for the bot's language\n• \`${prefix}digit 12345\` to convert digits`,
+          `❌ خيار غير صحيح.\nاستخدم:\n• \`${prefix}lang ur\` / \`${prefix}lang ar\` / \`${prefix}lang en\` / \`${prefix}lang auto\` للغة البوت\n• \`${prefix}digit 12345\` لتحويل الأرقام`,
+          `❌ غلط آپشن۔\nاستعمال کریں:\n• \`${prefix}lang ur\` / \`${prefix}lang en\` / \`${prefix}lang ar\` / \`${prefix}lang auto\`\n• ہندسوں کے لیے: \`${prefix}digit 12345\``
         ),
       },
       { quoted: msg },

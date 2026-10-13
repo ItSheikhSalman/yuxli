@@ -290,14 +290,16 @@ function describeRecurringCron(cronString, timezone, lang) {
 
 function describeScheduledJob(job, timezone, lang = "en") {
   const ar = lang === "ar";
+  const ur = lang === "ur";
   if (job.type === "recurring") {
     return describeRecurringCron(job.cronString, timezone, ar ? "ar" : "en");
   }
 
   const date = new Date(job.date);
-  if (!Number.isFinite(date.getTime())) return ar ? "تاريخ غير صالح" : "Invalid date";
+  if (!Number.isFinite(date.getTime())) return ar ? "تاريخ غير صالح" : ur ? "غلط تاریخ" : "Invalid date";
+  const locale = ar ? "ar-EG" : ur ? "ur-PK" : "en-GB";
   return withZone(
-    new Intl.DateTimeFormat(ar ? "ar-EG" : "en-GB", {
+    new Intl.DateTimeFormat(locale, {
       dateStyle: "medium",
       timeStyle: "short",
       timeZone: timezone,

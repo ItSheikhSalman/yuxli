@@ -92,7 +92,7 @@ try {
 // No product identity in here: that comes from src/config/ai-identity.cjs and is
 // prepended separately, so it survives any edit to the persona.
 const DEFAULT_PERSONA = `You are a capable personal WhatsApp assistant.
-Be concise and direct by default, reply in the language the user writes in, and
+Be concise and direct by default, reply in Urdu (اردو), and
 use your tools instead of guessing when something needs to be looked up.`;
 
 let personaCache = { text: null, stamp: null };
@@ -130,7 +130,9 @@ function loadPersona() {
 
 function nowLabel() {
   try {
-    return new Intl.DateTimeFormat("ar-EG", {
+    const botLang = settings.get("bot_language") || "ur";
+    const locale = botLang === "en" ? "en-US" : botLang === "ar" ? "ar-EG" : "ur-PK";
+    return new Intl.DateTimeFormat(locale, {
       timeZone: settings.get("bot_timezone"),
       dateStyle: "full",
       timeStyle: "short",
@@ -141,14 +143,17 @@ function nowLabel() {
 }
 
 function botLangDirective() {
-  const botLang = settings.get("bot_language") || "auto";
-  if (botLang === "ar") {
-    return "- Language instruction: Always reply in Modern Standard Arabic (العربية الفصحى), clear, professional, and well-phrased.";
+  const botLang = settings.get("bot_language") || "ur";
+  if (botLang === "ur") {
+    return "- Language instruction: Always reply in Urdu (اردو), clear, natural, polite, respectful, and well-phrased. If the user writes in Roman Urdu (e.g. 'kya haal hai', 'batao'), you can reply in Roman Urdu or Urdu as appropriate. When using the speak tool (voice notes), always provide the text in Urdu.";
   }
   if (botLang === "en") {
     return "- Language instruction: Always reply in English, clear, professional, natural, and direct.";
   }
-  return "- Language instruction: Automatically reply in the language the user writes in (Modern Standard Arabic if Arabic, English if English).";
+  if (botLang === "ar") {
+    return "- Language instruction: Always reply in Modern Standard Arabic (العربية الفصحى), clear, professional, and well-phrased.";
+  }
+  return "- Language instruction: Reply in Urdu (اردو) by default, or automatically reply in the language the user writes in (Urdu if Urdu/Roman Urdu, English if English, Modern Standard Arabic if Arabic). When asked for voice notes or speech, always speak in Urdu.";
 }
 
 /**
@@ -268,7 +273,9 @@ function isAgentEnabled() {
   // a base URL configured is enough to turn the agent on — the key is optional.
   const provider = settings.get("ai_provider");
   const hasKey = Boolean(settings.get(activeProviderKeySetting()));
-  const keylessOpenai = provider === "openai" && Boolean(settings.get("openai_base_url"));
+  const baseUrl = (settings.get("openai_base_url") || "").trim().toLowerCase().replace(/\/+$/, "");
+  const isCustomEndpoint = baseUrl && baseUrl !== "https://api.openai.com/v1" && baseUrl !== "https://api.openai.com";
+  const keylessOpenai = provider === "openai" && isCustomEndpoint;
   return (hasKey || keylessOpenai) && settings.get("ai_agent");
 }
 

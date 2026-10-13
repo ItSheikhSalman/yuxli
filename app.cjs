@@ -282,6 +282,10 @@ app.post("/setup", (req, res, next) => {
 
 // --- Routes ---------------------------------------------------------------
 
+app.get(["/health", "/ping", "/healthz"], (req, res) => {
+  res.status(200).json({ status: "ok", bot: "Yuxli", timestamp: Date.now() });
+});
+
 app.get("/", noStore, (req, res) => {
   if (!secrets.hasDashboardPassword()) return res.redirect("/setup");
   if (isPanelSessionValid(req.session)) {

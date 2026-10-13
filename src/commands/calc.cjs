@@ -100,8 +100,8 @@ function normalize(input) {
     // (write `max(3, 900)` with a space so it isn't read as 3900)
     .replace(/(?<=\d),(?=\d{3}(?!\d))/g, "");
 
-  // «20% من 300» / «20% of 300» -> (20/100)*300, so % stays modulo elsewhere.
-  text = text.replace(/(\d+(?:\.\d+)?)\s*%\s*(?:of|من)\s*/gi, (_, value) => `(${value}/100)*`);
+  // «20% من 300» / «20% of 300» / «300 کا 20%» -> (20/100)*300, so % stays modulo elsewhere.
+  text = text.replace(/(\d+(?:\.\d+)?)\s*%\s*(?:of|من|کا|کی|کے)\s*/gi, (_, value) => `(${value}/100)*`);
 
   return text.trim();
 }

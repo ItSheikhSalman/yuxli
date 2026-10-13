@@ -200,6 +200,40 @@ const TEXT = {
       private: "المحادثات الخاصة فقط",
     },
   },
+  ur: {
+    title: `🤖 ${brand.name} کمانڈز`,
+    general: "عام کمانڈز",
+    group: "گروپ کمانڈز",
+    legendTitle: "علامات",
+    legend: "`<...>` لازمی · `[...]` اختیاری · `a|b` کوئی ایک چنیں",
+    languageTitle: "زبان",
+    footer: (p) => `تفصیل کے لیے لکھیں: *${p}help <کمانڈ>*`,
+    detailTitle: "کمانڈ کی تفصیل",
+    command: "کمانڈ:",
+    aliases: "متبادل نام:",
+    description: "تفصیل:",
+    usage: "طریقہ استعمال:",
+    examples: "مثالیں:",
+    where: "دستیاب ہے:",
+    permission: "ضروری اجازت:",
+    userAdmin: "⚠️ آپ کا گروپ ایڈمن ہونا ضروری ہے",
+    botAdmin: "⚠️ بوٹ کا گروپ ایڈمن ہونا ضروری ہے",
+    detailLegend: "`<...>` لازمی · `[...]` اختیاری",
+    notFound: (query, p) =>
+      `❌ کمانڈ "*${query}*" نہیں ملی۔\nتمام کمانڈز کے لیے \`${p}help\` لکھیں۔`,
+    permissions: {
+      MEMBERS: "تمام ممبرز",
+      ALL: "تمام ممبرز",
+      ADMINS_ONLY: "صرف ایڈمنز",
+      ADMINS_OWNER: "ایڈمنز اور اونر",
+      OWNER_ONLY: "صرف اونر",
+    },
+    chats: {
+      all: "تمام چیٹس",
+      group: "صرف گروپس",
+      private: "صرف پرائیویٹ چیٹس",
+    },
+  },
 };
 
 // Permission level as configured for this command (group sub-commands live in
@@ -225,7 +259,7 @@ function parseArgs(args = []) {
 }
 
 function renderList(commands, prefix, lang) {
-  const t = TEXT[lang];
+  const t = TEXT[lang] || TEXT.ur || TEXT.en;
   const section = (title, list) => {
     let text = `├─ *${title}*\n`;
     list.forEach((cmd) => {
@@ -262,13 +296,13 @@ function renderList(commands, prefix, lang) {
   // Starts with the LTR command, so the line lays out left-to-right in both
   // menus and each language name stays next to its own command.
   text += `├─ *${t.languageTitle}*\n`;
-  text += `│  \`${prefix}help ar\` — العربية · \`${prefix}help en\` — English\n│\n`;
+  text += `│  \`${prefix}help ur\` — اردو · \`${prefix}help en\` — English · \`${prefix}help ar\` — العربية\n│\n`;
   text += `╰───「 ${t.footer(prefix)} 」`;
   return text;
 }
 
 function renderDetail(command, isGroupCommand, prefix, lang) {
-  const t = TEXT[lang];
+  const t = TEXT[lang] || TEXT.ur || TEXT.en;
   // Same bidi rule as the list: a label ends its own line and the value
   // starts the next one, so no line mixes RTL and LTR content.
   let text = `╭───「 *${t.detailTitle}* 」\n│\n`;
@@ -310,14 +344,16 @@ function renderDetail(command, isGroupCommand, prefix, lang) {
 
 module.exports = {
   name: "help",
-  aliases: ["menu", "commands", "h", "مساعدة", "الاوامر", "اوامر"],
+  aliases: ["menu", "commands", "h", "مدد", "مساعدة", "الاوامر", "اوامر"],
   description: {
-    en: "Lists every command, or shows the details of one — in Arabic or English.",
+    ur: "تمام کمانڈز یا کسی ایک کمانڈ کی تفصیل دکھاتا ہے — اردو یا انگلش میں۔",
+    en: "Lists every command, or shows the details of one — in Urdu, English, or Arabic.",
     ar: "يعرض كل الأوامر أو تفاصيل أمر واحد — بالعربية أو الإنجليزية.",
   },
   usage: {
-    en: "help [ar|en]\nhelp <command> [ar|en]",
-    ar: "help [ar|en]\nhelp <اسم الأمر> [ar|en]",
+    ur: "help [ur|en|ar]\nhelp <کمانڈ> [ur|en|ar]",
+    en: "help [ur|en|ar]\nhelp <command> [ur|en|ar]",
+    ar: "help [ur|en|ar]\nhelp <اسم الأمر> [ur|en|ar]",
   },
   chat: "all",
 
@@ -346,10 +382,11 @@ module.exports = {
     const command = findCommand(query, commands, aliasIndex);
 
     if (!command) {
+      const t = TEXT[lang] || TEXT.ur || TEXT.en;
       return sendBotMessage(
         sock,
         msg.key.remoteJid,
-        { text: TEXT[lang].notFound(parsed.query, prefix) },
+        { text: t.notFound(parsed.query, prefix) },
         { replyTo: msg },
       );
     }

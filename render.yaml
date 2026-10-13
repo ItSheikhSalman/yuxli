@@ -4,7 +4,12 @@ services:
     runtime: docker
     plan: free
     autoDeploy: true
-    healthCheckPath: /healthz
+    healthCheckPath: /health
     envVars:
       - key: NODE_ENV
         value: production
+      - key: PORT
+        value: 3001
+      - key: LEVIX_DATA_DIR
+        value: /data
+

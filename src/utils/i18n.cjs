@@ -26,6 +26,10 @@ const settings = require("../config/settings.cjs");
 const scope = new AsyncLocalStorage();
 
 const ARABIC_LETTERS = /[\u0621-\u064A\u0671-\u06D3\u06FA-\u06FF]/;
+const URDU_LETTERS = /[\u0679\u0688\u0691\u06BA\u06C1\u06D2\u06BE\u067E\u0686\u06AF\u0698]/;
+const URDU_WORDS = /(?:^|\s)(?:کیا|کیسے|کیسی|کیسا|حال|ٹھیک|ہاں|نہیں|مجھے|میرا|میری|میرے|تیرا|تیری|تیرے|آپ|تم|ہم|ہمارا|ہونا|کرو|کریں|بتاؤ|بتائیں|شکریہ|اچھا|بھائی|یار|کیوں|کب|کہاں|کون|کس|والا|والی|والے|تھا|تھی|تھے|ہوں|ہیں|ہے)(?:$|\s)/;
+const ROMAN_URDU_WORDS = /\b(kya|kaise|kaisay|kaisa|kaisi|haal|theek|thik|haan|nahi|nahin|mujhe|mujhey|tum|tumhara|tumhari|aap|aapka|aapki|aapke|hum|hamara|mera|meri|mere|tera|teri|tere|karo|karein|batao|batayein|bolo|shukriya|acha|achha|bhai|yaar|kyun|kyu|kab|kahan|kaun|wala|wali|wale|tha|thi|the|hoon|hain|hai)\b/i;
+
 const LATIN_WORD = /[a-z][a-z'’-]*/gi;
 // A whole token made of letters. `3fa85f64-…` (an id), `2d6`, `10pm` are not
 // words in any language.
@@ -37,7 +41,7 @@ const NOT_WORDS = /(?:https?:\/\/|www\.)\S+|\S+@\S+|@\S+/gi;
 /** The configured language, or null for "auto". */
 function configuredLang() {
   const setting = settings.get("bot_language");
-  return setting === "ar" || setting === "en" ? setting : null;
+  return setting === "ar" || setting === "en" || setting === "ur" ? setting : null;
 }
 
 /**
@@ -54,6 +58,13 @@ function detectLang(text = "", { syntax = [] } = {}) {
   if (fixed) return fixed;
 
   const clean = String(text || "").replace(NOT_WORDS, " ");
+
+  // Urdu-specific letters or common Urdu words
+  if (URDU_LETTERS.test(clean) || URDU_WORDS.test(clean)) return "ur";
+
+  // Roman Urdu words
+  if (ROMAN_URDU_WORDS.test(clean)) return "ur";
+
   if (ARABIC_LETTERS.test(clean)) return "ar";
 
   const ignore = new Set([...syntax].map((word) => String(word).toLowerCase()));
@@ -61,15 +72,15 @@ function detectLang(text = "", { syntax = [] } = {}) {
     .split(/\s+/)
     .map((token) => token.replace(TOKEN_EDGES, "").toLowerCase())
     .filter((token) => ENGLISH_WORD.test(token) && !ignore.has(token));
-  return words.length ? "en" : "ar";
+  return words.length ? "en" : "ur";
 }
 
 /**
  * The Latin words that are part of a command's syntax: its name, its aliases,
  * the literal keywords in its usage (`add`, `on|off`, `global`, `--multi`)
  * and any `keywords` it declares.
- * The Arabic usage is where those keywords live on their own — its
- * placeholders are Arabic — so it is the one read.
+ * The Urdu/Arabic usage is where those keywords live on their own — its
+ * placeholders are Urdu/Arabic — so it is the one read.
  */
 function syntaxWords(command, aliases = command?.aliases || []) {
   const words = new Set();
@@ -79,7 +90,7 @@ function syntaxWords(command, aliases = command?.aliases || []) {
   add(command?.name);
   for (const alias of aliases || []) add(alias);
   const usage = command?.usage;
-  add(typeof usage === "string" ? usage : usage?.ar || usage?.en);
+  add(typeof usage === "string" ? usage : usage?.ur || usage?.ar || usage?.en);
   // Synonyms a command accepts but doesn't list in its usage (`grant`, `me`).
   for (const keyword of command?.keywords || []) add(keyword);
   return words;
@@ -97,17 +108,21 @@ function langForCommand(command, args = [], aliases = command?.aliases || []) {
 
 /** Run `fn` with replies in `lang`. Returns what `fn` returns. */
 function withLang(lang, fn) {
-  return scope.run(lang === "en" ? "en" : "ar", fn);
+  const chosen = lang === "en" ? "en" : lang === "ar" ? "ar" : "ur";
+  return scope.run(chosen, fn);
 }
 
 /** The language of the message being answered right now. */
 function currentLang() {
-  return scope.getStore() || configuredLang() || "ar";
+  return scope.getStore() || configuredLang() || "ur";
 }
 
 /** Pick the reply for the current message. */
-function tr(en, ar) {
-  return currentLang() === "en" ? en : ar;
+function tr(en, ar, ur) {
+  const lang = currentLang();
+  if (lang === "en") return en;
+  if (lang === "ar") return ar;
+  return ur || en;
 }
 
 module.exports = { detectLang, syntaxWords, langForCommand, withLang, currentLang, tr };

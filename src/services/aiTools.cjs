@@ -760,7 +760,8 @@ const TOOLS = {
       const now = new Date();
       let local;
       try {
-        local = new Intl.DateTimeFormat("ar-EG", {
+        const botLocale = settings.get("bot_language") === "en" ? "en-US" : settings.get("bot_language") === "ar" ? "ar-EG" : "ur-PK";
+        local = new Intl.DateTimeFormat(botLocale, {
           timeZone,
           dateStyle: "full",
           timeStyle: "short",
@@ -880,7 +881,8 @@ const TOOLS = {
       }
       let local;
       try {
-        local = new Intl.DateTimeFormat("ar-EG", {
+        const botLocale = settings.get("bot_language") === "en" ? "en-US" : settings.get("bot_language") === "ar" ? "ar-EG" : "ur-PK";
+        local = new Intl.DateTimeFormat(botLocale, {
           timeZone: settings.get("bot_timezone"),
           dateStyle: "full",
           timeStyle: "short",
@@ -937,23 +939,24 @@ const TOOLS = {
     declaration: {
       name: "speak",
       description:
-        "Send your answer as a WhatsApp VOICE NOTE (text-to-speech) instead of text. Only when the user explicitly asks to hear it — 'اقرأها بصوت', 'read it aloud', 'send it as voice'. The text must be ready to be read aloud; keep it short.",
+        "Send your answer as a WhatsApp VOICE NOTE (text-to-speech) in Urdu instead of text. Only when the user explicitly asks to hear it — 'آواز میں بولو', 'voice note bhejo', 'audio mein batao', 'read it aloud', 'send it as voice', 'اقرأها بصوت'. The text must be ready to be read aloud in Urdu; keep it short and natural.",
       parameters: {
         type: T.OBJECT,
         properties: {
           text: {
             type: T.STRING,
-            description: "What the voice note says. Plain spoken prose, no markdown, no links.",
+            description: "What the voice note says. Plain spoken Urdu prose (or English if the user asked in English). No markdown, no links.",
           },
           language: {
             type: T.STRING,
-            description: "Optional language code, e.g. 'ar' (default) or 'en'.",
+            description: "Optional language code: 'ur' for Urdu (default), 'en' for English, 'ar' for Arabic.",
           },
         },
         required: ["text"],
       },
     },
-    describe: (args) => `🎙️ جارٍ تحويل الرد لرسالة صوتية: ${preview(args?.text, 40)}`,
+    describe: (args) => `🎙️ آواز میں جواب تیار کیا جا رہا ہے: ${preview(args?.text, 40)}`,
+    describeUr: (args) => `🎙️ آواز میں جواب تیار کیا جا رہا ہے: ${preview(args?.text, 40)}`,
     describeEn: (args) => `🎙️ Converting the reply to a voice note: ${preview(args?.text, 40)}`,
     // Posting a voice note into this chat is what `!tts` does, so its level.
     access: { command: "tts" },
@@ -965,7 +968,8 @@ const TOOLS = {
       }
       if (!sock) return { error: "no WhatsApp connection is attached to this turn" };
 
-      const lang = String(args?.language || "ar").trim() || "ar";
+      const defaultLang = settings.get("bot_language") === "ar" ? "ar" : (settings.get("bot_language") === "en" ? "en" : "ur");
+      const lang = String(args?.language || defaultLang).trim() || defaultLang;
       const tts = require("../commands/tts.cjs");
       const voice = await tts._synthesizeVoice(text, lang);
       await sendBotMessage(
@@ -1171,10 +1175,18 @@ async function summarizeWithProvider(transcript) {
 function describeCall(name, args, lang = currentLang()) {
   const tool = TOOLS[name];
   const isEn = lang === "en";
-  const fallback = isEn ? `⚙️ Running: ${name}` : `⚙️ جارٍ تشغيل: ${name}`;
+  const isUr = lang === "ur";
+  const fallback = isUr
+    ? `⚙️ عمل جاری ہے: ${name}`
+    : isEn
+      ? `⚙️ Running: ${name}`
+      : `⚙️ جارٍ تشغيل: ${name}`;
   if (!tool) return fallback;
   try {
-    if (isEn && typeof tool.describeEn === "function") {
+    if (isUr && typeof tool.describeUr === "function") {
+      return tool.describeUr(args) || fallback;
+    }
+    if ((isUr || isEn) && typeof tool.describeEn === "function") {
       return tool.describeEn(args) || fallback;
     }
     return tool.describe(args) || fallback;

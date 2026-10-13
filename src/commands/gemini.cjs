@@ -576,7 +576,7 @@ module.exports = {
           text:
             prompt ||
             mediaMessage.caption ||
-            tr("What is in this image/video?", "ماذا يوجد في هذه الصورة/الفيديو؟"),
+            tr("What is in this image/video?", "ماذا يوجد في هذه الصورة/الفيديو؟", "اس تصویر یا ویڈیو میں کیا ہے؟"),
         });
       } catch (error) {
         logger.error({ err: error }, "Failed to upload media to Gemini.");
@@ -584,7 +584,7 @@ module.exports = {
           sock,
           chatId,
           error,
-          tr("Uploading the image/video failed", "حصلت مشكلة في رفع الصورة/الفيديو"),
+          tr("Uploading the image/video failed", "حصلت مشكلة في رفع الصورة/الفيديو", "تصویر یا ویڈیو اپلوڈ کرنے میں ناکامی"),
           {
             replyTo: msg,
           },
@@ -593,14 +593,14 @@ module.exports = {
     } else if (!parts.length && msg.message?.audioMessage) {
       try {
         await processIncomingMedia(parts, msg.message.audioMessage, "audio");
-        parts.push({ text: prompt || tr("Analyze this recording.", "حلل لي هذا التسجيل الصوتي.") });
+        parts.push({ text: prompt || tr("Analyze this recording.", "حلل لي هذا التسجيل الصوتي.", "اس آڈیو ریکارڈنگ کا تجزیہ کریں۔") });
       } catch (error) {
         logger.error({ err: error }, "Failed to upload audio to Gemini.");
         return sendBotError(
           sock,
           chatId,
           error,
-          tr("Uploading the recording failed", "حصلت مشكلة في رفع التسجيل الصوتي"),
+          tr("Uploading the recording failed", "حصلت مشكلة في رفع التسجيل الصوتي", "آڈیو ریکارڈنگ اپلوڈ کرنے میں ناکامی"),
           {
             replyTo: msg,
           },
@@ -749,7 +749,7 @@ module.exports = {
     }
 
     // The one message that will carry the whole run.
-    const status = await createStatus(sock, chatId, tr("🤖 Thinking...", "🤖 جارٍ التفكير..."), {
+    const status = await createStatus(sock, chatId, tr("🤖 Thinking...", "🤖 جارٍ التفكير...", "🤖 سوچ رہا ہوں..."), {
       replyTo: msg,
     });
 
@@ -790,6 +790,7 @@ module.exports = {
         tr(
           "The model sent no answer. Try asking another way.",
           "لم يردّ النموذج. حاول صياغة السؤال بطريقة أخرى.",
+          "ماڈل نے کوئی جواب نہیں دیا۔ براہ کرم دوبارہ پوچھیں۔",
         );
       // Appended only when Gemini really grounded the answer on a search —
       // formatSources() returns "" for an answer the model gave from its own
@@ -800,7 +801,11 @@ module.exports = {
       logger.error({ err: error }, "Error in !gemini command");
       await status.fail(
         error,
-        tr("Something went wrong while talking to the AI", "حصلت مشكلة وأنا بكلم الذكاء الاصطناعي"),
+        tr(
+          "Something went wrong while talking to the AI",
+          "حصلت مشكلة وأنا بكلم الذكاء الاصطناعي",
+          "AI سے رابطہ کرنے میں مسئلہ پیش آیا",
+        ),
       );
     }
   },

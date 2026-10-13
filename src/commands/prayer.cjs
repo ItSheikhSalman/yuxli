@@ -10,6 +10,7 @@ function formatTime12Hour(time24) {
 const axios = require("axios");
 const logger = require("../utils/logger.cjs");
 const { tr } = require("../utils/i18n.cjs");
+const settings = require("../config/settings.cjs");
 
 module.exports = {
   name: "prayer",
@@ -41,11 +42,12 @@ module.exports = {
     const city = args.join(" ");
 
     // 4. We will build the API URL here once you provide it
-    const API_URL = `https://api.aladhan.com/v1/timingsByCity/06-06-2025?city=${city}&country=EG&state=Egypt&method=5&shafaq=general&tune=5&timezonestring=Africa%2FCairo&calendarMethod=UAQ`;
+    const tz = encodeURIComponent(settings.get("bot_timezone") || "Asia/Karachi");
+    const API_URL = `https://api.aladhan.com/v1/timingsByCity?city=${encodeURIComponent(city)}&timezonestring=${tz}`;
 
     try {
       await sock.sendMessage(msg.key.remoteJid, {
-        text: tr("Fetching the times...", "يتم جلب البيانات..."),
+        text: tr("Fetching the times...", "يتم جلب البيانات...", "اوقات حاصل کیے جا رہے ہیں..."),
       });
       // 5. We will make the API call using axios
       const response = await axios.get(API_URL);
@@ -54,13 +56,13 @@ module.exports = {
 
       // 7. We will format the reply message
       const reply =
-        tr(`*Prayer times for ${city}:*\n\n`, `*مواقيت الصلاة لمدينة ${city}:*\n\n`) +
-        `${tr("Fajr", "الفجر")}: ${formatTime12Hour(timings.Fajr)}\n` +
-        `${tr("Sunrise", "الشروق")}: ${formatTime12Hour(timings.Sunrise)}\n` +
-        `${tr("Dhuhr", "الظهر")}: ${formatTime12Hour(timings.Dhuhr)}\n` +
-        `${tr("Asr", "العصر")}: ${formatTime12Hour(timings.Asr)}\n` +
-        `${tr("Maghrib", "المغرب")}: ${formatTime12Hour(timings.Maghrib)}\n` +
-        `${tr("Isha", "العشاء")}: ${formatTime12Hour(timings.Isha)}`;
+        tr(`*Prayer times for ${city}:*\n\n`, `*مواقيت الصلاة لمدينة ${city}:*\n\n`, `*نماز کے اوقات برائے ${city}:*\n\n`) +
+        `${tr("Fajr", "الفجر", "فجر")}: ${formatTime12Hour(timings.Fajr)}\n` +
+        `${tr("Sunrise", "الشروق", "طلوع آفتاب")}: ${formatTime12Hour(timings.Sunrise)}\n` +
+        `${tr("Dhuhr", "الظهر", "ظہر")}: ${formatTime12Hour(timings.Dhuhr)}\n` +
+        `${tr("Asr", "العصر", "عصر")}: ${formatTime12Hour(timings.Asr)}\n` +
+        `${tr("Maghrib", "المغرب", "مغرب")}: ${formatTime12Hour(timings.Maghrib)}\n` +
+        `${tr("Isha", "العشاء", "عشاء")}: ${formatTime12Hour(timings.Isha)}`;
 
       // 8. Send the formatted message
       await sock.sendMessage(msg.key.remoteJid, {
@@ -73,6 +75,7 @@ module.exports = {
         text: tr(
           `Sorry, I couldn't find prayer times for "${city}". Check the city's name and try again.`,
           `عذراً، لم أتمكن من العثور على وقت الصلاة في "${city}". يرجى التحقق من اسم المدينة ومحاولة مرة أخرى.`,
+          `معذرت، شہر "${city}" کے لیے نماز کے اوقات نہیں مل سکے۔ براہ کرم شہر کا نام چیک کر کے دوبارہ کوشش کریں۔`,
         ),
       });
     }

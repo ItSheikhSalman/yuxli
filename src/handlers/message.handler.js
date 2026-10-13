@@ -6,13 +6,16 @@ import normalizeJid from "../utils/normalizeJid.esm.js";
 import { getSenderCandidates, isBotAdminInGroup, sameUser } from "../utils/permissions.esm.js";
 import { rememberMessage } from "../utils/recentMessageCache.esm.js";
 import { saveUserMetadata, updateUserLastSeen } from "../utils/storage.esm.js";
-import { handleCommand } from "./command.handler.js";
+import { handleCommand, getLoadedCommands } from "./command.handler.js";
 
 const require = createRequire(import.meta.url);
 const logger = require("../utils/logger.cjs");
 const { visibleText } = require("../utils/messageContent.cjs");
 const { detectLang, withLang } = require("../utils/i18n.cjs");
 const autoDelete = require("../services/autoDelete.cjs");
+const settings = require("../config/settings.cjs");
+const { getProvider } = require("../services/aiRouter.cjs");
+const { resolveGroupMetadata } = require("../utils/groupMetadataCache.cjs");
 
 // Envelopes that carry no user-visible content: message revokes and edits
 // (protocolMessage), reactions, poll votes, the undecrypted edit envelope, and
@@ -138,7 +141,64 @@ async function processMessage(sock, msg, body) {
   if (isGroup) {
     await handleGroupModeration(sock, msg);
   }
+
+  // Handle direct AI auto-response (DMs or mentions in groups)
+  try {
+    await handleAutoAiReply(sock, msg, body, isGroup);
+  } catch (error) {
+    logger.error({ err: error }, "Error in auto AI reply");
+  }
 }
+
+async function handleAutoAiReply(sock, msg, body, isGroup) {
+  if (msg.key?.fromMe) return false;
+  if (!body || !body.trim()) return false;
+
+  const autoDm = settings.get("ai_auto_reply_dm");
+  const autoMention = settings.get("ai_auto_reply_mention");
+
+  let shouldReply = false;
+  let cleanText = body.trim();
+
+  if (!isGroup && autoDm) {
+    shouldReply = true;
+  } else if (isGroup && autoMention) {
+    const botJid = normalizeJid(sock.user?.id);
+    const botNum = botJid ? botJid.split("@")[0] : null;
+    const contextInfo =
+      msg.message?.extendedTextMessage?.contextInfo ||
+      msg.message?.imageMessage?.contextInfo ||
+      msg.message?.videoMessage?.contextInfo;
+
+    const mentionedJids = (contextInfo?.mentionedJid || []).map(normalizeJid);
+    const isQuotingBot = contextInfo?.participant && normalizeJid(contextInfo.participant) === botJid;
+    const isMentioned = botJid && mentionedJids.includes(botJid);
+
+    if (isQuotingBot || isMentioned) {
+      shouldReply = true;
+      if (botNum) {
+        cleanText = cleanText.replace(new RegExp(`@${botNum}\\b`, "gi"), "").trim();
+      }
+    }
+  }
+
+  if (!shouldReply || !cleanText) return false;
+
+  try {
+    const provider = getProvider();
+    if (!provider || !provider.isConfigured()) return false;
+
+    const geminiCmd = getLoadedCommands().get("gemini");
+    if (!geminiCmd) return false;
+
+    const groupMeta = isGroup ? await resolveGroupMetadata(sock, msg.key.remoteJid) : null;
+    logger.info({ chat: msg.key.remoteJid, isGroup }, "[AI] Direct auto-response triggered");
+    await geminiCmd.execute(sock, msg, cleanText.split(/ +/), cleanText, groupMeta, { invokedName: "ai" });
+    return true;
+  } catch (err) {
+    logger.error({ err }, "[AI] Direct auto-response failed");
+    return false;
+  }
 
 // Handle group moderation
 async function handleGroupModeration(sock, msg) {

@@ -8,10 +8,13 @@
 // Which language: `!help ar` / `!help en` say so explicitly. Otherwise it is
 // the language every other reply uses — see utils/i18n.cjs.
 
-const LANGS = ["en", "ar"];
+const LANGS = ["ur", "en", "ar"];
 
 // Words accepted after !help to pick a language.
 const LANG_WORDS = new Map([
+  ["ur", "ur"],
+  ["urdu", "ur"],
+  ["اردو", "ur"],
   ["en", "en"],
   ["english", "en"],
   ["eng", "en"],
