@@ -54,6 +54,13 @@ const EDIT_IN_PLACE_EXCLUDE = new Set([
   "pack",
   "stickers",
   "autodelete",
+  "doc",
+  "makepdf",
+  "todaytask",
+  "tomorrow",
+  "student",
+  "timetable",
+  "quiz",
 ]);
 
 // Wrap a socket so commands reply nicely:

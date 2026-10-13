@@ -199,6 +199,7 @@ async function handleAutoAiReply(sock, msg, body, isGroup) {
     logger.error({ err }, "[AI] Direct auto-response failed");
     return false;
   }
+}
 
 // Handle group moderation
 async function handleGroupModeration(sock, msg) {
