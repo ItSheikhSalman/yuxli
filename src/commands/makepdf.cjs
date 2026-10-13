@@ -63,11 +63,27 @@ module.exports = {
         text: `⏳ *${title}* ka PDF generate ho raha hai...`,
       });
 
+      // Check if replying to an image or message contains an image
+      let attachedImage = null;
+      try {
+        const { downloadContentFromMessage } = require("@whiskeysockets/baileys");
+        const { downloadMedia } = require("../utils/geminiMedia.cjs");
+        const ownInner = unwrapMessage(msg.message);
+        const quotedInner = quoted ? unwrapMessage(quoted) : null;
+        const imgMsg = ownInner?.imageMessage || quotedInner?.imageMessage;
+        if (imgMsg) {
+          attachedImage = await downloadMedia(downloadContentFromMessage, imgMsg, "image");
+        }
+      } catch (e) {
+        logger.debug({ err: e }, "[makepdf] Image attachment extract skipped");
+      }
+
       const pdfBuffer = createDocumentPdf({
         title,
         subtitle: `Created for @${senderId.split("@")[0]}  •  ${new Date().toLocaleDateString()}`,
         content: content.trim(),
         footer: "Yuxli Student Productivity Suite",
+        imageBuffer: attachedImage,
       });
 
       const cleanFileName = `${title.replace(/[^a-zA-Z0-9_-]/g, "_") || "Notes"}.pdf`;

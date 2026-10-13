@@ -61,6 +61,10 @@ const EDIT_IN_PLACE_EXCLUDE = new Set([
   "student",
   "timetable",
   "quiz",
+  "image",
+  "dp",
+  "logo",
+  "imagine",
 ]);
 
 // Wrap a socket so commands reply nicely:
