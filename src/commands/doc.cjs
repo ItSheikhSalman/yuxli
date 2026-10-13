@@ -90,7 +90,8 @@ module.exports = {
       });
 
       if (!result.success && !result.text) {
-        await status.edit("❌ Document read karne me masla aaya. File format check karein.");
+        if (status?.finish) await status.finish("❌ Document read karne me masla aaya. File format check karein.");
+        else await sock.sendMessage(chatId, { text: "❌ Document read karne me masla aaya. File format check karein." });
         return;
       }
 
@@ -98,7 +99,7 @@ module.exports = {
 
       // If user requested a PDF file back
       if (wantPdfOutput || subCommand === "topdf" || subCommand === "makepdf") {
-        await status.edit("📑 PDF generate ho raha hai...");
+        if (status?.update) await status.update("📑 PDF generate ho raha hai...");
 
         const pdfTitle = args.slice(1).join(" ") || `Summary - ${fileName.replace(/\.[^/.]+$/, "")}`;
         const generatedPdf = createDocumentPdf({
@@ -119,7 +120,7 @@ module.exports = {
           { quoted: msg },
         );
 
-        await status.edit("✅ PDF bhej diya gaya hai!");
+        if (status?.finish) await status.finish("✅ PDF bhej diya gaya hai!");
       } else {
         // Send formatted text response
         const titleBadge =
@@ -140,7 +141,11 @@ module.exports = {
           `💡 _Is ka PDF download karne ke liye reply karein: ` +
           `\`!doc topdf ${fileName.replace(/\.[^/.]+$/, "")}\`_`;
 
-        await status.edit(replyMessage);
+        if (status?.finish) {
+          await status.finish(replyMessage);
+        } else {
+          await sock.sendMessage(chatId, { text: replyMessage }, { quoted: msg });
+        }
       }
     } catch (err) {
       logger.error({ err, command: "doc" }, "Error in doc command");

@@ -107,6 +107,11 @@ class StatusMessage {
     return ok;
   }
 
+  /** Alias for finish/update */
+  async edit(text) {
+    return this.finish(text);
+  }
+
   /**
    * Turn the line into the standard error card. `lead` is the one-line
    * summary, already in the reply language — pass it through tr().
