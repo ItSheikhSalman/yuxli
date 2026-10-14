@@ -79,8 +79,8 @@ That's the whole setup. Keep the terminal open, or see *Keeping it running*.
 No Node install, nothing on your system but the container:
 
 ```bash
-git clone https://github.com/Abdodiab2005/levix
-cd levix
+git clone https://github.com/ItSheikhSalman/yuxli
+cd yuxli
 docker compose up -d
 ```
 

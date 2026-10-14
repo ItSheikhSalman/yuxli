@@ -872,7 +872,7 @@ async function renderSvgDocumentPdf({
   title = "Academic Notes",
   subtitle = "",
   content = "",
-  footer = "Levix Smart Student Suite",
+  footer = "Yuxli Smart Student Suite",
   imageBuffer = null,
   theme = "navy",
 }) {

@@ -13,17 +13,18 @@
 const BRAND = Object.freeze({
   name: "Yuxli",
   nameAr: "يوكسلي",
-  tagline: "Personal WhatsApp Bot",
-  taglineAr: "بوت واتساب شخصي",
+  tagline: "Personal WhatsApp Bot & Productivity Suite",
+  taglineAr: "بوت واتساب ذكي ومساعد إنتاجي متقدم",
 
   copyrightYear: 2026,
-  developer: "Yuxli",
-  developerAr: "يوكسلي",
-  developerSite: "",
-  studio: "Yuxli",
-  studioSite: "",
+  developer: "Sheikh Salman",
+  developerAr: "الشيخ سلمان",
+  developerUr: "شیخ سلمان",
+  developerSite: "https://github.com/ItSheikhSalman",
+  studio: "Yuxli Technologies",
+  studioSite: "https://github.com/ItSheikhSalman/yuxli",
 
-  repo: "",
+  repo: "https://github.com/ItSheikhSalman/yuxli",
 });
 
 module.exports = BRAND;

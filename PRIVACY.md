@@ -1,9 +1,9 @@
-# Levix Privacy Policy & Google Play Data Safety
+# Yuxli Privacy Policy & Google Play Data Safety
 
-> **Effective date:** 2026-09-22
-> **Applies to:** the Levix Android app (`net.leviro.levix`) and the Levix
+> **Effective date:** 2026-10-14
+> **Applies to:** the Yuxli Android app and the Yuxli
 > self-hosted server distributed from this repository.
-> **Product:** Levix, built by Abdelrhman Diab, Leviro.
+> **Product:** Yuxli, built by Sheikh Salman.
 
 ---
 
@@ -286,6 +286,5 @@ date. Continued use after a change means acceptance.
 
 - In the app: **Settings → Feedback** in the control panel — it reaches the
   developer directly, and is the fastest route for a bug or a request.
-- On the web: [levix.leviro.net/feedback](https://levix.leviro.net/feedback)
-- Issues & security reports: [github.com/Abdodiab2005/levix](https://github.com/Abdodiab2005/levix)
-- Product: Levix, built by Abdelrhman Diab, Leviro.
+- Issues & security reports: [github.com/ItSheikhSalman/yuxli](https://github.com/ItSheikhSalman/yuxli)
+- Product: Yuxli, built by Sheikh Salman.

@@ -167,7 +167,7 @@ async function enrichWikiResults(lang, titles, urls, limit) {
           `https://${lang}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`,
           {
             timeout: 8000,
-            headers: { "User-Agent": "LevixBot/3.4 (https://github.com/Abdodiab2005/levix)" },
+            headers: { "User-Agent": "YuxliBot/4.6 (https://github.com/ItSheikhSalman/yuxli)" },
           },
         );
         extract = summaryRes.data?.extract || summaryRes.data?.description || "";
@@ -197,7 +197,7 @@ async function searchWikipedia(query, language = "auto", limit = 3) {
         format: "json",
       },
       timeout: 10000,
-      headers: { "User-Agent": "LevixBot/3.4 (https://github.com/Abdodiab2005/levix)" },
+      headers: { "User-Agent": "YuxliBot/4.6 (https://github.com/ItSheikhSalman/yuxli)" },
     });
     const [, titles, , urls] = searchRes.data || [];
     if (!titles || !titles.length) {
@@ -211,7 +211,7 @@ async function searchWikipedia(query, language = "auto", limit = 3) {
           format: "json",
         },
         timeout: 10000,
-        headers: { "User-Agent": "LevixBot/3.4 (https://github.com/Abdodiab2005/levix)" },
+        headers: { "User-Agent": "YuxliBot/4.6 (https://github.com/ItSheikhSalman/yuxli)" },
       });
       const [, altTitles, , altUrls] = altRes.data || [];
       if (!altTitles || !altTitles.length) {

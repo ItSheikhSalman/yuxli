@@ -12,14 +12,16 @@ import { equal, finish, ok, ROOT, require, section } from "./harness.mjs";
 
 const pkg = require("./package.json");
 
-const packed = spawnSync("npm", ["pack", "--dry-run", "--json", "--ignore-scripts"], {
+const npmCmd = process.platform === "win32" ? "npm.cmd" : "npm";
+const packed = spawnSync(npmCmd, ["pack", "--dry-run", "--json", "--ignore-scripts"], {
   cwd: ROOT,
   encoding: "utf8",
   env: { ...process.env, npm_config_loglevel: "silent" },
+  shell: process.platform === "win32",
 });
 
 if (packed.status !== 0) {
-  console.log(`    npm pack failed: ${packed.stderr.slice(0, 400)}`);
+  console.log(`    npm pack failed: ${(packed.stderr || packed.error?.message || "").slice(0, 400)}`);
   ok("npm pack --dry-run succeeds", false);
   finish();
   process.exit(1);
@@ -35,7 +37,7 @@ const hasUnder = (prefix) => files.some((path) => path.startsWith(prefix));
 section("the package is complete");
 
 ok("npm pack --dry-run succeeds", true);
-equal("it is named levix-bot", manifest.name, "levix-bot");
+equal("it is named " + pkg.name, manifest.name, pkg.name);
 equal("at the version in package.json", manifest.version, pkg.version);
 
 for (const required of [

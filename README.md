@@ -1,10 +1,10 @@
 <p align="center">
-  <img src="public/brand/banner.webp" alt="Levix - Personal WhatsApp Bot" width="100%">
+  <img src="public/brand/banner.webp" alt="Yuxli - Personal WhatsApp Bot" width="100%">
 </p>
 
 <p align="center">
-  <a href="https://github.com/Abdodiab2005/levix/actions/workflows/ci.yml"><img src="https://github.com/Abdodiab2005/levix/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://www.npmjs.com/package/levix-bot"><img src="https://img.shields.io/npm/v/levix-bot?color=2563eb" alt="npm version"></a>
+  <a href="https://github.com/ItSheikhSalman/yuxli/actions/workflows/ci.yml"><img src="https://github.com/ItSheikhSalman/yuxli/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://www.npmjs.com/package/yuxli-bot"><img src="https://img.shields.io/npm/v/yuxli-bot?color=2563eb" alt="npm version"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-10b981" alt="MIT License"></a>
   <img src="https://img.shields.io/badge/Node.js-24%2B-339933?logo=nodedotjs&logoColor=white" alt="Node.js 24+">
 </p>
@@ -14,25 +14,25 @@
 </p>
 
 <p align="center">
-  <a href="https://levix.leviro.net">Website</a> ·
+  <a href="https://github.com/ItSheikhSalman/yuxli">Repository</a> ·
   <a href="SETUP.md">Setup guide</a> ·
-  <a href="https://github.com/Abdodiab2005/levix/releases/latest">Downloads</a> ·
-  <a href="https://github.com/Abdodiab2005/levix/issues">Issues</a>
+  <a href="https://github.com/ItSheikhSalman/yuxli/releases/latest">Downloads</a> ·
+  <a href="https://github.com/ItSheikhSalman/yuxli/issues">Issues</a>
 </p>
 
-Levix is a personal WhatsApp bot with 55 commands, group moderation, scheduled
-messages, an AI agent, media tools, and a web control panel. You run it on your
+Yuxli is a personal WhatsApp bot with 55+ commands, group moderation, scheduled
+messages, an AI agent, media tools, Urdu/English smart PDF generation, and a modern web control panel. You run it on your
 own computer or server, keep its database and session files yourself, and can
 change almost everything while it is running.
 
 There is no paid tier, hosted account, external database, or configuration file
-to maintain. Levix is released under the MIT License.
+to maintain. Yuxli is released under the MIT License.
 
 > [!WARNING]
-> Levix uses [Baileys](https://github.com/WhiskeySockets/Baileys), an unofficial
+> Yuxli uses [Baileys](https://github.com/WhiskeySockets/Baileys), an unofficial
 > WhatsApp Web client, and is not affiliated with or endorsed by WhatsApp or
 > Meta. Unofficial automation can lead to temporary restrictions or an account
-> ban. Do not use Levix for spam or unsolicited bulk messaging. If an outage or
+> ban. Do not use Yuxli for spam or unsolicited bulk messaging. If an outage or
 > account restriction is unacceptable, use the official WhatsApp Business
 > Platform instead.
 
@@ -40,38 +40,37 @@ to maintain. Levix is released under the MIT License.
 
 ### Linux server
 
-The public installer installs the latest stable release and configures Levix as
-a service:
-
 ```bash
-curl -fsSL https://levix.leviro.net/install.sh | bash
+git clone https://github.com/ItSheikhSalman/yuxli.git
+cd yuxli
+npm install
+npm run build:frontend
+npm start
 ```
-
-You can [read the installer](deploy/install.sh) before running it.
 
 ### npm
 
 Requires Node.js 24 or newer:
 
 ```bash
-npm install -g levix-bot
-levix
+npm install -g yuxli-bot
+yuxli
 ```
 
 ### Docker
 
 ```bash
-git clone https://github.com/Abdodiab2005/levix
-cd levix
+git clone https://github.com/ItSheikhSalman/yuxli
+cd yuxli
 docker compose up -d
-docker compose logs levix
+docker compose logs yuxli
 ```
 
 ### Android phone (No server required)
 
-Run Levix directly on an Android device (Android 10+, ARM64 or ARMv7) as a self-contained background companion:
+Run Yuxli directly on an Android device (Android 10+, ARM64 or ARMv7) as a self-contained background companion:
 
-1. Download **`levix-android-arm64.apk`** (64-bit phones) or **`levix-android-armv7.apk`** (32-bit phones) from [Releases](https://github.com/Abdodiab2005/levix/releases).
+1. Download **`yuxli-android-arm64.apk`** (64-bit phones) or **`yuxli-android-armv7.apk`** (32-bit phones) from [Releases](https://github.com/ItSheikhSalman/yuxli/releases).
 2. Install the APK and tap **Start Host**.
 3. Tap **Open Panel** to set your master password and link WhatsApp via 8-digit Pairing Code.
 
@@ -80,9 +79,9 @@ See [ANDROID.md](ANDROID.md) for full instructions, OEM battery optimizations (X
 ---
 
 Standalone Linux, macOS ARM64, and Windows binaries are available from the
-[latest GitHub release](https://github.com/Abdodiab2005/levix/releases/latest).
+[latest GitHub release](https://github.com/ItSheikhSalman/yuxli/releases/latest).
 
-When Levix starts:
+When Yuxli starts:
 
 1. Open the panel URL printed in the terminal.
 2. Choose a panel password. A remote first-time setup also asks for the printed
@@ -96,13 +95,14 @@ proxies, headless mode, backups, and troubleshooting.
 
 ## What you get
 
-| Area | What Levix provides |
+| Area | What Yuxli provides |
 | --- | --- |
-| Commands | 55 commands for utilities, notes, reminders, polls, media, speech, weather, prayer times, and more |
+| Commands | 55+ commands for utilities, notes, reminders, polls, media, speech, weather, prayer times, and more |
+| Smart PDF Suite | High-resolution academic notes and documents with Urdu Nastaliq / RTL shaping, auto AI summary, 6 color themes, and direct WhatsApp delivery |
 | Group moderation | Welcome messages, anti-link, anti-spam, media rules, warnings, auto-kick, roles, rules, and notes |
-| AI agent | Pick Google Gemini, OpenAI / any OpenAI-compatible server, or Anthropic from the panel; each provider has its own endpoint, API key, and model, with tools for web search, page reading, memory, and role management |
+| AI agent | Google Gemini, OpenAI / compatible, or Anthropic; web search, page reading, voice transcription, memory, and role management |
 | Scheduling | One-off, daily, and weekly messages with durable jobs, delivery status, and manual retry |
-| Control panel | Live connection state, command settings, roles, permissions, keys, memory, schedules, and logs |
+| Control panel | Live connection state, multi-palette theme engine, command settings, roles, permissions, keys, memory, schedules, and logs |
 | Media | Text, images, video, audio, QR codes, text-to-speech, and speech-to-text |
 | Stickers | Turn a photo, GIF, or short video into a sticker, and keep a personal library and packs from chat or the panel |
 | Deployment | Android APK, npm, Docker, systemd installer, standalone binaries, headless mode, and safe domain setup |
@@ -118,7 +118,7 @@ several tool rounds, search the web, read a page, save long-term memories, and
 manage bot roles. It narrates progress by editing one WhatsApp message and lists
 sources when it uses web search.
 
-AI is optional. The rest of Levix works without an AI key.
+AI is optional. The rest of Yuxli works without an AI key.
 
 ### Persistent schedules and memory
 
@@ -139,24 +139,24 @@ media, without changing how the panel or AI connects.
 ## CLI
 
 ```text
-levix                    start Levix with the web panel
-levix headless           start Levix with no web UI or open port
-levix where              print the data directory
-levix reset-password     reset the panel password
-levix domain [name]      configure a domain safely (may need sudo)
+yuxli                    start Yuxli with the web panel
+yuxli headless           start Yuxli with no web UI or open port
+yuxli where              print the data directory
+yuxli reset-password     reset the panel password
+yuxli domain [name]      configure a domain safely (may need sudo)
 ```
 
 A fresh panel install waits for you to start the first WhatsApp pairing.
-`levix headless` has no button to press, so it starts the session itself and
+`yuxli headless` has no button to press, so it starts the session itself and
 prints the QR in the terminal when needed.
 
 ## Data and configuration
 
 Everything mutable lives in one data directory:
 
-- npm installation: `~/.levix`
+- npm installation: `~/.yuxli`
 - source checkout: `./data`
-- Docker: the `levix-data` volume
+- Docker: the `yuxli-data` volume
 
 Copying this directory is a full backup, including the SQLite database, WhatsApp
 session, memory, and logs.
@@ -174,10 +174,11 @@ start.
 - **Node.js 24+** with ES modules and CommonJS where needed.
 - **Baileys v7** for the WhatsApp protocol engine, LID support, and phone pairing codes.
 - **`node:sqlite`** for a zero-dependency, single-file datastore.
-- **React + Vite Control Panel** (`frontend/`) with TypeScript, native RTL Arabic / English internationalization, Lucide icons, responsive drawer, modal dialogs, and real-time Socket.IO synchronization.
+- **React + Vite Control Panel** (`frontend/`) with TypeScript, multi-theme system (Navy, Emerald, Violet, Midnight, Light), native RTL Arabic / English internationalization, Lucide icons, responsive drawer, modal dialogs, and real-time Socket.IO synchronization.
 - **Express + EJS Gateways** for lightweight setup, login, and pairing QR gateway screens.
 - **Pluggable AI providers** — Google Gemini, OpenAI / any OpenAI-compatible endpoint, or
   Anthropic — each with its own endpoint, API key, and model in the control panel, no env file.
+- **HarfBuzz / Sharp / SVG Rendering** for crisp typography and complex script shaping (Urdu Nastaliq, Arabic, Hindi, English).
 - **Biome** for fast formatting and linting across the codebase.
 - **GitHub Actions** validation for tests, npm packaging, Docker persistence,
   Android APK packaging, and standalone executables on Linux, macOS, and Windows.
@@ -189,14 +190,13 @@ systemd, installers, and single-executable releases.
 ## Development
 
 ```bash
-git clone https://github.com/Abdodiab2005/levix
-cd levix
+git clone https://github.com/ItSheikhSalman/yuxli
+cd yuxli
 npm ci
 cd frontend && npm ci && cd ..
-npm run build        # compiles the React frontend to public/dashboard
-npm run lint         # runs Biome linter across the project
-npm test             # runs the full test suite
-npm start            # starts Levix
+npm run build:frontend  # compiles the React frontend to public/dashboard
+npm test                # runs the test suite
+npm start               # starts Yuxli
 ```
 
 Please read [CONTRIBUTING.md](CONTRIBUTING.md) before proposing a substantial
@@ -205,22 +205,13 @@ change. Bug reports and focused pull requests are welcome.
 For security issues, follow [SECURITY.md](SECURITY.md) and report them
 privately rather than opening a public issue.
 
-## Sending feedback
+## Support & Issues
 
-**Settings → Feedback** in the control panel writes straight to the developer.
-The bot forwards it server-side to `levix.leviro.net/api/feedback`, which
-delivers it as a Telegram message; the same form is on the web at
-[levix.leviro.net/feedback](https://levix.leviro.net/feedback). It carries your
-message, the topic, an optional rating, an optional contact and one optional
-file you attach (a screenshot or a log, up to 20 MB), plus the version and
-platform — and nothing from WhatsApp. Nothing leaves until you press Send.
-
-Prefer a public, trackable bug report with logs attached? Open an
-[issue](https://github.com/Abdodiab2005/levix/issues) instead.
+For bugs, feature suggestions, or questions, please open an
+[issue on GitHub](https://github.com/ItSheikhSalman/yuxli/issues).
 
 ## License
 
-Levix is free and open source under the [MIT License](LICENSE).
+Yuxli is free and open source under the [MIT License](LICENSE).
 
-Built by [Abdelrhman Diab](https://github.com/Abdodiab2005) under
-[Leviro](https://leviro.net).
+Developed and maintained by **[Sheikh Salman](https://github.com/ItSheikhSalman)**.

@@ -49,7 +49,7 @@ const PREFIX_PRESETS = ["!", "/", ".", "#", "$", "?"];
 
 // Marker written by the backend's settingsTransfer service — anything else is
 // not a settings file and is refused before it can touch anything.
-const EXPORT_FORMAT = "levix-settings";
+const EXPORT_FORMAT = "yuxli-settings";
 
 // UTF-8-safe base64 for handing the export to the Android host bridge.
 function toBase64(text: string): string {
@@ -134,12 +134,13 @@ export const SettingsView: React.FC = () => {
   });
 
   const [currentTheme, setCurrentTheme] = useState(() => {
-    return localStorage.getItem("levix_theme") || document.documentElement.getAttribute("data-theme") || "navy";
+    return localStorage.getItem("yuxli_theme") || localStorage.getItem("levix_theme") || document.documentElement.getAttribute("data-theme") || "navy";
   });
 
   const selectTheme = (themeName: string) => {
     setCurrentTheme(themeName);
     document.documentElement.setAttribute("data-theme", themeName);
+    localStorage.setItem("yuxli_theme", themeName);
     localStorage.setItem("levix_theme", themeName);
   };
 
@@ -148,7 +149,7 @@ export const SettingsView: React.FC = () => {
     try {
       const payload = await api.exportSettings();
       const json = JSON.stringify(payload, null, 2);
-      const fileName = `levix-settings-${payload.exportedAt?.slice(0, 10) || "export"}.json`;
+      const fileName = `yuxli-settings-${payload.exportedAt?.slice(0, 10) || "export"}.json`;
 
       // Inside the Android host a blob download is a dead end — the WebView
       // has no download manager wired for blob: URLs, so the file would just
@@ -188,7 +189,7 @@ export const SettingsView: React.FC = () => {
       toast(t("importSettingsError"), "error");
       return;
     }
-    if (payload?.format !== EXPORT_FORMAT) {
+    if (payload?.format !== EXPORT_FORMAT && payload?.format !== "levix-settings") {
       toast(t("importSettingsError"), "error");
       return;
     }

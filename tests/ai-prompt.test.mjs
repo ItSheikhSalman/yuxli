@@ -120,7 +120,7 @@ const instruction = aiAgent.buildSystemInstruction({
 });
 
 for (const needle of [
-  "Levix",
+  aiIdentity.product,
   aiIdentity.developer,
   aiIdentity.developerAr,
   String(aiIdentity.developerBornYear),
@@ -165,7 +165,7 @@ section("the operator cannot edit the identity away");
 
   const after = aiAgent.buildSystemInstruction({ chatId: "1@s.whatsapp.net" });
   ok("the edit did take effect", after.includes("Botly"));
-  ok("but Levix is still Levix", after.includes("You are Levix"));
+  ok(`but ${aiIdentity.product} is still ${aiIdentity.product}`, after.includes(`You are ${aiIdentity.product}`));
   ok("and the developer is still credited", after.includes(aiIdentity.developer));
   ok("…above the operator's text", after.indexOf(aiIdentity.developer) < after.indexOf("Botly"));
 }

@@ -9,6 +9,7 @@
 
 const { tr } = require("../utils/i18n.cjs");
 const { isolate } = require("../utils/bidi.cjs");
+const brand = require("../config/brand.cjs");
 
 const CODES = Object.freeze({
   NO_MEDIA: "NO_MEDIA",
@@ -150,8 +151,8 @@ function message(pick, error) {
       );
     case "ENCODER_MISSING":
       return pick(
-        "This Levix build can't encode stickers (its FFmpeg has no WebP encoder). Update Levix.",
-        "لا يستطيع إصدار Levix هذا ترميز الملصقات (أداة FFmpeg فيه بلا مرمّز WebP). حدّث Levix.",
+        `This ${brand.name} build can't encode stickers (its FFmpeg has no WebP encoder). Update ${brand.name}.`,
+        `لا يستطيع إصدار ${brand.nameAr || brand.name} هذا ترميز الملصقات (أداة FFmpeg فيه بلا مرمّز WebP). حدّث ${brand.nameAr || brand.name}.`,
       );
     case "TIMEOUT":
       return pick(
@@ -160,8 +161,8 @@ function message(pick, error) {
       );
     case "BUSY":
       return pick(
-        "Levix is converting other stickers right now. Try again in a moment.",
-        "يحوّل Levix ملصقات أخرى الآن. حاول مرة أخرى بعد قليل.",
+        `${brand.name} is converting other stickers right now. Try again in a moment.`,
+        `يحوّل ${brand.nameAr || brand.name} ملصقات أخرى الآن. حاول مرة أخرى بعد قلیل.`,
       );
     case "NOT_FOUND":
       return pick("That sticker is not in your library.", "هذا الملصق غير موجود في مكتبتك.");

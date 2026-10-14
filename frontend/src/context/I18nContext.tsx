@@ -14,7 +14,7 @@ const I18nContext = createContext<I18nContextType | null>(null);
 
 export const I18nProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [language, setLanguageState] = useState<Language>(() => {
-    const saved = localStorage.getItem("levix_lang");
+    const saved = localStorage.getItem("yuxli_lang") || localStorage.getItem("levix_lang");
     if (saved === "ar" || saved === "en") return saved;
     return navigator.language.startsWith("ar") ? "ar" : "en";
   });
@@ -22,6 +22,7 @@ export const I18nProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const direction = language === "ar" ? "rtl" : "ltr";
 
   useEffect(() => {
+    localStorage.setItem("yuxli_lang", language);
     localStorage.setItem("levix_lang", language);
     document.documentElement.lang = language;
     document.documentElement.dir = direction;

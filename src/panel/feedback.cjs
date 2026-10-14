@@ -179,7 +179,7 @@ async function submitFeedback(feedback, attachment = null) {
   try {
     let body;
     const headers = {
-      "User-Agent": `Levix/${runtime.version} (${runtime.platform})`,
+      "User-Agent": `Yuxli/${runtime.version} (${runtime.platform})`,
     };
     const hasFile =
       attachment && Buffer.isBuffer(attachment.buffer) && attachment.buffer.length > 0;
@@ -211,7 +211,7 @@ async function submitFeedback(feedback, attachment = null) {
     return {
       ok: false,
       status: 502,
-      error: "Could not reach the Levix server. Check the bot's internet connection and try again.",
+      error: "Could not reach the feedback server. Check the bot's internet connection and try again.",
     };
   }
 

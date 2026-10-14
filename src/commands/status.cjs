@@ -62,7 +62,8 @@ module.exports = {
 
       // --- BUILDING THE REPLY ---
       const reply = tr(
-        `*🤖 Bot Status 🤖*
+        `*🤖 Yuxli Bot Status 🤖*
+👨‍💻 *Developer:* Sheikh Salman
 
 *⏰ Uptime:* ${formattedUptime}
 *📊 Memory:* ${rssMb} MB
@@ -70,8 +71,10 @@ module.exports = {
 *📚 Baileys:* v${baileysVersion}
 *💻 OS:* ${platform}
 *💿 OS release:* ${osRelease}
-*🎞️ ffmpeg (thumbnails):* ${ffmpegLine}`,
-        `*🤖 حالة البوت 🤖*
+*🎞️ ffmpeg (thumbnails):* ${ffmpegLine}
+🌐 *GitHub:* https://github.com/ItSheikhSalman/yuxli`,
+        `*🤖 حالة بوت يوكسلي (Yuxli) 🤖*
+👨‍💻 *المطور:* الشيخ سلمان (Sheikh Salman)
 
 *⏰ وقت التشغيل:* ${formattedUptime}
 *📊 استخدام الذاكرة:* ${rssMb} MB

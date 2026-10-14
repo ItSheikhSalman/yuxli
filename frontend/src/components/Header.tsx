@@ -15,7 +15,7 @@ interface HeaderProps {
 export const Header: FC<HeaderProps> = ({ onToggleMobileMenu, title, status: _status }) => {
   const { language, setLanguage, t } = useI18n();
   const [theme, setTheme] = useState<string>(() => {
-    const saved = localStorage.getItem("levix_theme");
+    const saved = localStorage.getItem("yuxli_theme") || localStorage.getItem("levix_theme");
     if (saved) {
       document.documentElement.setAttribute("data-theme", saved);
       return saved;
@@ -27,6 +27,7 @@ export const Header: FC<HeaderProps> = ({ onToggleMobileMenu, title, status: _st
   const applyTheme = (nextTheme: string) => {
     setTheme(nextTheme);
     document.documentElement.setAttribute("data-theme", nextTheme);
+    localStorage.setItem("yuxli_theme", nextTheme);
     localStorage.setItem("levix_theme", nextTheme);
   };
 

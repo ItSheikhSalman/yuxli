@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-Security fixes are applied to the latest stable Levix release. Upgrade to the
+Security fixes are applied to the latest stable Yuxli release. Upgrade to the
 latest release before reporting an issue that may already be fixed.
 
 ## Reporting a vulnerability
@@ -10,10 +10,10 @@ latest release before reporting an issue that may already be fixed.
 Do not open a public GitHub issue for a suspected vulnerability.
 
 Use
-[GitHub private vulnerability reporting](https://github.com/Abdodiab2005/levix/security/advisories/new)
+[GitHub private vulnerability reporting](https://github.com/ItSheikhSalman/yuxli/security/advisories/new)
 and include:
 
-- The affected Levix version and installation method.
+- The affected Yuxli version and installation method.
 - The operating system and deployment shape.
 - Clear reproduction steps or a proof of concept.
 - The security impact and the boundary you expected.
@@ -26,14 +26,14 @@ using an unofficial WhatsApp client.
 
 ## Sensitive data
 
-Never attach a Levix data directory, SQLite database, WhatsApp session, setup
+Never attach a Yuxli data directory, SQLite database, WhatsApp session, setup
 code, panel cookie, API key, private memory file, or unredacted log to a public
 issue.
 
 ## WhatsApp protocol risk
 
-Levix uses Baileys, an unofficial WhatsApp Web client. Protocol changes, account
-restrictions, and bans are controlled by WhatsApp and are not Levix security
-vulnerabilities. Do not use Levix for spam or unsolicited bulk messaging. Use
+Yuxli uses Baileys, an unofficial WhatsApp Web client. Protocol changes, account
+restrictions, and bans are controlled by WhatsApp and are not Yuxli security
+vulnerabilities. Do not use Yuxli for spam or unsolicited bulk messaging. Use
 the official WhatsApp Business Platform when an outage or account restriction
 is unacceptable.

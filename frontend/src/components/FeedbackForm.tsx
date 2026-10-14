@@ -391,7 +391,7 @@ export const FeedbackForm: React.FC = () => {
             <p className="text-xs leading-relaxed text-muted">
               {t("feedbackGithubHint")}{" "}
               <a
-                href="https://github.com/Abdodiab2005/levix/issues"
+                href="https://github.com/ItSheikhSalman/yuxli/issues"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 font-semibold text-brand-cyan hover:underline"

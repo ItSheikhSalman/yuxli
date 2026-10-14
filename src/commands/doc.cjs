@@ -106,7 +106,7 @@ module.exports = {
           title: pdfTitle,
           subtitle: `Generated for @${senderId.split("@")[0]} | ${new Date().toLocaleDateString()}`,
           content: responseText,
-          footer: "Levix Smart Student Suite",
+          footer: "Yuxli Smart Student Suite",
         });
 
         await sock.sendMessage(

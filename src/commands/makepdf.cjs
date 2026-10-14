@@ -83,7 +83,7 @@ module.exports = {
           title = topic;
         } catch (e) {
           logger.error({ err: e }, "[makepdf] AI note generation failed");
-          content = `Notes on ${topic}\n\n* Topic: ${topic}\n* Summary generated via Levix Suite`;
+          content = `Notes on ${topic}\n\n* Topic: ${topic}\n* Summary generated via Yuxli Suite`;
           title = topic;
         }
       } else if (quoted) {
@@ -142,7 +142,7 @@ module.exports = {
         title,
         subtitle: `Created for @${senderId.split("@")[0]}  •  ${new Date().toLocaleDateString()}`,
         content: content.trim(),
-        footer: "Levix Smart Student Suite",
+        footer: "Yuxli Smart Student Suite",
         imageBuffer: attachedImage,
         theme: selectedTheme,
       });

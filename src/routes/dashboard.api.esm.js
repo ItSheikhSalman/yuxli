@@ -345,7 +345,7 @@ router.get("/settings/export", (req, res) => {
     const payload = settingsTransfer.exportSettings();
     const date = payload.exportedAt.slice(0, 10);
     res.set("Content-Type", "application/json; charset=utf-8");
-    res.set("Content-Disposition", `attachment; filename="levix-settings-${date}.json"`);
+    res.set("Content-Disposition", `attachment; filename="yuxli-settings-${date}.json"`);
     return res.json(payload);
   } catch (error) {
     return fail(res, error, "Error exporting settings");

@@ -55,10 +55,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
     name: "Yuxli",
     tagline: "Private control room",
     version: "",
-    developer: "Yuxli",
-    studio: "Yuxli",
-    developerSite: "",
-    studioSite: "",
+    developer: "Sheikh Salman",
+    studio: "Yuxli Technologies",
+    developerSite: "https://github.com/ItSheikhSalman",
+    studioSite: "https://github.com/ItSheikhSalman/yuxli",
   };
 
   const navItems = [

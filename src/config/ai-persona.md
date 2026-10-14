@@ -1,4 +1,4 @@
-# Levix — assistant behaviour
+# Yuxli — assistant behaviour
 
 This file is the assistant's behaviour prompt. Edit it here or from the
 dashboard (AI & memory → System prompt); it is re-read on the next message, so

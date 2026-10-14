@@ -13,7 +13,7 @@ control panel that changes almost all of it live. The database is the source of
 truth and the panel is how you edit it: there is no `.env`, no config file, and
 nothing to install beside Node.
 
-The name ("Levix") and the credit ("built by Abdelrhman Diab, Leviro") are
+The name ("Yuxli") and the credit ("built by Sheikh Salman") are
 **not** settings. `src/config/brand.cjs` holds what the UI renders (name,
 tagline, credit, repo) and is frozen. The AI's product-identity block is a
 separate, code-owned module — `src/config/ai-identity.cjs` — prepended to the
