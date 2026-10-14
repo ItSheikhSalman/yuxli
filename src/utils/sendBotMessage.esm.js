@@ -72,10 +72,7 @@ async function safePresence(sock, jid, presence) {
 export async function sendBotMessage(sock, jid, content, options = {}) {
   const { replyTo = null, quoted = null, quote = true, typing = true, delayMs } = options;
 
-  // Respect the per-chat cooldown so multiple replies don't pile up instantly.
-  const now = Date.now();
-  const lastAt = lastSendTime.get(jid) || 0;
-  const elapsed = now - lastAt;
+  // Respect the configured late-reply delay and typing simulation
   let targetGap;
   if (typeof delayMs === "number") {
     targetGap = Math.max(0, delayMs);
@@ -83,9 +80,12 @@ export async function sendBotMessage(sock, jid, content, options = {}) {
     const { min, max } = sendGap();
     targetGap = jitter(min, max);
   }
-  if (elapsed < targetGap) await sleep(targetGap - elapsed);
 
-  if (typing) {
+  if (targetGap > 0) {
+    if (typing) await safePresence(sock, jid, "composing");
+    await sleep(targetGap);
+    if (typing) await safePresence(sock, jid, "paused");
+  } else if (typing) {
     await safePresence(sock, jid, "composing");
     await sleep(typingDelayFor(content));
     await safePresence(sock, jid, "paused");

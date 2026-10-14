@@ -113,11 +113,15 @@ module.exports = {
         workingArgs.shift();
       }
 
+      // Check for audio note / voice message
+      const own = unwrapMessage(msg.message);
+      const quotedInner = quoted ? unwrapMessage(quoted) : null;
+      const audioMessage = own?.audioMessage || quotedInner?.audioMessage;
+
       if (workingArgs.length > 0) {
         textToTranslate = workingArgs.join(" ").trim();
       } else if (quotedText) {
         textToTranslate = quotedText.trim();
-        // If no language was explicitly specified and replying to Urdu/Arabic, translate to English
         if (args.length === 0 || (isVoice && args.length === 1)) {
           if (/[\u0600-\u06FF]/.test(quotedText)) {
             targetLang = "en";
@@ -125,21 +129,34 @@ module.exports = {
             targetLang = "ur";
           }
         }
+      } else if (audioMessage) {
+        // Voice note translation!
+        const { downloadContentFromMessage } = require("@whiskeysockets/baileys");
+        const { downloadMedia } = require("../utils/geminiMedia.cjs");
+        const { transcribe } = require("./stt.cjs");
+
+        await sock.sendMessage(chatId, {
+          text: "🎧 *Voice note sun raha hoon aur tarjuma tayyar ho raha hai...*",
+        });
+
+        const audioBuffer = await downloadMedia(downloadContentFromMessage, audioMessage, "audio");
+        textToTranslate = await transcribe(audioBuffer, audioMessage.mimetype);
       }
 
       if (!textToTranslate) {
         return await sock.sendMessage(chatId, {
           text:
             "🌐 *Free Instant & Voice Translator (مفت ترجمہ)*\n\n" +
-            "Kisi bhi message par reply karke ya aagy text likh kar bhejein:\n\n" +
+            "Kisi bhi message ya Voice Note par reply karke ya aagy text likh kar bhejein:\n\n" +
             "🔹 `!tr ur Hello, how are you?` — English to Urdu\n" +
             "🔹 `!tr en آپ کا کیا نام ہے؟` — Urdu to English\n" +
             "🔹 `!tr ar Good morning` — English to Arabic\n" +
             "🔹 `!tr [text]` — Auto translate (Urdu ⇄ English)\n\n" +
             "🎙️ *Voice Translation (آواز میں ترجمہ):*\n" +
             "🔹 `!tr voice ur Good morning` — Tarjuma karke voice note bhejega!\n" +
-            "🔹 `!tr voice en صبح بخیر` — English voice note bhejega!\n\n" +
-            "💡 _Tip: Kisi bhi message par reply karke `!tr` likhein to fauran tarjuma ho jayega! 100% Free!_",
+            "🔹 `!tr voice en صبح بخیر` — English voice note bhejega!\n" +
+            "🔹 Voice note par reply karke `!tr` likhein to us voice note ka tarjuma ho jayega!\n\n" +
+            "💡 _Tip: 100% Free translation & audio synthesis without API keys!_",
         });
       }
 

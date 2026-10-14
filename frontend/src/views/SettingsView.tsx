@@ -9,6 +9,7 @@ import {
   Key,
   Lock,
   MessageSquareHeart,
+  Palette,
   Save,
   Share2,
   Shield,
@@ -131,6 +132,16 @@ export const SettingsView: React.FC = () => {
     username: String(settings["whatsapp_proxy_username"] || ""),
     password: String(settings["whatsapp_proxy_password"] || ""),
   });
+
+  const [currentTheme, setCurrentTheme] = useState(() => {
+    return localStorage.getItem("levix_theme") || document.documentElement.getAttribute("data-theme") || "navy";
+  });
+
+  const selectTheme = (themeName: string) => {
+    setCurrentTheme(themeName);
+    document.documentElement.setAttribute("data-theme", themeName);
+    localStorage.setItem("levix_theme", themeName);
+  };
 
   const handleExportSettings = async () => {
     setExportingSettings(true);
@@ -516,6 +527,38 @@ export const SettingsView: React.FC = () => {
                   />
                 </Field>
               </div>
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <span className="text-xs font-semibold text-muted">Late Reply Presets:</span>
+                <button
+                  type="button"
+                  onClick={() => { delayForm.setField("min", 0); delayForm.setField("max", 0); }}
+                  className="rounded-lg border border-line bg-panel-raised/80 px-2.5 py-1 text-xs font-medium text-text-main transition hover:bg-panel-hover"
+                >
+                  ⚡ Instant (0s)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { delayForm.setField("min", 1000); delayForm.setField("max", 2500); }}
+                  className="rounded-lg border border-line bg-panel-raised/80 px-2.5 py-1 text-xs font-medium text-text-main transition hover:bg-panel-hover"
+                >
+                  🕒 Human (1-2s)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { delayForm.setField("min", 4000); delayForm.setField("max", 7000); }}
+                  className="rounded-lg border border-line bg-panel-raised/80 px-2.5 py-1 text-xs font-medium text-text-main transition hover:bg-panel-hover"
+                >
+                  🐢 Late Reply (4-7s)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { delayForm.setField("min", 10000); delayForm.setField("max", 15000); }}
+                  className="rounded-lg border border-line bg-panel-raised/80 px-2.5 py-1 text-xs font-medium text-text-main transition hover:bg-panel-hover"
+                >
+                  ⏳ Extra Late (10-15s)
+                </button>
+              </div>
+
               <FormActions
                 dirty={delayForm.dirty}
                 saving={delayForm.status === "saving"}
@@ -525,6 +568,40 @@ export const SettingsView: React.FC = () => {
                 {...formLabels}
               />
             </form>
+          </Card>
+
+          <Card className="flex flex-col gap-4">
+            <CardHeader
+              icon={<Palette size={20} className="text-brand-cyan" />}
+              title="Theme & Visual Appearance"
+              description="Customize your bot dashboard look and feel with professional palettes"
+            />
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+              {[
+                { id: "navy", label: "Deep Navy", bg: "#060d19", border: "#176bfa", dot: "#21cef3" },
+                { id: "emerald", label: "Emerald Matrix", bg: "#03130e", border: "#059669", dot: "#10b981" },
+                { id: "violet", label: "Royal Violet", bg: "#090514", border: "#7c3aed", dot: "#c084fc" },
+                { id: "midnight", label: "OLED Midnight", bg: "#000000", border: "#27272a", dot: "#06b6d4" },
+                { id: "light", label: "Modern Light", bg: "#f8fafc", border: "#cbd5e1", dot: "#176bfa" },
+              ].map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => selectTheme(item.id)}
+                  className={`flex flex-col items-center gap-2 rounded-xl border p-3 text-center transition-all duration-200 hover:scale-[1.03] ${
+                    currentTheme === item.id || (item.id === "navy" && currentTheme === "dark")
+                      ? "border-brand-blue ring-2 ring-brand-blue/30 shadow-lg"
+                      : "border-line hover:border-line-soft bg-panel-raised/50"
+                  }`}
+                  style={{ backgroundColor: item.bg }}
+                >
+                  <div className="h-5 w-5 rounded-full border border-white/20 shadow-sm" style={{ backgroundColor: item.dot }} />
+                  <span className={`text-xs font-semibold ${item.id === "light" ? "text-slate-800" : "text-white"}`}>
+                    {item.label}
+                  </span>
+                </button>
+              ))}
+            </div>
           </Card>
 
           <Card className="flex flex-col gap-4">

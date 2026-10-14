@@ -102,11 +102,11 @@ module.exports = {
         if (status?.update) await status.update("📑 PDF generate ho raha hai...");
 
         const pdfTitle = args.slice(1).join(" ") || `Summary - ${fileName.replace(/\.[^/.]+$/, "")}`;
-        const generatedPdf = createDocumentPdf({
+        const generatedPdf = await createDocumentPdf({
           title: pdfTitle,
           subtitle: `Generated for @${senderId.split("@")[0]} | ${new Date().toLocaleDateString()}`,
           content: responseText,
-          footer: "Yuxli Student Study System",
+          footer: "Levix Smart Student Suite",
         });
 
         await sock.sendMessage(

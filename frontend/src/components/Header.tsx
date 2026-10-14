@@ -1,6 +1,6 @@
 // file: frontend/src/components/Header.tsx
 
-import { Globe, Menu as MenuIcon, Moon, Sun } from "lucide-react";
+import { Globe, Menu as MenuIcon, Palette } from "lucide-react";
 import { type FC, useState } from "react";
 import { useI18n } from "../context/I18nContext";
 import type { SessionStatus } from "../types";
@@ -14,17 +14,17 @@ interface HeaderProps {
 
 export const Header: FC<HeaderProps> = ({ onToggleMobileMenu, title, status: _status }) => {
   const { language, setLanguage, t } = useI18n();
-  const [theme, setTheme] = useState<"dark" | "light">(() => {
-    const saved = localStorage.getItem("levix_theme") as "dark" | "light" | null;
+  const [theme, setTheme] = useState<string>(() => {
+    const saved = localStorage.getItem("levix_theme");
     if (saved) {
       document.documentElement.setAttribute("data-theme", saved);
       return saved;
     }
-    return (document.documentElement.getAttribute("data-theme") as "dark" | "light") || "dark";
+    const current = document.documentElement.getAttribute("data-theme") || "navy";
+    return current === "dark" ? "navy" : current;
   });
 
-  const handleThemeToggle = () => {
-    const nextTheme = theme === "dark" ? "light" : "dark";
+  const applyTheme = (nextTheme: string) => {
     setTheme(nextTheme);
     document.documentElement.setAttribute("data-theme", nextTheme);
     localStorage.setItem("levix_theme", nextTheme);
@@ -68,18 +68,33 @@ export const Header: FC<HeaderProps> = ({ onToggleMobileMenu, title, status: _st
           </MenuItem>
         </Menu>
 
-        <IconButton
-          id="btn-header-theme"
-          label={theme === "dark" ? t("lightMode") : t("darkMode")}
-          icon={
-            theme === "dark" ? (
-              <Sun size={18} className="text-brand-cyan" />
-            ) : (
-              <Moon size={18} className="text-brand-cyan" />
-            )
+        <Menu
+          label="Theme"
+          trigger={
+            <IconButton
+              id="btn-header-theme"
+              label="Theme Palette"
+              icon={<Palette size={18} className="text-brand-cyan" />}
+            />
           }
-          onClick={handleThemeToggle}
-        />
+        >
+          <MenuLabel>Theme Palette</MenuLabel>
+          <MenuItem checked={theme === "navy" || theme === "dark"} onSelect={() => applyTheme("navy")}>
+            🌌 Deep Navy
+          </MenuItem>
+          <MenuItem checked={theme === "emerald"} onSelect={() => applyTheme("emerald")}>
+            💎 Emerald Matrix
+          </MenuItem>
+          <MenuItem checked={theme === "violet"} onSelect={() => applyTheme("violet")}>
+            🔮 Royal Violet
+          </MenuItem>
+          <MenuItem checked={theme === "midnight"} onSelect={() => applyTheme("midnight")}>
+            ⚡ OLED Midnight
+          </MenuItem>
+          <MenuItem checked={theme === "light"} onSelect={() => applyTheme("light")}>
+            ☀️ Modern Light
+          </MenuItem>
+        </Menu>
       </div>
     </header>
   );

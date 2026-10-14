@@ -13,6 +13,7 @@ const logger = require("../utils/logger.cjs");
 const runtimeConfig = require("../config/runtime-config.cjs");
 const { localize, bothLanguages } = require("../utils/commandDocs.cjs");
 const { langForCommand, withLang, tr } = require("../utils/i18n.cjs");
+const settings = require("../config/settings.cjs");
 
 // Commands collection (keyed by both names and aliases)
 const commands = new Map();
@@ -112,6 +113,19 @@ function wrapSockWithReply(sock, originalMsg, editInPlace = false) {
           if (opts.quoted === undefined) {
             opts.quoted = originalMsg;
           }
+
+          // Enforce late-reply delay & typing indicator if configured in settings
+          if (!content?.edit && !content?.delete && !content?.react && !opts.skipDelay) {
+            const minDelay = Math.max(0, Number(settings.get("bot_min_delay_ms") || 0));
+            const maxDelay = Math.max(minDelay, Number(settings.get("bot_max_delay_ms") || 0));
+            const delay = maxDelay <= minDelay ? minDelay : Math.floor(Math.random() * (maxDelay - minDelay + 1)) + minDelay;
+            if (delay > 0) {
+              try { await target.sendPresenceUpdate?.("composing", jid); } catch {}
+              await new Promise((resolve) => setTimeout(resolve, delay));
+              try { await target.sendPresenceUpdate?.("paused", jid); } catch {}
+            }
+          }
+
           return target.sendMessage.call(target, jid, content, opts);
         };
       }
