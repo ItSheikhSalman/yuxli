@@ -1,74 +1,175 @@
-// Self-ping keep-alive for free-tier cloud hosts (Render, Railway, etc.).
-//
-// These platforms spin a service down after ~15 minutes of no inbound HTTP
-// traffic. A WhatsApp bot talks over WebSockets to Meta's servers, not HTTP,
-// so the platform never "sees" activity and puts the container to sleep.
-//
-// This module hits the bot's own /healthz endpoint every 4 minutes with a
-// plain HTTP GET. That is enough to reset the idle timer and keep the process
-// alive 24/7 without any external cron service.
-//
-// Enabled automatically when RENDER=true (set by Render) or when the operator
-// sets KEEP_ALIVE_URL. Does nothing on a local machine.
+// Bulletproof Keep-Alive System for Free-Tier Cloud Hosts (Render, Railway, etc.)
+// Prevents Render from sleeping by sending multi-channel HTTP pings every 2 minutes.
 
-const http = require("node:http");
-const https = require("node:https");
-const logger = require("../utils/logger.cjs");
+const axios = require("axios");
+const logger = require("./logger.cjs");
 
-const INTERVAL_MS = 4 * 60 * 1000; // 4 minutes
-let timer = null;
+const INTERVAL_MS = 2 * 60 * 1000; // 2 minutes (safely beats Render's 15-minute idle limit)
+let activeTimer = null;
+let currentPublicUrl = null;
+let currentLocalPort = 3001;
 
-/**
- * Start the self-ping loop.
- *
- * @param {{ port: number }} options - the port the panel is listening on
- */
-function start({ port } = {}) {
-  // Explicit URL takes priority (operator can point at a custom domain).
-  // Otherwise, if we're on Render, build the URL from Render's env vars.
-  // On a local machine, do nothing.
-  let url = process.env.KEEP_ALIVE_URL;
-
-  if (!url && process.env.RENDER === "true") {
-    const host = process.env.RENDER_EXTERNAL_HOSTNAME;
-    if (host) {
-      url = `https://${host}/healthz`;
-    } else if (port) {
-      // Fallback: hit ourselves on localhost (still resets Render's timer
-      // because the HTTP request enters the container's own port).
-      url = `http://127.0.0.1:${port}/healthz`;
-    }
+function resolveInitialUrl(port) {
+  // 1. Explicit user override
+  if (process.env.KEEP_ALIVE_URL) {
+    return process.env.KEEP_ALIVE_URL.trim();
   }
 
-  if (!url) return; // not on a cloud host — nothing to do
+  // 2. Render auto-injected external URL
+  if (process.env.RENDER_EXTERNAL_URL) {
+    const base = process.env.RENDER_EXTERNAL_URL.trim().replace(/\/+$/, "");
+    return `${base}/healthz`;
+  }
 
-  logger.info(`[keep-alive] Pinging ${url} every ${INTERVAL_MS / 1000}s to prevent sleep`);
+  // 3. Render auto-injected hostname
+  if (process.env.RENDER_EXTERNAL_HOSTNAME) {
+    const host = process.env.RENDER_EXTERNAL_HOSTNAME.trim();
+    return `https://${host}/healthz`;
+  }
 
-  const ping = () => {
-    const mod = url.startsWith("https") ? https : http;
-    const req = mod.get(url, (res) => {
-      // Drain the response so the socket can be reused.
-      res.resume();
-      logger.debug(`[keep-alive] ${res.statusCode}`);
+  // 4. Custom public domain env
+  if (process.env.PUBLIC_DOMAIN) {
+    const domain = process.env.PUBLIC_DOMAIN.trim().replace(/^https?:\/\//, "").replace(/\/+$/, "");
+    return `https://${domain}/healthz`;
+  }
+
+  // 5. Localhost fallback
+  if (port) {
+    return `http://127.0.0.1:${port}/healthz`;
+  }
+
+  return null;
+}
+
+/**
+ * Dynamically updates the public URL (e.g. when a real incoming request hits Express)
+ */
+function updateUrl(newUrl) {
+  if (!newUrl || typeof newUrl !== "string") return;
+  const cleaned = newUrl.trim();
+  if (
+    cleaned.startsWith("http") &&
+    !cleaned.includes("127.0.0.1") &&
+    !cleaned.includes("localhost") &&
+    cleaned !== currentPublicUrl
+  ) {
+    currentPublicUrl = cleaned;
+    logger.info(`[keep-alive] Updated public keep-alive target: ${currentPublicUrl}`);
+  }
+}
+
+async function sendPing(targetUrl) {
+  if (!targetUrl) return;
+
+  try {
+    const res = await axios.get(targetUrl, {
+      timeout: 15000,
+      headers: {
+        "User-Agent": "Yuxli-KeepAlive/2.0 (+https://github.com/ItSheikhSalman/yuxli)",
+        Accept: "*/*",
+      },
+      validateStatus: () => true, // Don't throw on 2xx/3xx/4xx
     });
-    req.on("error", (err) => {
-      // Not fatal — we'll try again in 4 minutes.
-      logger.warn(`[keep-alive] ping failed: ${err.message}`);
-    });
-    req.setTimeout(10_000, () => req.destroy());
-  };
+    logger.debug(`[keep-alive] Pinged ${targetUrl} — status ${res.status}`);
+  } catch (err) {
+    logger.warn(`[keep-alive] Direct ping to ${targetUrl} warning: ${err.message}`);
+  }
+}
 
-  // First ping right away, then every INTERVAL_MS.
-  ping();
-  timer = setInterval(ping, INTERVAL_MS);
-  timer.unref(); // don't keep the process alive just for this
+/**
+ * Pings via an external public reflector proxy so Render's edge load balancer
+ * receives a real external internet request from outside the container.
+ */
+async function sendExternalReflectorPing(publicUrl) {
+  if (!publicUrl || !publicUrl.startsWith("https://") || publicUrl.includes("localhost") || publicUrl.includes("127.0.0.1")) {
+    return;
+  }
+
+  // Use reliable public CORS/proxy reflectors
+  const reflectors = [
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(publicUrl)}`,
+    `https://corsproxy.io/?url=${encodeURIComponent(publicUrl)}`,
+  ];
+
+  const targetReflector = reflectors[Math.floor(Math.random() * reflectors.length)];
+
+  try {
+    const res = await axios.get(targetReflector, {
+      timeout: 20000,
+      headers: { "User-Agent": "Mozilla/5.0 Yuxli-KeepAlive" },
+      validateStatus: () => true,
+    });
+    logger.debug(`[keep-alive] External reflector ping succeeded via proxy (status ${res.status})`);
+  } catch (err) {
+    logger.debug(`[keep-alive] Reflector ping notice: ${err.message}`);
+  }
+}
+
+async function pingCycle() {
+  const isCloud = Boolean(
+    process.env.RENDER ||
+    process.env.RENDER_EXTERNAL_URL ||
+    process.env.RENDER_EXTERNAL_HOSTNAME ||
+    process.env.RENDER_SERVICE_ID ||
+    process.env.KEEP_ALIVE_URL ||
+    process.env.PORT
+  );
+
+  // If local machine without KEEP_ALIVE_URL, skip
+  if (!isCloud && !process.env.KEEP_ALIVE_URL && !currentPublicUrl) {
+    return;
+  }
+
+  const primaryUrl = currentPublicUrl || resolveInitialUrl(currentLocalPort);
+
+  // 1. Direct Ping to public endpoint
+  if (primaryUrl) {
+    await sendPing(primaryUrl);
+  }
+
+  // 2. External Reflector Ping (Hits Render from external internet IP to reset idle counter)
+  if (primaryUrl && primaryUrl.startsWith("https://")) {
+    await sendExternalReflectorPing(primaryUrl);
+  }
+
+  // 3. Local Heartbeat Ping
+  if (currentLocalPort) {
+    await sendPing(`http://127.0.0.1:${currentLocalPort}/healthz`);
+  }
+}
+
+function start({ port = 3001 } = {}) {
+  currentLocalPort = port || process.env.PORT || 3001;
+  currentPublicUrl = resolveInitialUrl(currentLocalPort);
+
+  logger.info(
+    `[keep-alive] Starting 24/7 keep-alive loop (every ${INTERVAL_MS / 1000}s). Target: ${currentPublicUrl || `http://127.0.0.1:${currentLocalPort}`}`,
+  );
+
+  // Initial ping
+  pingCycle().catch(() => {});
+
+  // Recurring loop
+  if (activeTimer) clearInterval(activeTimer);
+  activeTimer = setInterval(() => {
+    pingCycle().catch((err) => {
+      logger.debug({ err: err?.message }, "[keep-alive] ping cycle error");
+    });
+  }, INTERVAL_MS);
+
+  activeTimer.unref();
 }
 
 function stop() {
-  if (timer) {
-    clearInterval(timer);
-    timer = null;
+  if (activeTimer) {
+    clearInterval(activeTimer);
+    activeTimer = null;
   }
 }
 
-module.exports = { start, stop };
+module.exports = {
+  start,
+  stop,
+  updateUrl,
+  pingCycle,
+};

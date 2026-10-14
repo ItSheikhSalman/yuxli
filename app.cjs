@@ -160,12 +160,25 @@ app.locals.brand = { ...brand, version: pkg.version };
 app.use(express.static(assetPath("public")));
 app.use(express.urlencoded({ extended: true, limit: "100kb" }));
 
+// Dynamic keep-alive public URL detector from real incoming traffic
+app.use((req, res, next) => {
+  const host = req.get("host");
+  if (host && !host.includes("localhost") && !host.includes("127.0.0.1") && !host.includes("0.0.0.0")) {
+    const proto = req.get("x-forwarded-proto") || req.protocol || "https";
+    try {
+      const keepAlive = require("./src/utils/keepAlive.cjs");
+      keepAlive.updateUrl(`${proto}://${host}/healthz`);
+    } catch (_) {}
+  }
+  next();
+});
+
 // --- Health check (unauthenticated) ---------------------------------------
 // Render, UptimeRobot, and the built-in self-ping all hit this. It must live
 // before the session middleware so it never creates a cookie or touches the
 // store, and it must not require a login.
-app.get("/healthz", (req, res) => {
-  res.status(200).json({ status: "ok", uptime: Math.floor(process.uptime()) });
+app.get(["/healthz", "/health", "/ping"], (req, res) => {
+  res.status(200).json({ status: "ok", bot: "Yuxli", uptime: Math.floor(process.uptime()), timestamp: Date.now() });
 });
 
 // Levix is intentionally one process and one operator, so a small expiring
