@@ -36,6 +36,7 @@ const {
   BaseAIProvider,
   registerProvider,
   getProvider,
+  hasProvider,
   detectModelCapabilities,
 } = require("./aiRouter.cjs");
 const { runProviderAgent, activeProviderKeySetting } = require("./aiProviders.cjs");
@@ -496,7 +497,10 @@ registerProvider("gemini", new GeminiProvider());
  * Modular dispatch through getProvider().
  */
 async function runAgent(options = {}) {
-  const provider = getProvider();
+  let provider = options.provider || getProvider();
+  if (!provider.isConfigured() && hasProvider("flipia")) {
+    provider = getProvider("flipia");
+  }
   const result = await provider.runTurn({
     ...options,
     history: trimHistory(options.history),

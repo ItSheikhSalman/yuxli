@@ -180,7 +180,7 @@ async function processDocument({ buffer, mimeType = "application/pdf", fileName 
     }
   }
 
-  // Fallback: Local Text Extraction
+  // Fallback / Free AI: Local Text Extraction + Flip-IA Free AI
   const extracted = extractTextFromBuffer(buffer, mimeType, fileName);
   if (!extracted || extracted.trim().length === 0) {
     return {
@@ -191,13 +191,37 @@ async function processDocument({ buffer, mimeType = "application/pdf", fileName 
     };
   }
 
-  // Local basic summary if AI is not available
+  // Use 100% Free Flip-IA AI to process the extracted text!
+  try {
+    const { getProvider } = require("../services/aiRouter.cjs");
+    require("../services/aiProviders.cjs");
+    const flipProvider = getProvider("flipia");
+    if (flipProvider) {
+      const prompt = `${systemPrompt}\n\n[Document: ${fileName}]\n\n${extracted.slice(0, 32000)}`;
+      const aiRes = await flipProvider.runTurn({
+        parts: [{ text: prompt }],
+        useTools: false,
+      });
+      if (aiRes?.text && aiRes.text.trim()) {
+        return {
+          success: true,
+          text: aiRes.text.trim(),
+          source: "flipia_free",
+          fileName,
+        };
+      }
+    }
+  } catch (flipErr) {
+    logger.warn({ err: flipErr }, "[docReader] FlipIA free document processing failed");
+  }
+
+  // Local basic summary if Flip-IA fails
   const snippet = extracted.slice(0, 1500).trim();
   const wordCount = extracted.split(/\s+/).length;
 
   return {
     success: true,
-    text: `📄 *Document: ${fileName}*\n📊 *Words:* ~${wordCount}\n\n*Preview/Extracted Text:*\n${snippet}...\n\n💡 _Tip: Gemini API key set karne par AI full explanation aur topics automatically generate karega._`,
+    text: `📄 *Document: ${fileName}*\n📊 *Words:* ~${wordCount}\n\n*Preview/Extracted Text:*\n${snippet}...\n\n💡 _Tip: Document text successfully extracted!_`,
     source: "local",
     fileName,
   };

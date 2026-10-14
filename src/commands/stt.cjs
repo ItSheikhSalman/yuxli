@@ -237,10 +237,11 @@ module.exports = {
 
     if (!hasGemini && !hasOpenAi) {
       return await sock.sendMessage(chatId, {
-        text: tr(
-          "⚠️ No AI key (Gemini or OpenAI/Groq) is set. Add one in the control panel (Settings).",
-          "⚠️ مفتاح الذكاء الاصطناعي (Gemini أو OpenAI/Groq) غير مضبوط. يرجى إضافته من لوحة التحكم (Settings).",
-        ),
+        text:
+          "⚠️ *Voice Transcription (STT) Setup:*\n\n" +
+          "Voice notes ko text me convert karne k liye control panel (Settings) me *Gemini* ya *Groq* ka free API key dalein.\n\n" +
+          "💡 *Groq API (api.groq.com)* 100% Free hai aur whisper voice model provide karta hai!\n" +
+          "🌐 *Tarjuma (Free Translation):* Kisi bhi text/voice ke liye `!tr` ya `!tr voice` use karein (Zero key needed)!",
       });
     }
 

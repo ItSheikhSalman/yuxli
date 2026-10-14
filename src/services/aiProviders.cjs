@@ -44,6 +44,19 @@ const API_TIMEOUT_MS = 120000;
 // ===========================================================================
 
 const ADAPTERS = {
+  flipia: {
+    label: "Free AI (Flip-IA)",
+    keySetting: "",
+    modelSetting: "flipia_model",
+    baseUrlSetting: "flipia_base_url",
+    defaultBaseUrl: "https://flip-ia.vercel.app/v1",
+    tools: () => [],
+    systemMessage: (systemInstruction) => (systemInstruction ? [{ role: "system", content: systemInstruction }] : []),
+    userMessage: (text) => ({ role: "user", content: text }),
+    historyToMessages: historyToOpenAI,
+    parseResponse: parseOpenAIResponse,
+    toolResultMessages: () => [],
+  },
   openai: {
     label: "OpenAI-compatible",
     keySetting: "openai_api_key",
@@ -216,6 +229,57 @@ class AnthropicProvider extends BaseAIProvider {
   }
 }
 
+class FlipIAProvider extends BaseAIProvider {
+  constructor() {
+    super({
+      id: "flipia",
+      label: "Free AI (Flip-IA)",
+      keySetting: "",
+      modelSetting: "flipia_model",
+      baseUrlSetting: "flipia_base_url",
+      defaultBaseUrl: "https://flip-ia.vercel.app/v1",
+      supportsFiles: false,
+    });
+  }
+
+  isConfigured() {
+    return true; // 100% Free! Never requires an API key!
+  }
+
+  getKey() {
+    return "free-no-key";
+  }
+
+  getModel() {
+    return settings.get("flipia_model") || "Olmo-3.1-32B-Instruct";
+  }
+
+  getBaseUrl() {
+    return settings.get("flipia_base_url") || "https://flip-ia.vercel.app/v1";
+  }
+
+  async prepareMedia(
+    parts,
+    mediaMessage,
+    mimeOverride,
+    { downloadContentFromMessage, downloadType } = {},
+  ) {
+    return prepareInlineImageMedia(
+      "flipia",
+      parts,
+      mediaMessage,
+      mimeOverride,
+      downloadContentFromMessage,
+      downloadType,
+    );
+  }
+
+  async runTurn(options) {
+    return runProviderAgent("flipia", options);
+  }
+}
+
+registerProvider("flipia", new FlipIAProvider());
 registerProvider("openai", new OpenAIProvider());
 registerProvider("anthropic", new AnthropicProvider());
 
@@ -236,13 +300,14 @@ function adapterFor(provider) {
  */
 const PROVIDER_KEY_SETTINGS = Object.freeze({
   gemini: "gemini_api_key",
+  flipia: "flipia_model",
   openai: "openai_api_key",
   anthropic: "anthropic_api_key",
 });
 
 function activeProviderKeySetting(provider = settings.get("ai_provider")) {
   const keySetting = PROVIDER_KEY_SETTINGS[provider];
-  if (!keySetting) throw new Error(tr(`Unknown provider: ${provider}`, `مزود غير معروف: ${provider}`));
+  if (!keySetting) return "flipia_model";
   return keySetting;
 }
 
@@ -689,8 +754,8 @@ async function runProviderAgent(
 ) {
   const adapter = adapterFor(provider);
 
-  const apiKey = settings.get(adapter.keySetting);
-  if (!apiKey) throw new Error(`${adapter.label} API key is not configured`);
+  const apiKey = adapter.keySetting ? settings.get(adapter.keySetting) : "free-no-key";
+  if (!apiKey && provider !== "flipia") throw new Error(`${adapter.label} API key is not configured`);
 
   const stepBudget = maxSteps ?? settings.get("ai_max_tool_steps");
   const model = settings.get(adapter.modelSetting);

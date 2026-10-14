@@ -29,6 +29,9 @@ class BaseAIProvider {
   }
 
   isConfigured() {
+    if (this.id === "flipia") {
+      return true; // 100% Free! Zero API key needed!
+    }
     if (this.id === "openai") {
       const baseUrl = (this.getBaseUrl() || "").trim().toLowerCase().replace(/\/+$/, "");
       const isCustomEndpoint = baseUrl && baseUrl !== "https://api.openai.com/v1" && baseUrl !== "https://api.openai.com";
@@ -116,9 +119,11 @@ function detectModelCapabilities(provider = settings.get("ai_provider"), model =
     model ||
       (p === "gemini"
         ? settings.get("gemini_model")
-        : p === "openai"
-          ? settings.get("openai_model")
-          : settings.get("anthropic_model")) ||
+        : p === "flipia"
+          ? settings.get("flipia_model")
+          : p === "openai"
+            ? settings.get("openai_model")
+            : settings.get("anthropic_model")) ||
       "",
   );
 

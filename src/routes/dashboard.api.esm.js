@@ -428,17 +428,21 @@ router.post(
         ? "gemini_api_key"
         : provKey === "anthropic"
           ? "anthropic_api_key"
-          : "openai_api_key";
+          : provKey === "flipia"
+            ? "flipia_model"
+            : "openai_api_key";
     const activeBaseUrlSetting =
       provKey === "gemini"
         ? "gemini_base_url"
         : provKey === "anthropic"
           ? "anthropic_base_url"
-          : "openai_base_url";
+          : provKey === "flipia"
+            ? "flipia_base_url"
+            : "openai_base_url";
 
     const offeredKey = typeof apiKey === "string" ? apiKey.trim() : "";
-    const effectiveKey = offeredKey || settings.get(activeKeySetting) || "";
-    const effectiveBaseUrl = baseUrl || settings.get(activeBaseUrlSetting) || "";
+    const effectiveKey = offeredKey || (provKey === "flipia" ? "dummy" : settings.get(activeKeySetting)) || "";
+    const effectiveBaseUrl = baseUrl || (provKey === "flipia" ? "https://flip-ia.vercel.app/v1" : settings.get(activeBaseUrlSetting)) || "";
 
     try {
       const result = await discoverProviderModels({

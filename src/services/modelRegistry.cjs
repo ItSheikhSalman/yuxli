@@ -99,6 +99,144 @@ function normalizeSeedEntry(item, provider) {
 function ensureBaselineModels(models, provider) {
   const existingIds = new Set(models.map((m) => m.id.toLowerCase()));
   const baselines = {
+    flipia: [
+      {
+        id: "Olmo-3.1-32B-Instruct",
+        displayName: "Olmo 3.1 32B Instruct (Free)",
+        recommended: true,
+        status: "active",
+        aliases: ["olmo-3.1-32b", "olmo-3.1-32b-instruct"],
+        capabilitySource: "official-docs",
+        capabilities: {
+          textInput: true,
+          textOutput: true,
+          vision: false,
+          audioInput: false,
+          stt: false,
+          videoInput: false,
+          pdfInput: false,
+        },
+      },
+      {
+        id: "Olmo-3-7B-Instruct",
+        displayName: "Olmo 3 7B Instruct (Free)",
+        recommended: false,
+        status: "active",
+        aliases: ["olmo-3-7b", "olmo-3-7b-instruct"],
+        capabilitySource: "official-docs",
+        capabilities: {
+          textInput: true,
+          textOutput: true,
+          vision: false,
+          audioInput: false,
+          stt: false,
+          videoInput: false,
+          pdfInput: false,
+        },
+      },
+      {
+        id: "molmo2-8b",
+        displayName: "Molmo2 8B (Vision)",
+        recommended: false,
+        status: "active",
+        aliases: ["molmo2", "molmo-8b"],
+        capabilitySource: "official-docs",
+        capabilities: {
+          textInput: true,
+          textOutput: true,
+          vision: true,
+          audioInput: false,
+          stt: false,
+          videoInput: false,
+          pdfInput: false,
+        },
+      },
+      {
+        id: "trinity-large-thinking",
+        displayName: "Trinity Large Thinking (Reasoning)",
+        recommended: false,
+        status: "active",
+        aliases: ["trinity-thinking"],
+        capabilitySource: "official-docs",
+        capabilities: {
+          textInput: true,
+          textOutput: true,
+          vision: false,
+          audioInput: false,
+          stt: false,
+          videoInput: false,
+          pdfInput: false,
+        },
+      },
+      {
+        id: "trinity-mini",
+        displayName: "Trinity Mini",
+        recommended: false,
+        status: "active",
+        aliases: ["trinity-mini"],
+        capabilitySource: "official-docs",
+        capabilities: {
+          textInput: true,
+          textOutput: true,
+          vision: false,
+          audioInput: false,
+          stt: false,
+          videoInput: false,
+          pdfInput: false,
+        },
+      },
+      {
+        id: "gemini-3.5-flash",
+        displayName: "Gemini 3.5 Flash",
+        recommended: false,
+        status: "active",
+        aliases: ["gemini-3.5"],
+        capabilitySource: "official-docs",
+        capabilities: {
+          textInput: true,
+          textOutput: true,
+          vision: false,
+          audioInput: false,
+          stt: false,
+          videoInput: false,
+          pdfInput: false,
+        },
+      },
+      {
+        id: "gpt-5.5",
+        displayName: "GPT 5.5",
+        recommended: false,
+        status: "active",
+        aliases: ["gpt5.5"],
+        capabilitySource: "official-docs",
+        capabilities: {
+          textInput: true,
+          textOutput: true,
+          vision: false,
+          audioInput: false,
+          stt: false,
+          videoInput: false,
+          pdfInput: false,
+        },
+      },
+      {
+        id: "gpt-5.4",
+        displayName: "GPT 5.4",
+        recommended: false,
+        status: "active",
+        aliases: ["gpt5.4"],
+        capabilitySource: "official-docs",
+        capabilities: {
+          textInput: true,
+          textOutput: true,
+          vision: false,
+          audioInput: false,
+          stt: false,
+          videoInput: false,
+          pdfInput: false,
+        },
+      },
+    ],
     openai: [
       {
         id: "Olmo-3.1-32B-Instruct",
@@ -240,6 +378,9 @@ function ensureBaselineModels(models, provider) {
 
 function processCatalog(rawCatalog) {
   if (!rawCatalog || !rawCatalog.providers) return rawCatalog;
+  if (!rawCatalog.providers.flipia) {
+    rawCatalog.providers.flipia = { requiresApiKey: false, models: [] };
+  }
   for (const p of Object.keys(rawCatalog.providers)) {
     const provObj = rawCatalog.providers[p];
     if (!provObj || !Array.isArray(provObj.models)) continue;
@@ -274,6 +415,7 @@ function loadSeedCatalog() {
     schemaVersion: 1,
     updatedAt: "2026-09-18",
     providers: {
+      flipia: { requiresApiKey: false, models: [] },
       openai: { requiresApiKey: true, models: [] },
       anthropic: { requiresApiKey: true, models: [] },
       gemini: { requiresApiKey: true, models: [] },

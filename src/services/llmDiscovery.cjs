@@ -363,7 +363,41 @@ class GeminiDiscoveryAdapter extends BaseDiscoveryAdapter {
   }
 }
 
+class FlipIADiscoveryAdapter extends BaseDiscoveryAdapter {
+  constructor() {
+    super("flipia");
+  }
+
+  async discover({ baseUrl = "https://flip-ia.vercel.app/v1" } = {}) {
+    const rootUrl = assertProviderBaseUrl(baseUrl || "https://flip-ia.vercel.app/v1", {
+      allowLoopback: true,
+    });
+    const resp = await requestJson(`${rootUrl}/models`, {
+      headers: { Accept: "application/json" },
+    });
+
+    if (!resp.ok) {
+      httpError("Flip-IA", resp.status);
+    }
+
+    const data = await readJsonBody(resp);
+    const rawList = Array.isArray(data?.data) ? data.data : [];
+
+    return rawList
+      .map((m) => ({ id: cleanModelId(m.id), raw: m }))
+      .map((m) =>
+        enrichDiscoveredModel({
+          id: m.id,
+          displayName: m.raw.description || m.id,
+          provider: "flipia",
+          status: "active",
+        }),
+      );
+  }
+}
+
 const ADAPTERS = {
+  flipia: new FlipIADiscoveryAdapter(),
   openai: new OpenAIDiscoveryAdapter(),
   anthropic: new AnthropicDiscoveryAdapter(),
   gemini: new GeminiDiscoveryAdapter(),
@@ -417,7 +451,7 @@ async function discoverProviderModels(optionsOrProvider = "gemini", maybeOptions
 
   const hasKey = Boolean(apiKey && String(apiKey).trim());
   if (!hasKey) {
-    if (provKey !== "openai" || !baseUrl) {
+    if (provKey !== "openai" && provKey !== "flipia" || !baseUrl) {
       return seedOnlyResult(
         provKey,
         `Please connect your ${provKey} API key to discover models available to your account.`,

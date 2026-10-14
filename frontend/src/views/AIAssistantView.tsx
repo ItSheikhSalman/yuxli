@@ -47,7 +47,7 @@ interface ProviderPreset {
   id: string;
   name: string;
   descKey: string;
-  provider: "gemini" | "openai" | "anthropic";
+  provider: "gemini" | "openai" | "anthropic" | "flipia";
   defaultModel: string;
   defaultBaseUrl: string;
   keySetting: string;
@@ -56,6 +56,17 @@ interface ProviderPreset {
 }
 
 const PRESETS: ProviderPreset[] = [
+  {
+    id: "flipia",
+    name: "Free AI (Flip-IA)",
+    descKey: "providerFlipIADesc",
+    provider: "flipia",
+    defaultModel: "Olmo-3.1-32B-Instruct",
+    defaultBaseUrl: "https://flip-ia.vercel.app/v1",
+    keySetting: "",
+    modelSetting: "flipia_model",
+    baseUrlSetting: "flipia_base_url",
+  },
   {
     id: "gemini",
     name: "Google Gemini",
@@ -114,10 +125,11 @@ const PRESETS: ProviderPreset[] = [
 ];
 
 function presetFromSettings(settings: Record<string, any>): ProviderPreset {
-  const currentProvider = settings["ai_provider"] || "gemini";
+  const currentProvider = settings["ai_provider"] || "flipia";
   return (
     PRESETS.find((p) => {
       if (p.provider !== currentProvider) return false;
+      if (p.id === "flipia") return true;
       if (p.id === "gemini") return true;
       if (p.id === "anthropic") return true;
       if (p.id === "groq" && settings["openai_base_url"]?.includes("groq.com")) return true;
@@ -327,7 +339,8 @@ export const AIAssistantView: React.FC = () => {
   const currentModelList: NormalizedModel[] = discoveryState[selectedPreset.id]?.models || [];
   const isLiveVerified = Boolean(discoveryState[selectedPreset.id]?.live);
   const requiresApiKey = Boolean(
-    discoveryState[selectedPreset.id]?.requiresApiKey ?? !configuredKeys[selectedPreset.keySetting],
+    discoveryState[selectedPreset.id]?.requiresApiKey ??
+      (selectedPreset.keySetting ? !configuredKeys[selectedPreset.keySetting] : false),
   );
 
   const savedModelVal = settings[savedPreset.modelSetting] || savedPreset.defaultModel;
@@ -611,7 +624,7 @@ export const AIAssistantView: React.FC = () => {
                 await persistSetting(p.baseUrlSetting, draft.baseUrl);
               }
               await persistSetting(p.modelSetting, draft.model);
-              if (draft.apiKey.trim()) {
+              if (p.keySetting && draft.apiKey.trim()) {
                 await persistSetting(p.keySetting, draft.apiKey.trim());
               }
               providerForm.setDraft({ ...draft, apiKey: "" });
@@ -622,32 +635,43 @@ export const AIAssistantView: React.FC = () => {
           }}
         >
           <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-            <Field
-              className="min-w-0"
-              htmlFor="input-api-key"
-              label={
-                <span className="flex w-full items-center justify-between gap-2">
-                  <span>{t("apiKey")}</span>
-                  {configuredKeys[selectedPreset.keySetting] && (
-                    <Badge tone="ok">
-                      <CheckCircle2 size={11} />
-                      {t("saved")}
-                    </Badge>
-                  )}
-                </span>
-              }
-            >
-              <Input
-                id="input-api-key"
-                type="password"
-                className="font-mono"
-                value={providerForm.draft.apiKey}
-                onChange={(e) => providerForm.setField("apiKey", e.target.value)}
-                placeholder={
-                  configuredKeys[selectedPreset.keySetting] ? "••••••••••••" : t("enterApiKey")
+            {selectedPreset.keySetting ? (
+              <Field
+                className="min-w-0"
+                htmlFor="input-api-key"
+                label={
+                  <span className="flex w-full items-center justify-between gap-2">
+                    <span>{t("apiKey")}</span>
+                    {configuredKeys[selectedPreset.keySetting] && (
+                      <Badge tone="ok">
+                        <CheckCircle2 size={11} />
+                        {t("saved")}
+                      </Badge>
+                    )}
+                  </span>
                 }
-              />
-            </Field>
+              >
+                <Input
+                  id="input-api-key"
+                  type="password"
+                  className="font-mono"
+                  value={providerForm.draft.apiKey}
+                  onChange={(e) => providerForm.setField("apiKey", e.target.value)}
+                  placeholder={
+                    configuredKeys[selectedPreset.keySetting] ? "••••••••••••" : t("enterApiKey")
+                  }
+                />
+              </Field>
+            ) : (
+              <div className="flex flex-col justify-center rounded-lg border border-border/60 bg-surface/50 p-3">
+                <span className="text-xs font-semibold flex items-center gap-1.5 text-ok">
+                  <CheckCircle2 size={14} /> 100% Free AI
+                </span>
+                <span className="text-[11px] text-muted mt-1">
+                  Zero setup — No API key needed!
+                </span>
+              </div>
+            )}
 
             {selectedPreset.baseUrlSetting && (
               <Field className="min-w-0" label={t("baseUrl")} htmlFor="input-base-url">

@@ -44,7 +44,7 @@ const {
   sanitizeHistoryForFiles,
   activeProviderKeySetting,
 } = require("../services/aiAgent.cjs");
-const { getProvider } = require("../services/aiRouter.cjs");
+const { getProvider, hasProvider } = require("../services/aiRouter.cjs");
 const { downloadContentFromMessage } = require("@whiskeysockets/baileys");
 const { unwrapMessage, visibleText } = require("../utils/messageContent.cjs");
 const {
@@ -700,19 +700,23 @@ module.exports = {
     }
 
     // Provider-aware: delegates configuration check to the active provider adapter.
-    const activeProvider = getProvider();
+    let activeProvider = getProvider();
     if (!activeProvider.isConfigured()) {
-      return sendBotMessage(
-        sock,
-        chatId,
-        {
-          text: tr(
-            `Settings problem: no API key is set for the current AI provider (${activeProvider.label || activeProvider.id}) — set it in the control panel.`,
-            `خطأ في الإعدادات: لم يُضبط مفتاح مزوّد الذكاء الاصطناعي الحالي (${activeProvider.label || activeProvider.id}) — اضبطه من لوحة التحكم.`,
-          ),
-        },
-        { replyTo: msg },
-      );
+      if (hasProvider("flipia")) {
+        activeProvider = getProvider("flipia");
+      } else {
+        return sendBotMessage(
+          sock,
+          chatId,
+          {
+            text: tr(
+              `Settings problem: no API key is set for the current AI provider (${activeProvider.label || activeProvider.id}) — set it in the control panel.`,
+              `خطأ في الإعدادات: لم يُضبط مفتاح مزوّد الذكاء الاصطناعي الحالي (${activeProvider.label || activeProvider.id}) — اضبطه من لوحة التحكم.`,
+            ),
+          },
+          { replyTo: msg },
+        );
+      }
     }
 
     // Who the agent acts for: the sender of THIS message, resolved exactly the
@@ -760,6 +764,7 @@ module.exports = {
         history,
         status,
         context: agentContext,
+        provider: activeProvider,
       });
       if (result.history?.length) {
         await saveChatHistoryAsync(chatId, result.history);

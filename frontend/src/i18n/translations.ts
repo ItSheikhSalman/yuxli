@@ -181,6 +181,8 @@ export const translations = {
     // Provider labels
     providerGemini: "Google Gemini",
     providerGeminiDesc: "الافتراضي، يدعم البحث والملفات والصور والصوتيات محلياً",
+    providerFlipIA: "Free AI (Flip-IA)",
+    providerFlipIADesc: "مزود مجاني تماماً 100% بدون أي مفتاح API، يدعم نماذج قوية ومجانية",
     providerGroq: "Groq Cloud",
     providerGroqDesc: "فائق السرعة لنماذج Llama 3 و Mixtral مع دعم Vision",
     providerOpenAI: "OpenAI / Compatible",
@@ -996,6 +998,8 @@ export const translations = {
     providerGemini: "Google Gemini",
     providerGeminiDesc:
       "Default provider with native Google Search, Files upload, and Multimodal support",
+    providerFlipIA: "Free AI (Flip-IA)",
+    providerFlipIADesc: "100% Free AI with zero API key required, fast & powerful models",
     providerGroq: "Groq Cloud",
     providerGroqDesc: "Ultra-fast inference for Llama 3 & Mixtral models with Vision support",
     providerOpenAI: "OpenAI / Compatible",

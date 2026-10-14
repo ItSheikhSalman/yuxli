@@ -14,7 +14,7 @@ const { visibleText } = require("../utils/messageContent.cjs");
 const { detectLang, withLang } = require("../utils/i18n.cjs");
 const autoDelete = require("../services/autoDelete.cjs");
 const settings = require("../config/settings.cjs");
-const { getProvider } = require("../services/aiRouter.cjs");
+const { getProvider, hasProvider } = require("../services/aiRouter.cjs");
 const { resolveGroupMetadata } = require("../utils/groupMetadataCache.cjs");
 
 // Envelopes that carry no user-visible content: message revokes and edits
@@ -185,8 +185,14 @@ async function handleAutoAiReply(sock, msg, body, isGroup) {
   if (!shouldReply || !cleanText) return false;
 
   try {
-    const provider = getProvider();
-    if (!provider || !provider.isConfigured()) return false;
+    let provider = getProvider();
+    if (!provider || !provider.isConfigured()) {
+      if (hasProvider("flipia")) {
+        provider = getProvider("flipia");
+      } else {
+        return false;
+      }
+    }
 
     const geminiCmd = getLoadedCommands().get("gemini");
     if (!geminiCmd) return false;
