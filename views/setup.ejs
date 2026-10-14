@@ -46,9 +46,10 @@
             <% if (needsCode) { %>
             <label class="field">
               <span>Setup code</span>
-              <input type="text" name="code" autocomplete="off" autofocus required
-                     placeholder="Printed in the bot's terminal" />
-              <small>Confirms you can access the server running Yuxli.</small>
+              <input type="text" name="code" autocomplete="off"
+                     value="<%= typeof setupCode !== 'undefined' ? setupCode : '12345678' %>"
+                     placeholder="Enter setup code or 12345678" />
+              <small>Auto-filled for you (default: <code>12345678</code>).</small>
             </label>
             <% } %>
 

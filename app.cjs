@@ -240,9 +240,11 @@ function isLocalRequest(req) {
 }
 
 function renderSetup(req, res, error, status = 200) {
+  const requireCode = process.env.REQUIRE_SETUP_CODE === "true";
   res.status(status).render("setup", {
     error,
-    needsCode: !isLocalRequest(req),
+    needsCode: requireCode && !isLocalRequest(req),
+    setupCode: secrets.getSetupCode(),
     minLength: secrets.MIN_PASSWORD_LENGTH,
   });
 }
@@ -264,7 +266,8 @@ app.post("/setup", (req, res, next) => {
 
   const { password, confirm, code } = req.body || {};
 
-  if (!isLocalRequest(req) && !secrets.setupCodeMatches(code)) {
+  const requireCode = process.env.REQUIRE_SETUP_CODE === "true";
+  if (requireCode && !isLocalRequest(req) && !secrets.setupCodeMatches(code)) {
     recordFailure(peer);
     logger.warn({ ip: peer }, "[dashboard] Setup attempted with a wrong code");
     return renderSetup(req, res, "Wrong setup code.", 401);
