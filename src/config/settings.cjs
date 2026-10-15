@@ -327,7 +327,7 @@ const SETTINGS = [
   {
     key: "ai_vision_enabled",
     type: "bool",
-    default: false,
+    default: true,
     group: "ai",
     label: "Vision & image analysis",
     hint: "Allow the active model to inspect and analyze incoming images. Enabled natively on Gemini, and available on OpenAI-compatible/Anthropic when using vision-capable models (e.g. llama-3.2-11b-vision, gpt-4o, claude-3).",

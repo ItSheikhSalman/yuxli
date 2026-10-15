@@ -396,18 +396,80 @@ class FlipIADiscoveryAdapter extends BaseDiscoveryAdapter {
   }
 }
 
+class PollinationsDiscoveryAdapter extends BaseDiscoveryAdapter {
+  constructor() {
+    super("pollinations");
+  }
+
+  async discover({ baseUrl = "https://text.pollinations.ai" } = {}) {
+    try {
+      const rootUrl = baseUrl ? baseUrl.replace(/\/openai\/?$/, "") : "https://text.pollinations.ai";
+      const resp = await requestJson(`${rootUrl}/models`, {
+        headers: { Accept: "application/json" },
+      });
+      if (resp.ok) {
+        const data = await readJsonBody(resp);
+        if (Array.isArray(data) && data.length > 0) {
+          return data
+            .map((m) => {
+              const id = cleanModelId(typeof m === "string" ? m : m.name || m.id);
+              const desc = typeof m === "object" ? m.description || id : id;
+              return { id, desc };
+            })
+            .filter((m) => m.id)
+            .map((m) =>
+              enrichDiscoveredModel({
+                id: m.id,
+                displayName: m.desc,
+                provider: "pollinations",
+                status: "active",
+              }),
+            );
+        }
+      }
+    } catch {
+      // Fallback to baseline seed models
+    }
+    return getSeedModels("pollinations");
+  }
+}
+
+class GroqDiscoveryAdapter extends OpenAIDiscoveryAdapter {
+  constructor() {
+    super();
+    this.provider = "groq";
+  }
+
+  async discover({ apiKey, baseUrl = "https://api.groq.com/openai/v1" } = {}) {
+    const list = await super.discover({
+      apiKey,
+      baseUrl: baseUrl || "https://api.groq.com/openai/v1",
+    });
+    return list.map((m) =>
+      enrichDiscoveredModel({
+        id: m.id,
+        displayName: m.displayName || m.id,
+        provider: "groq",
+        status: m.status || "active",
+      }),
+    );
+  }
+}
+
 const ADAPTERS = {
   flipia: new FlipIADiscoveryAdapter(),
+  pollinations: new PollinationsDiscoveryAdapter(),
+  groq: new GroqDiscoveryAdapter(),
   openai: new OpenAIDiscoveryAdapter(),
   anthropic: new AnthropicDiscoveryAdapter(),
   gemini: new GeminiDiscoveryAdapter(),
 };
 
-function seedOnlyResult(provKey, message) {
+function seedOnlyResult(provKey, message, requiresApiKey = true) {
   return {
     success: true,
     live: false,
-    requiresApiKey: true,
+    requiresApiKey: Boolean(requiresApiKey),
     fallback: true,
     provider: provKey,
     models: getSeedModels(provKey),
@@ -450,11 +512,44 @@ async function discoverProviderModels(optionsOrProvider = "gemini", maybeOptions
   }
 
   const hasKey = Boolean(apiKey && String(apiKey).trim());
+
+  // Pollinations is 100% free with zero API key required
+  if (provKey === "pollinations") {
+    if (cacheOnly && !refresh) {
+      return seedOnlyResult(
+        provKey,
+        "Using pre-configured free models for Pollinations.",
+        false,
+      );
+    }
+    try {
+      const liveModels = await adapter.discover({ baseUrl });
+      if (liveModels && liveModels.length > 0) {
+        return {
+          success: true,
+          live: true,
+          requiresApiKey: false,
+          fallback: false,
+          provider: provKey,
+          models: liveModels,
+        };
+      }
+    } catch {
+      // Fallback to seed models
+    }
+    return seedOnlyResult(
+      provKey,
+      "Using pre-configured free models for Pollinations.",
+      false,
+    );
+  }
+
   if (!hasKey) {
-    if (provKey !== "openai" && provKey !== "flipia" || !baseUrl) {
+    if ((provKey !== "openai" && provKey !== "flipia" && provKey !== "groq") || !baseUrl) {
       return seedOnlyResult(
         provKey,
         `Please connect your ${provKey} API key to discover models available to your account.`,
+        true,
       );
     }
   }

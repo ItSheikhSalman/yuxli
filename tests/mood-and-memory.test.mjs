@@ -534,7 +534,24 @@ assert.ok(parsed.includes("─────────────────�
 assert.ok(parsed.includes("📌 *Python Script*"), "Heading converted with clean badge");
 console.log("✓ WhatsApp code copy box & formatting passed\n");
 
-console.log("ALL 25 MOOD, MEMORY, GROUP ISOLATION, ROMAN URDU, NEW FEATURES, CODE BOX & DIAGNOSTIC TESTS PASSED! 🎉");
+// Test 26: Respected Elder Family Relationship Detection & Etiquette
+console.log("Test 26: Respected Elder Family Relationship Detection");
+const elderMami = aiMood.detectElderRelationship({ senderName: "Rawaha Mami" }, "Sorry mobile gugu kay pas tha");
+assert.strictEqual(elderMami.isElder, true, "Rawaha Mami detected as elder");
+assert.ok(elderMami.title.includes("Mami"), "Title matches Mami");
+
+const elderTextOnly = aiMood.detectElderRelationship({}, "Sorry mobile gugu kay pas tha beta");
+assert.strictEqual(elderTextOnly.isElder, true, "Text cue with gugu/beta detected as elder");
+
+const mamiPrompt = aiMood.buildMoodPrompt("923001234567@s.whatsapp.net", "Sorry mobile gugu kay pas tha", {
+  senderName: "Rawaha Mami",
+});
+assert.ok(mamiPrompt.includes("RESPECTED FAMILY ELDER"), "Elder respect directive present");
+assert.ok(mamiPrompt.includes("NEVER call them \"bhai\""), "Forbidden to call Mami bhai");
+assert.ok(!mamiPrompt.includes("SAVAGE ANGER"), "Roast/anger not triggered for elder");
+console.log("✓ Elder family relationship detection passed\n");
+
+console.log("ALL 26 MOOD, MEMORY, GROUP ISOLATION, ROMAN URDU, NEW FEATURES, CODE BOX & DIAGNOSTIC TESTS PASSED! 🎉");
 
 
 

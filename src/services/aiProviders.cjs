@@ -377,6 +377,22 @@ class PollinationsProvider extends BaseAIProvider {
     return settings.get("pollinations_base_url") || "https://text.pollinations.ai/openai";
   }
 
+  async prepareMedia(
+    parts,
+    mediaMessage,
+    mimeOverride,
+    { downloadContentFromMessage, downloadType } = {},
+  ) {
+    return prepareInlineImageMedia(
+      "pollinations",
+      parts,
+      mediaMessage,
+      mimeOverride,
+      downloadContentFromMessage,
+      downloadType,
+    );
+  }
+
   async runTurn(options) {
     return runProviderAgent("pollinations", options);
   }
@@ -552,7 +568,7 @@ function historyToOpenAI(history) {
       return;
     }
 
-    const isVisionOn = visionAllowed("openai");
+    const isVisionOn = visionAllowed();
     const imageParts =
       isVisionOn && role === "user"
         ? turn.parts.filter(
@@ -878,7 +894,49 @@ async function runProviderAgent(
   // for storage. Both start from the trimmed history, then gain the current
   // user turn — exactly what the Gemini path's Chat class does internally.
   const messages = adapter.historyToMessages(history);
-  messages.push(adapter.userMessage(turnText));
+
+  const isVisionOn = visionAllowed(provider);
+  const imageParts = isVisionOn
+    ? (parts || []).filter(
+        (p) => p?.inlineData?.mimeType?.startsWith("image/") && p?.inlineData?.data,
+      )
+    : [];
+
+  let currentTurnMessage;
+  if (provider === "anthropic") {
+    const blocks = [];
+    for (const img of imageParts) {
+      blocks.push({
+        type: "image",
+        source: {
+          type: "base64",
+          media_type: img.inlineData.mimeType,
+          data: img.inlineData.data,
+        },
+      });
+    }
+    blocks.push({
+      type: "text",
+      text: turnText || "Please examine and describe this image in detail and answer any relevant context.",
+    });
+    currentTurnMessage = { role: "user", content: blocks };
+  } else if (imageParts.length) {
+    const items = [];
+    const promptText = turnText || "Please examine and describe this image in detail and answer any relevant context:";
+    items.push({ type: "text", text: promptText });
+    for (const img of imageParts) {
+      items.push({
+        type: "image_url",
+        image_url: {
+          url: `data:${img.inlineData.mimeType};base64,${img.inlineData.data}`,
+        },
+      });
+    }
+    currentTurnMessage = { role: "user", content: items };
+  } else {
+    currentTurnMessage = adapter.userMessage(turnText);
+  }
+  messages.push(currentTurnMessage);
 
   const canonical = [...(Array.isArray(history) ? history : [])];
   canonical.push({

@@ -625,7 +625,7 @@ module.exports = {
           text:
             prompt ||
             mediaMessage.caption ||
-            tr("What is in this image/video?", "ماذا يوجد في هذه الصورة/الفيديو؟", "اس تصویر یا ویڈیو میں کیا ہے؟"),
+            "Please scan and analyze this image completely. Extract all visible text, poster details, event/date/topic, and summarize what it is clearly in natural Roman Urdu (or English if appropriate). If appropriate, add an emoji reaction [REACT: <emoji>] at the beginning.",
         });
       } catch (error) {
         logger.error({ err: error }, "Failed to upload media to Gemini.");
@@ -773,14 +773,22 @@ module.exports = {
       .filter((t) => t && t !== myJid && t !== normalizedSenderId);
 
     const rawPromptText = prompt || "";
-    const roastKeywordMatch = /(\broast\b|روسٹ|zalil|bezzat|dhulai|class\s*lo|isko\s*batao|burn\b|cook\b|destroy\b|suar|kuta|kutta|bc|bsdk|dala|fuck|bitch|dog|pig|harami|kamina|chirkut|chapri)/i.test(
+    const roastKeywordMatch = /(\broast\b|روسٹ|zalil|bezzat|dhulai|class\s*lo|isko\s*batao|burn\b|cook\b|destroy\b|suar|kuta|kutta|bc|bsdk|fuck|bitch|dog|pig|harami|kamina|chirkut|chapri)/i.test(
       rawPromptText,
     );
     const currentChatMode = aiMood.getChatMode(chatId, normalizedSenderId);
+    const elderInfo = aiMood.detectElderRelationship({
+      senderName: userName,
+      chatName: caller.chatName,
+      senderId: normalizedSenderId,
+    }, rawPromptText);
+
     const isTargetedRoast = Boolean(
-      ctx?.isTargetedRoast ||
-      (validTargets.length > 0 && (roastKeywordMatch || currentChatMode === "roast")) ||
-      (roastKeywordMatch && (validTargets.length > 0 || args.length > 0))
+      !elderInfo.isElder && (
+        ctx?.isTargetedRoast ||
+        (validTargets.length > 0 && (roastKeywordMatch || currentChatMode === "roast")) ||
+        (roastKeywordMatch && (validTargets.length > 0 || args.length > 0))
+      )
     );
 
     let targetInfo = ctx?.targetInfo || null;

@@ -186,11 +186,87 @@ function resetChatMode(chatId) {
   return getChatMode(chatId);
 }
 
+const ELDER_RELATION_PATTERNS = [
+  // Mami / Mamoo
+  { pattern: /\b(mami|mamee|mammy|mami\s*ji|mami\s*jaan)\b/i, title: "Mami (Maternal Aunt)" },
+  { pattern: /\b(mamoo|mamu|mamo|mamu\s*ji|mamoo\s*jaan)\b/i, title: "Mamoo (Maternal Uncle)" },
+  // Chacha / Chachi / Taya / Tai
+  { pattern: /\b(chachi|chachi\s*ji|chachee)\b/i, title: "Chachi (Paternal Aunt)" },
+  { pattern: /\b(chacha|chachu|chacha\s*ji|chacho)\b/i, title: "Chacha (Paternal Uncle)" },
+  { pattern: /\b(taya|taya\s*abu|tai|tai\s*ammi)\b/i, title: "Taya/Tai (Elder Paternal Uncle/Aunt)" },
+  // Khala / Khaloo
+  { pattern: /\b(khala|khala\s*ji|khala\s*ammi|khala\s*jaan)\b/i, title: "Khala (Maternal Aunt)" },
+  { pattern: /\b(khaloo|khalu|khalo|khalu\s*ji)\b/i, title: "Khaloo (Maternal Uncle)" },
+  // Phuppo / Phupha
+  { pattern: /\b(phuppo|phupho|phupo|phuphi|phuppi)\b/i, title: "Phuppo (Paternal Aunt)" },
+  { pattern: /\b(phupha|phuppha|phupa)\b/i, title: "Phupha (Paternal Uncle)" },
+  // Parents / Grandparents
+  { pattern: /\b(ammi|ami|ammi\s*jaan|walida|maa\s*ji)\b/i, title: "Ammi (Mother)" },
+  { pattern: /\b(abu|abbu|baba|papa|walid|abbu\s*jaan)\b/i, title: "Abu (Father)" },
+  { pattern: /\b(dada|dadi|nana|nani)\b/i, title: "Grandparent" },
+  // Respect titles / Seniors
+  { pattern: /\b(aunty|auntie|anti|aunt)\b/i, title: "Aunty" },
+  { pattern: /\b(uncle|unkal)\b/i, title: "Uncle" },
+  { pattern: /\b(sir|madam|ma'am|teacher|ustad)\b/i, title: "Teacher / Senior" },
+  { pattern: /\b(baji|aapi|api)\b/i, title: "Elder Sister (Baji/Aapi)" },
+];
+
+const ELDER_TEXT_CUES = [
+  /\b(beta|betay|bachey|bachay|meray\s*bachay|meri\s*bachi)\b/i,
+  /\b(mobile\s*gugu|gugu\s*kay\s*pas|gugu\s*k\s*paas|gugu\s*k\s*pas)\b/i,
+  /\b(sorry\s*mobile|bacha\s*ro\s*raha|bache\s*k\s*pas)\b/i,
+  /\b(salam\s*beta|assalam\s*o\s*alaikum\s*beta)\b/i,
+];
+
+function detectElderRelationship(options = {}, text = "") {
+  const candidates = [
+    options.senderName,
+    options.chatName,
+    options.contactName,
+  ];
+
+  if (options.senderId) {
+    try {
+      const userMeta = store.getUserMetadata(options.senderId);
+      if (userMeta?.savedName) candidates.push(userMeta.savedName);
+      if (userMeta?.displayName) candidates.push(userMeta.displayName);
+    } catch {}
+  }
+
+  const nameString = candidates.filter(Boolean).join(" ");
+  for (const { pattern, title } of ELDER_RELATION_PATTERNS) {
+    if (pattern.test(nameString)) {
+      return { isElder: true, title, reason: `Matched elder title in contact name: ${title}` };
+    }
+  }
+
+  // Also check if message text contains elder speaking cues (e.g. "Sorry mobile gugu kay pas tha" or "beta")
+  if (text) {
+    for (const cue of ELDER_TEXT_CUES) {
+      if (cue.test(text)) {
+        return { isElder: true, title: "Family Elder / Senior", reason: "Matched family elder text pattern" };
+      }
+    }
+    for (const { pattern, title } of ELDER_RELATION_PATTERNS) {
+      if (pattern.test(text) && /\b(main|meri|teri|apki|aapki|humaari)\b/i.test(text)) {
+        return { isElder: true, title, reason: `Elder self-identified in text: ${title}` };
+      }
+    }
+  }
+
+  return { isElder: false, title: null };
+}
+
 /**
  * Detect explicit in-message user expression or roast/emotion requests.
  */
-function detectExpressionCue(text) {
+function detectExpressionCue(text, options = {}) {
   if (!text || typeof text !== "string") return null;
+
+  // Never classify respected elder family members into roast or anger!
+  const elder = detectElderRelationship(options, text);
+  if (elder.isElder) return null;
+
   const lower = text.toLowerCase();
 
   // 1. Raw Anger, Curse Words & Abuse Triggers ("gussy m / roasting m bad words")
@@ -211,7 +287,7 @@ function detectExpressionCue(text) {
   const roastPatterns = [
     /\b(roast\s*(me|him|her|them|this|us|bhai|yaar)?)\b/i,
     /روسٹ\s*کرو/,
-    /مجھے\s*روسٹ\s*کرو/,
+    /मुझे\s*روسٹ\s*کرو/,
     /\b(savage\s*reply|burn\s*me|roast\s*karo)\b/i,
     /\b(tu\s*pagal\s*hai|tera\s*dimagh\s*kharab\s*hai|dimaag\s*kharab)\b/i,
     /\b(chal\s*nikal|nikal\s*yahan\s*se|aukat\s*me\s*reh|aukat\s*kya\s*hai)\b/i,
@@ -299,7 +375,26 @@ function buildMoodPrompt(chatId, latestUserText = "", options = {}) {
   const currentMode = getChatMode(chatId, options.senderId);
   const modeDef = MODES[currentMode] || MODES.auto;
 
-  const dynamicCue = currentMode === "auto" ? detectExpressionCue(latestUserText) : null;
+  const elderInfo = detectElderRelationship(options, latestUserText);
+  let elderDirective = "";
+
+  if (elderInfo.isElder) {
+    const elderLabel = elderInfo.title || "Family Elder";
+    elderDirective = `
+[CRITICAL RECIPIENT RELATIONSHIP: RESPECTED FAMILY ELDER (${elderLabel})]
+- The person speaking to you is a RESPECTED FAMILY ELDER (e.g. Mami, Mamoo, Chachi, Chacha, Khala, Phupho, Ammi, Abu, Aunty, Uncle, Sir, etc.)!
+- ABSOLUTELY STRICT BEHAVIOR RULES (ZERO TOLERANCE FOR CASUAL SLANG OR DISRESPECT):
+  1. NEVER call them "bhai", "yar", "bro", "dude", or "dost"!
+  2. NEVER use sarcasm, teasing, roasts, or rude queries (NEVER say "kia hua bhai?", "mtlb", "pagal", "dimagh kharab")!
+  3. ALWAYS use respectful, courteous, adab-bhara Roman Urdu:
+     - Use "Ji", "Ji ${elderLabel.split(' ')[0]}", "G theek hy", "Ji bilkul", "Aap kaisy/kaisi hain?".
+     - Always address them as "Aap" with full respect (never "tu" or "tum")!
+  4. Understand family/domestic situations naturally:
+     - For example, if she says "Sorry mobile gugu kay pas tha" (the baby/toddler had the phone), reply respectfully: "Ji koi baat nahi ${elderLabel.split(' ')[0]}, sab khairiyat hy na? 😊" or "Koi masla nahi Ji, gugu kaisa hy?".
+  5. Keep it short, warm, polite, and respectful (1-2 sentences).`;
+  }
+
+  const dynamicCue = currentMode === "auto" && !elderInfo.isElder ? detectExpressionCue(latestUserText, options) : null;
   let dynamicDirective = "";
 
   if (dynamicCue) {
@@ -308,7 +403,7 @@ function buildMoodPrompt(chatId, latestUserText = "", options = {}) {
         dynamicDirective = `
 [REAL-TIME USER EXPRESSION: SAVAGE ANGER / RAW FRIEND BANTER / CURSES DETECTED]
 - The user is in angry mode, firing curse words, or throwing aggressive friend banter!
-- Fire back with matching savage fury, hilarious burns, and raw desi/English roast slang (suar, kuta, bc, bsdk, dala, chapri, etc.)!
+- Fire back with matching savage fury, hilarious burns, and raw desi/English roast slang (suar, kuta, bc, bsdk, chapri, chirkut, etc.)!
 - CRITICAL LENGTH RULE: Keep reply to EXACTLY 1 TO 2 SHORT PUNCHY LINES! NEVER write a long essay or paragraph!
 - Do NOT apologize, do NOT give polite lectures. Keep it short, lethal, and funny!`;
       } else {
@@ -344,7 +439,7 @@ function buildMoodPrompt(chatId, latestUserText = "", options = {}) {
   }
 
   let targetedRoastDirective = "";
-  if (options.isTargetedRoast && options.targetInfo?.targetTag) {
+  if (options.isTargetedRoast && options.targetInfo?.targetTag && !elderInfo.isElder) {
     targetedRoastDirective = `
 [TARGETED FRIEND ROAST DIRECTIVE: ROAST ${options.targetInfo.targetTag}]
 - The user has explicitly tagged/quoted their friend ${options.targetInfo.targetTag} and demanded you to roast them!
@@ -368,6 +463,7 @@ function buildMoodPrompt(chatId, latestUserText = "", options = {}) {
     "# AI Personality & Adaptive Mood Engine",
     `Active Mode: ${modeDef.emoji} ${modeDef.label} (${modeDef.id})`,
     modeDef.instruction,
+    elderDirective,
     dynamicDirective,
     targetedRoastDirective,
     groupTopicDirective,
@@ -428,6 +524,7 @@ module.exports = {
   getChatMode,
   setChatMode,
   resetChatMode,
+  detectElderRelationship,
   detectExpressionCue,
   buildMoodPrompt,
 };

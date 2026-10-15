@@ -335,7 +335,7 @@ function ensureBaselineModels(models, provider) {
         capabilities: {
           textInput: true,
           textOutput: true,
-          vision: false,
+          vision: true,
           audioInput: false,
           stt: false,
           videoInput: false,
@@ -348,6 +348,57 @@ function ensureBaselineModels(models, provider) {
         recommended: false,
         status: "active",
         aliases: ["pollinations-deepseek"],
+        capabilitySource: "official-docs",
+        capabilities: {
+          textInput: true,
+          textOutput: true,
+          vision: false,
+          audioInput: false,
+          stt: false,
+          videoInput: false,
+          pdfInput: false,
+        },
+      },
+      {
+        id: "qwen-coder",
+        displayName: "Qwen 2.5 Coder 32B (Pollinations Free)",
+        recommended: false,
+        status: "active",
+        aliases: ["pollinations-qwen-coder"],
+        capabilitySource: "official-docs",
+        capabilities: {
+          textInput: true,
+          textOutput: true,
+          vision: false,
+          audioInput: false,
+          stt: false,
+          videoInput: false,
+          pdfInput: false,
+        },
+      },
+      {
+        id: "mistral",
+        displayName: "Mistral Nemo (Pollinations Free)",
+        recommended: false,
+        status: "active",
+        aliases: ["pollinations-mistral"],
+        capabilitySource: "official-docs",
+        capabilities: {
+          textInput: true,
+          textOutput: true,
+          vision: false,
+          audioInput: false,
+          stt: false,
+          videoInput: false,
+          pdfInput: false,
+        },
+      },
+      {
+        id: "llama",
+        displayName: "Llama 3.3 70B (Pollinations Free)",
+        recommended: false,
+        status: "active",
+        aliases: ["pollinations-llama"],
         capabilitySource: "official-docs",
         capabilities: {
           textInput: true,
@@ -504,6 +555,12 @@ function processCatalog(rawCatalog) {
   if (!rawCatalog.providers.flipia) {
     rawCatalog.providers.flipia = { requiresApiKey: false, models: [] };
   }
+  if (!rawCatalog.providers.pollinations) {
+    rawCatalog.providers.pollinations = { requiresApiKey: false, models: [] };
+  }
+  if (!rawCatalog.providers.groq) {
+    rawCatalog.providers.groq = { requiresApiKey: true, models: [] };
+  }
   for (const p of Object.keys(rawCatalog.providers)) {
     const provObj = rawCatalog.providers[p];
     if (!provObj || !Array.isArray(provObj.models)) continue;
@@ -539,6 +596,8 @@ function loadSeedCatalog() {
     updatedAt: "2026-09-18",
     providers: {
       flipia: { requiresApiKey: false, models: [] },
+      pollinations: { requiresApiKey: false, models: [] },
+      groq: { requiresApiKey: true, models: [] },
       openai: { requiresApiKey: true, models: [] },
       anthropic: { requiresApiKey: true, models: [] },
       gemini: { requiresApiKey: true, models: [] },
