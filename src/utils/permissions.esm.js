@@ -181,6 +181,7 @@ export function isOwnerJid(jid) {
     listAll: getAllOwners,
   });
 }
+export const isOwnerJidSync = isOwnerJid;
 
 /**
  * Bot-level admin role. This is NOT "admin of this WhatsApp group" — it is a

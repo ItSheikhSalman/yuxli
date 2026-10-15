@@ -3,7 +3,7 @@ import { handleAntiSpam } from "../middleware/antispam.middleware.js";
 import { checkBlacklist } from "../middleware/blacklist.middleware.js";
 import { trackForwardedMessage } from "../middleware/forward-tracking.middleware.js";
 import normalizeJid from "../utils/normalizeJid.esm.js";
-import { getSenderCandidates, isBotAdminInGroup, isOwnerJidSync, sameUser } from "../utils/permissions.esm.js";
+import { getSenderCandidates, isBotAdminInGroup, isOwnerJid, sameUser } from "../utils/permissions.esm.js";
 import { rememberMessage } from "../utils/recentMessageCache.esm.js";
 import { saveUserMetadata, updateUserLastSeen } from "../utils/storage.esm.js";
 import { handleCommand, getLoadedCommands } from "./command.handler.js";
@@ -201,7 +201,7 @@ async function handleAutoAiReply(sock, msg, body, isGroup) {
   const chatPolicy = getChatAutoReply(chatId);
 
   if (!isGroup) {
-    const isOwner = Boolean(senderId && isOwnerJidSync(senderId));
+    const isOwner = Boolean(senderId && isOwnerJid(senderId));
     const allowedDms = botAccess.getAllowedDms();
     const isWhitelistedDm = botAccess.isDmAllowed(chatId) || (senderId && botAccess.isDmAllowed(senderId));
 
