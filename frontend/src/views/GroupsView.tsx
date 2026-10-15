@@ -165,16 +165,24 @@ export const GroupsView: React.FC = () => {
   const handleToggleWhitelist = async (g: GroupItem) => {
     const nextVal = !g.isWhitelisted;
     await handleUpdate(g.jid, { isWhitelisted: nextVal });
-    // Also update botAccess allowedGroups in local state
+    // Also update botAccess allowedGroups and mode in local state
     setBotAccess((prev) => {
       const exists = prev.allowedGroups.some((item) => item.id === g.jid);
       let updated = prev.allowedGroups;
+      let nextMode = prev.mode;
       if (nextVal && !exists) {
         updated = [...prev.allowedGroups, { id: g.jid, subject: g.subject, addedAt: Date.now() }];
+        if (prev.mode === "public") {
+          nextMode = "groups";
+          toast("Bot Scope set to 'Specific Groups Only' so unauthorized groups & personal DMs are blocked!", "info");
+        }
       } else if (!nextVal && exists) {
         updated = prev.allowedGroups.filter((item) => item.id !== g.jid);
+        if (updated.length === 0 && prev.mode === "groups") {
+          nextMode = "public";
+        }
       }
-      return { ...prev, allowedGroups: updated };
+      return { ...prev, allowedGroups: updated, mode: nextMode };
     });
   };
 
@@ -340,6 +348,50 @@ export const GroupsView: React.FC = () => {
             );
           })}
         </div>
+
+        {/* Live Scope Status Explanation Banner */}
+        {botAccess.mode === "groups" && (
+          <div className="flex items-center gap-3 p-3.5 rounded-xl border border-brand-cyan/40 bg-brand-blue/10 text-xs text-text-main">
+            <ShieldCheck size={18} className="text-brand-cyan shrink-0" />
+            <div>
+              <span className="font-bold text-brand-cyan">Active Scope: Specific Groups Only. </span>
+              The bot will <b>ONLY</b> respond in the <b>{botAccess.allowedGroups.length}</b> whitelisted group(s) below. All other groups and personal DMs from contacts/strangers are <b>strictly ignored & blocked</b>!
+            </div>
+          </div>
+        )}
+        {botAccess.mode === "whitelist" && (
+          <div className="flex items-center gap-3 p-3.5 rounded-xl border border-brand-cyan/40 bg-brand-blue/10 text-xs text-text-main">
+            <ShieldCheck size={18} className="text-brand-cyan shrink-0" />
+            <div>
+              <span className="font-bold text-brand-cyan">Active Scope: Strict Whitelist. </span>
+              The bot will <b>ONLY</b> respond in the <b>{botAccess.allowedGroups.length}</b> whitelisted group(s) and <b>{botAccess.allowedDms.length}</b> authorized private contacts below.
+            </div>
+          </div>
+        )}
+        {botAccess.mode === "self" && (
+          <div className="flex items-center gap-3 p-3.5 rounded-xl border border-amber-500/40 bg-amber-500/10 text-xs text-text-main">
+            <ShieldAlert size={18} className="text-amber-400 shrink-0" />
+            <div>
+              <span className="font-bold text-amber-400">Active Scope: Only Me (Owner). </span>
+              The bot will <b>ONLY</b> respond to you. All other users and groups are completely ignored.
+            </div>
+          </div>
+        )}
+        {botAccess.mode === "public" && (
+          <div className="flex items-center gap-3 p-3.5 rounded-xl border border-line bg-panel-raised text-xs text-muted">
+            <Globe size={18} className="text-brand-cyan shrink-0" />
+            <div>
+              <span className="font-bold text-text-main">Active Scope: Public (All Chats). </span>
+              {botAccess.allowedGroups.length > 0 ? (
+                <span className="text-amber-400 font-semibold">
+                  You have {botAccess.allowedGroups.length} group(s) whitelisted. The bot is strictly restricted to those groups and owner DMs.
+                </span>
+              ) : (
+                "The bot works in all groups and private chats. Select 'Specific Groups Only' above to restrict it."
+              )}
+            </div>
+          </div>
+        )}
       </Card>
 
       {/* 2. Groups Table with Whitelist & Controls */}

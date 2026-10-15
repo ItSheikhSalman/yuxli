@@ -136,6 +136,12 @@ function addAllowedGroup(rawGroupId, subject = null) {
   });
   saveAllowedGroups(list);
   logger.info({ group: normalized, subject }, "[BotAccess] Group whitelisted");
+
+  // Automatically switch mode to "groups" if currently "public" so whitelisting is active
+  if (getAccessMode() === "public") {
+    setAccessMode("groups");
+  }
+
   return true;
 }
 
@@ -150,6 +156,12 @@ function removeAllowedGroup(rawGroupId) {
 
   saveAllowedGroups(filtered);
   logger.info({ group: normalized }, "[BotAccess] Group removed from whitelist");
+
+  // If no allowed groups remain and mode was "groups", switch back to "public"
+  if (filtered.length === 0 && getAccessMode() === "groups") {
+    setAccessMode("public");
+  }
+
   return true;
 }
 
@@ -195,6 +207,12 @@ function addAllowedDm(rawJid, name = null) {
   });
   saveAllowedDms(list);
   logger.info({ dm: normalized, name }, "[BotAccess] DM whitelisted");
+
+  // If mode is public or groups, switch to whitelist so DM whitelist is active
+  if (getAccessMode() === "public" || getAccessMode() === "groups") {
+    setAccessMode("whitelist");
+  }
+
   return true;
 }
 
@@ -248,7 +266,8 @@ function isMessageAllowed(sock, msg, isGroup) {
       const groupId = normalizeJid(msg.key.remoteJid);
       return isGroupAllowed(groupId);
     }
-    return true;
+    // In "Specific Groups Only" mode, personal chats from non-owners are strictly ignored!
+    return false;
   }
 
   // 4. "Whitelist" mode: Both groups AND DMs must be specifically authorized
@@ -262,7 +281,23 @@ function isMessageAllowed(sock, msg, isGroup) {
     }
   }
 
-  // 5. "Public" mode: Always allowed
+  // 5. "Public" mode:
+  // If the operator has specifically whitelisted allowed groups, honor that whitelist!
+  // Never leak bot replies to unauthorized groups or personal DMs when allowed groups exist.
+  const allowedGroups = getAllowedGroups();
+  if (allowedGroups.length > 0) {
+    if (isGroup) {
+      const groupId = normalizeJid(msg.key.remoteJid);
+      return isGroupAllowed(groupId);
+    }
+    const allowedDms = getAllowedDms();
+    if (allowedDms.length > 0) {
+      const rawChatId = normalizeJid(msg.key.remoteJid);
+      return isDmAllowed(rawChatId) || (senderId && isDmAllowed(senderId));
+    }
+    return false;
+  }
+
   return true;
 }
 
