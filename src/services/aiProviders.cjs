@@ -154,6 +154,52 @@ function visionAllowed(providerId) {
   return Boolean(settings.get("ai_vision_enabled") && detectModelCapabilities(id).supportsVision);
 }
 
+/**
+ * When the active provider cannot read images (e.g. Pollinations text-only),
+ * fall back to Flip-IA molmo2-8b (free, confirmed vision-capable) so image
+ * analysis always works even without a Gemini key.
+ */
+async function visionFallbackFlipIA(parts, imageBase64, mimeType, captionText) {
+  try {
+    const https = require("https");
+    const baseUrl = settings.get("flipia_base_url") || "https://flip-ia.vercel.app/v1";
+    const cleanBase = baseUrl.replace(/\/+$/, "");
+    const payload = JSON.stringify({
+      model: "molmo2-8b",
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: captionText || "Please scan and describe this image in detail in natural Roman Urdu or English." },
+            { type: "image_url", image_url: { url: `data:${mimeType};base64,${imageBase64}` } },
+          ],
+        },
+      ],
+    });
+    const text = await new Promise((resolve, reject) => {
+      const url = new URL(`${cleanBase}/chat/completions`);
+      const req = https.request(
+        { hostname: url.hostname, path: url.pathname, method: "POST",
+          headers: { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(payload) } },
+        (res) => { let d = ""; res.on("data", c => d += c); res.on("end", () => resolve(d)); },
+      );
+      req.on("error", reject);
+      req.setTimeout(30000, () => { req.destroy(); reject(new Error("vision fallback timeout")); });
+      req.write(payload);
+      req.end();
+    });
+    const json = JSON.parse(text);
+    const content = json?.choices?.[0]?.message?.content || "";
+    if (content) {
+      parts.push({ text: content });
+      return "inline:image:flipia-vision";
+    }
+  } catch (err) {
+    logger.warn({ err }, "[vision-fallback] FlipIA molmo2-8b vision failed");
+  }
+  return null;
+}
+
 async function prepareInlineImageMedia(
   providerId,
   parts,
@@ -164,20 +210,29 @@ async function prepareInlineImageMedia(
 ) {
   const isVisionOn = visionAllowed(providerId);
   const mime = mimeOverride || mediaMessage?.mimetype || "ملف";
-  if (isVisionOn && mime.startsWith("image/") && typeof downloadContentFromMessage === "function") {
+  if (settings.get("ai_vision_enabled") && mime.startsWith("image/") && typeof downloadContentFromMessage === "function") {
     try {
       const buffer = await downloadMedia(
         downloadContentFromMessage,
         mediaMessage,
         downloadType || "image",
       );
-      parts.push({
-        inlineData: {
-          mimeType: baseMimeType(mime, "image"),
-          data: buffer.toString("base64"),
-        },
-      });
-      return "inline:image";
+      const base64 = buffer.toString("base64");
+      // Provider supports vision natively → inline data
+      if (isVisionOn) {
+        parts.push({
+          inlineData: {
+            mimeType: baseMimeType(mime, "image"),
+            data: base64,
+          },
+        });
+        return "inline:image";
+      }
+      // Provider does NOT support vision → fallback to Flip-IA molmo2-8b (free vision)
+      logger.info(`[vision-fallback] ${providerId} has no vision; routing image through FlipIA molmo2-8b`);
+      const caption = null; // caller will push prompt text
+      const result = await visionFallbackFlipIA(parts, base64, baseMimeType(mime, "image"), caption);
+      if (result) return result;
     } catch (err) {
       logger.warn({ err }, `[${providerId}] failed to extract inline image for vision`);
     }

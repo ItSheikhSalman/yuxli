@@ -923,19 +923,22 @@ module.exports = {
         let responseText = formatMarkdownForWhatsApp(`${text}${formatSources(result.sources)}`);
 
         // Check for emoji reaction directive from the AI, e.g. [REACT: 👍], [REACT: 😂], [REACT: ❤️]
+        const autoReactEnabled = settings.get("ai_auto_react") !== false;
         const reactMatch = responseText.match(/\[REACT:\s*([\p{Emoji}\u200d\uFE0F\S]+?)\]/u);
         if (reactMatch) {
           const reactionEmoji = reactMatch[1].trim();
           responseText = responseText.replace(reactMatch[0], "").trim();
-          try {
-            await sock.sendMessage(rawChatId, {
-              react: {
-                text: reactionEmoji,
-                key: msg.key,
-              },
-            });
-          } catch (reactErr) {
-            logger.debug({ err: reactErr?.message }, "[Gemini] Failed to send reaction");
+          if (autoReactEnabled) {
+            try {
+              await sock.sendMessage(rawChatId, {
+                react: {
+                  text: reactionEmoji,
+                  key: msg.key,
+                },
+              });
+            } catch (reactErr) {
+              logger.debug({ err: reactErr?.message }, "[Gemini] Failed to send reaction");
+            }
           }
         }
 

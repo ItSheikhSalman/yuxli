@@ -341,6 +341,14 @@ const SETTINGS = [
     hint: "Enable audio processing and speech-to-text transcription with compatible models.",
   },
   {
+    key: "ai_auto_react",
+    type: "bool",
+    default: true,
+    group: "ai",
+    label: "Auto emoji reactions",
+    hint: "Allow the AI to react to messages with emojis (e.g. 👍, 😂, ❤️) — just like a real WhatsApp human. The AI decides when to react based on the conversation tone.",
+  },
+  {
     key: "ai_auto_detect_capabilities",
     type: "bool",
     default: true,
