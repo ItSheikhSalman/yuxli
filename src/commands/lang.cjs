@@ -28,6 +28,9 @@ module.exports = {
     const LANG_MAP = {
       ur: "ur",
       urdu: "ur",
+      roman: "ur",
+      romanurdu: "ur",
+      "رومن": "ur",
       "اردو": "ur",
       ar: "ar",
       arabic: "ar",
@@ -39,27 +42,27 @@ module.exports = {
 
     if (!args || args.length === 0) {
       const labels = {
-        auto: tr("Auto (follows each message)", "تلقائي (حسب لغة رسالتك)", "آٹو (ہر میسج کی زبان کے مطابق)"),
-        ur: "اردو (Urdu)",
-        ar: tr("Arabic", "العربية الفصحى"),
-        en: tr("English", "الإنجليزية"),
+        auto: tr("Auto (follows each message)", "تلقائي (حسب لغة رسالتك)", "Auto (har message ki zuban ke mutabiq)"),
+        ur: "Roman Urdu (رومن اردو) [Default]",
+        ar: tr("Arabic", "العربية الفصحى", "Arabic (العربية)"),
+        en: tr("English", "الإنجليزية", "English"),
       };
       const text = tr(
-        `🌐 *Bot language*
+        `🌐 *Bot Language*
 
-⚙️ *Current:* \`${labels[currentLang] || currentLang}\`
-• \`${prefix}lang ur\` — Urdu (اردو) always
+⚙️ *Current Language:* \`${labels[currentLang] || currentLang}\`
+• \`${prefix}lang ur\` — Roman Urdu (رومن اردو) [Default - always Roman Urdu]
 • \`${prefix}lang en\` — English always
 • \`${prefix}lang ar\` — Modern Standard Arabic always
 • \`${prefix}lang auto\` — follow the language of each message
 
-Commands, !help, TTS and the AI all answer in it.
+Commands, !help, TTS and the AI assistant all reply in it.
 
 🔢 *To convert digits* use \`${prefix}digit\` — e.g. \`${prefix}digit 12345\``,
         `🌐 *لغة البوت*
 
 ⚙️ *اللغة الحالية:* \`${labels[currentLang] || currentLang}\`
-• \`${prefix}lang ur\` — الأردية (اردو) دائمًا
+• \`${prefix}lang ur\` — الرومانية الأردية (Roman Urdu) دائمًا
 • \`${prefix}lang ar\` — العربية الفصحى دائماً
 • \`${prefix}lang en\` — English always
 • \`${prefix}lang auto\` — تلقائي حسب لغة الرسالة
@@ -67,17 +70,17 @@ Commands, !help, TTS and the AI all answer in it.
 ستستخدمها جميع الأوامر و!help والصوت والذكاء الاصطناعي في الردود.
 
 🔢 *لتحويل الأرقام* استخدم \`${prefix}digit\` — مثال: \`${prefix}digit 12345\``,
-        `🌐 *بوٹ کی زبان*
+        `🌐 *Bot Ki Zuban (Language)*
 
-⚙️ *موجودہ زبان:* \`${labels[currentLang] || currentLang}\`
-• \`${prefix}lang ur\` — ہمیشہ اردو میں جواب دے
-• \`${prefix}lang en\` — ہمیشہ انگلش میں جواب دے
-• \`${prefix}lang ar\` — ہمیشہ عربی میں جواب دے
-• \`${prefix}lang auto\` — ہر میسج کی اپنی زبان کے مطابق
+⚙️ *Mojuda Zuban:* \`${labels[currentLang] || currentLang}\`
+• \`${prefix}lang ur\` — Roman Urdu (Default - hamesha Roman Urdu me jawab de)
+• \`${prefix}lang en\` — Hamesha English me jawab de
+• \`${prefix}lang ar\` — Hamesha Arabic me jawab de
+• \`${prefix}lang auto\` — Har message ki apni zuban ke mutabiq
 
-تمام کمانڈز، !help، ٹیکسٹ ٹو وائس (TTS) اور AI اسی زبان میں جواب دیں گے۔
+Commands, !help, TTS aur AI assistant sab isi zuban me reply karein gy.
 
-🔢 *ہندسے تبدیل کرنے کے لیے:* \`${prefix}digit 12345\``
+🔢 *Digits convert karne ke liye:* \`${prefix}digit 12345\``
       );
       await sock.sendMessage(chatId, { text }, { quoted: msg });
       return;
@@ -91,6 +94,7 @@ Commands, !help, TTS and the AI all answer in it.
             text: tr(
               `🔢 To convert digits, use \`${prefix}digit\`:\n• \`${prefix}digit ${firstArg} ${args.slice(1).join(" ")}\`\n• or \`${prefix}digit ${args.slice(1).join(" ")}\` to detect the direction.`,
               `🔢 لتحويل الأرقام استخدم \`${prefix}digit\`:\n• \`${prefix}digit ${firstArg} ${args.slice(1).join(" ")}\`\n• أو \`${prefix}digit ${args.slice(1).join(" ")}\` للتحويل التلقائي.`,
+              `🔢 Digits badalne ke liye \`${prefix}digit\` use karein:\n• \`${prefix}digit ${firstArg} ${args.slice(1).join(" ")}\`\n• ya \`${prefix}digit ${args.slice(1).join(" ")}\``,
             ),
           },
           { quoted: msg },
@@ -107,6 +111,7 @@ Commands, !help, TTS and the AI all answer in it.
             text: tr(
               `⚠️ Sorry, only the bot owner and admins can change the bot's language.\n_To convert digits, use \`${prefix}digit\`._`,
               `⚠️ عذراً، تغيير لغة البوت متاح لمالك البوت والمسؤولين فقط.\n_لتحويل الأرقام استخدم \`${prefix}digit\`._`,
+              `⚠️ Maazrat, bot ki language sirf bot owner aur admins change kar sakte hain.\n_Digits badalne ke liye \`${prefix}digit\` use karein._`,
             ),
           },
           { quoted: msg },
@@ -121,7 +126,7 @@ Commands, !help, TTS and the AI all answer in it.
         await sock.sendMessage(
           chatId,
           {
-            text: "✅ بوٹ کی زبان *اردو* پر سیٹ کر دی گئی ہے۔ تمام کمانڈز، AI اور ٹیکسٹ ٹو وائس اب اردو میں جواب دیں گے۔\n✅ Bot language set to *Urdu* (اردو).",
+            text: "✅ Bot ki default zuban *Roman Urdu* pe set kar di gayi hy. Saari commands, AI, aur text-to-speech ab Roman Urdu me reply karein gy.\n✅ Bot language set to *Roman Urdu* (رومن اردو).",
           },
           { quoted: msg },
         );

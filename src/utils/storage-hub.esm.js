@@ -19,6 +19,27 @@ export async function deleteChatHistoryAsync(chatId) {
   return store.deleteChatHistory(chatId);
 }
 
-export async function deleteAllChatHistoriesAsync() {
-  store.deleteAllChatHistories();
+export async function recordOutgoingTurnAsync(chatId, text) {
+  if (!chatId || !text || typeof text !== "string") return;
+  const clean = text.trim();
+  if (!clean) return;
+
+  try {
+    const history = (await getChatHistoryAsync(chatId)) || [];
+    if (history.length === 0) {
+      history.push(
+        { role: "user", parts: [{ text: "[Conversation context]" }] },
+        { role: "model", parts: [{ text: clean }] },
+      );
+    } else {
+      const last = history[history.length - 1];
+      if (last && last.role === "model") {
+        last.parts.push({ text: `\n${clean}` });
+      } else {
+        history.push({ role: "model", parts: [{ text: clean }] });
+      }
+    }
+    await saveChatHistoryAsync(chatId, history);
+  } catch {}
 }
+

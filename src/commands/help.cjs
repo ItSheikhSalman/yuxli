@@ -201,37 +201,37 @@ const TEXT = {
     },
   },
   ur: {
-    title: `🤖 ${brand.name} کمانڈز`,
-    general: "عام کمانڈز",
-    group: "گروپ کمانڈز",
-    legendTitle: "علامات",
-    legend: "`<...>` لازمی · `[...]` اختیاری · `a|b` کوئی ایک چنیں",
-    languageTitle: "زبان",
-    footer: (p) => `تفصیل کے لیے لکھیں: *${p}help <کمانڈ>*`,
-    detailTitle: "کمانڈ کی تفصیل",
-    command: "کمانڈ:",
-    aliases: "متبادل نام:",
-    description: "تفصیل:",
-    usage: "طریقہ استعمال:",
-    examples: "مثالیں:",
-    where: "دستیاب ہے:",
-    permission: "ضروری اجازت:",
-    userAdmin: "⚠️ آپ کا گروپ ایڈمن ہونا ضروری ہے",
-    botAdmin: "⚠️ بوٹ کا گروپ ایڈمن ہونا ضروری ہے",
-    detailLegend: "`<...>` لازمی · `[...]` اختیاری",
+    title: `🤖 ${brand.name} Commands`,
+    general: "General Commands",
+    group: "Group Commands",
+    legendTitle: "Nishaniyan (Legend)",
+    legend: "`<...>` zaroori · `[...]` optional · `a|b` koi aik chunein",
+    languageTitle: "Zuban (Language)",
+    footer: (p) => `Tafseel ke liye likhein: *${p}help <command>*`,
+    detailTitle: "Command Ki Tafseel",
+    command: "Command:",
+    aliases: "Doosray Naam (Aliases):",
+    description: "Tafseel:",
+    usage: "Tareeqa (Usage):",
+    examples: "Misaalein (Examples):",
+    where: "Kahan chalta hy:",
+    permission: "Zaroori Ijazat (Permission):",
+    userAdmin: "⚠️ Aap ka group admin hona zaroori hy",
+    botAdmin: "⚠️ Bot ka group admin hona zaroori hy",
+    detailLegend: "`<...>` zaroori · `[...]` optional",
     notFound: (query, p) =>
-      `❌ کمانڈ "*${query}*" نہیں ملی۔\nتمام کمانڈز کے لیے \`${p}help\` لکھیں۔`,
+      `❌ Command "*${query}*" nahi mili.\nSaari commands dekhne ke liye \`${p}help\` likhein.`,
     permissions: {
-      MEMBERS: "تمام ممبرز",
-      ALL: "تمام ممبرز",
-      ADMINS_ONLY: "صرف ایڈمنز",
-      ADMINS_OWNER: "ایڈمنز اور اونر",
-      OWNER_ONLY: "صرف اونر",
+      MEMBERS: "Sab ke liye (Everyone)",
+      ALL: "Sab ke liye (Everyone)",
+      ADMINS_ONLY: "Sirf group admins",
+      ADMINS_OWNER: "Group admins aur owner",
+      OWNER_ONLY: "Sirf bot owner",
     },
     chats: {
-      all: "تمام چیٹس",
-      group: "صرف گروپس",
-      private: "صرف پرائیویٹ چیٹس",
+      all: "Saari chats (All chats)",
+      group: "Sirf groups",
+      private: "Sirf private chats",
     },
   },
 };
@@ -296,7 +296,7 @@ function renderList(commands, prefix, lang) {
   // Starts with the LTR command, so the line lays out left-to-right in both
   // menus and each language name stays next to its own command.
   text += `├─ *${t.languageTitle}*\n`;
-  text += `│  \`${prefix}help ur\` — اردو · \`${prefix}help en\` — English · \`${prefix}help ar\` — العربية\n│\n`;
+  text += `│  \`${prefix}help ur\` — Roman Urdu · \`${prefix}help en\` — English · \`${prefix}help ar\` — العربية\n│\n`;
   text += `╰───「 ${t.footer(prefix)} 」`;
   return text;
 }

@@ -14,6 +14,9 @@ const LANGS = ["ur", "en", "ar"];
 const LANG_WORDS = new Map([
   ["ur", "ur"],
   ["urdu", "ur"],
+  ["roman", "ur"],
+  ["romanurdu", "ur"],
+  ["رومن", "ur"],
   ["اردو", "ur"],
   ["en", "en"],
   ["english", "en"],

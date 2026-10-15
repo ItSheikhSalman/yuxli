@@ -32,6 +32,7 @@ class StatusMessage {
     this.jid = jid;
     this.replyTo = options.replyTo || null;
     this.quote = options.quote !== false;
+    this.silent = options.silent === true;
     this.key = null;
     this.text = "";
     this.lastEditAt = 0;
@@ -40,6 +41,16 @@ class StatusMessage {
 
   async start(text) {
     this.text = text;
+    if (this.silent) {
+      try {
+        if (typeof this.sock?.sendPresenceUpdate === "function") {
+          await this.sock.sendPresenceUpdate("composing", this.jid);
+        }
+      } catch {
+        // ignore
+      }
+      return this;
+    }
     try {
       const sent = await sendBotMessage(
         this.sock,
@@ -57,13 +68,22 @@ class StatusMessage {
   }
 
   /** Rewrite the line. Identical text is skipped so we don't burn an edit. */
-  async update(text, { force = false } = {}) {
+  async update(text, { force = false, mentions = null } = {}) {
     if (this.closed && !force) return false;
     const next = String(text || "").trim();
     if (!next || next === this.text) return false;
 
+    if (this.silent && !force) {
+      try {
+        if (typeof this.sock?.sendPresenceUpdate === "function") {
+          await this.sock.sendPresenceUpdate("composing", this.jid);
+        }
+      } catch {}
+      return false;
+    }
+
     // No message to edit (initial send failed) — send one and adopt it.
-    if (!this.key) return this._sendFresh(next);
+    if (!this.key) return this._sendFresh(next, { mentions });
 
     const wait = MIN_EDIT_GAP_MS - (Date.now() - this.lastEditAt);
     if (wait > 0) await sleep(wait);
@@ -72,22 +92,30 @@ class StatusMessage {
       // `quoted: null` on purpose: the command handler wraps sock.sendMessage
       // and auto-quotes anything that doesn't set it, and an edit/delete is a
       // protocolMessage — there is nowhere to hang a contextInfo.
-      await this.sock.sendMessage(this.jid, { text: next, edit: this.key }, { quoted: null });
+      const editMsg = { text: next, edit: this.key };
+      if (Array.isArray(mentions) && mentions.length) {
+        editMsg.mentions = mentions;
+      }
+      await this.sock.sendMessage(this.jid, editMsg, { quoted: null });
       this.text = next;
       this.lastEditAt = Date.now();
       return true;
     } catch (err) {
       logger.debug({ err: err?.message }, "[status] edit failed — sending instead");
-      return this._sendFresh(next);
+      return this._sendFresh(next, { mentions });
     }
   }
 
-  async _sendFresh(text) {
+  async _sendFresh(text, { mentions = null } = {}) {
     try {
+      const content = { text };
+      if (Array.isArray(mentions) && mentions.length) {
+        content.mentions = mentions;
+      }
       const sent = await sendBotMessage(
         this.sock,
         this.jid,
-        { text },
+        content,
         { replyTo: this.replyTo, quote: this.quote, typing: false, delayMs: 0 },
       );
       this.key = sent?.key || null;
@@ -101,15 +129,26 @@ class StatusMessage {
   }
 
   /** Last update for this run. Always delivered, even if an edit is refused. */
-  async finish(text) {
-    const ok = await this.update(text, { force: true });
+  async finish(text, options = {}) {
+    if (this.silent) {
+      try {
+        if (typeof this.sock?.sendPresenceUpdate === "function") {
+          await this.sock.sendPresenceUpdate("paused", this.jid);
+        }
+      } catch {}
+      this.closed = true;
+      const clean = String(text || "").trim();
+      if (!clean) return true;
+      return this._sendFresh(clean, options);
+    }
+    const ok = await this.update(text, { force: true, ...options });
     this.closed = true;
     return ok;
   }
 
   /** Alias for finish/update */
-  async edit(text) {
-    return this.finish(text);
+  async edit(text, options = {}) {
+    return this.finish(text, options);
   }
 
   /**
@@ -130,6 +169,11 @@ class StatusMessage {
   /** Remove the status line entirely (used when the result speaks for itself). */
   async remove() {
     this.closed = true;
+    try {
+      if (typeof this.sock?.sendPresenceUpdate === "function") {
+        await this.sock.sendPresenceUpdate("paused", this.jid);
+      }
+    } catch {}
     if (!this.key) return false;
     try {
       await this.sock.sendMessage(this.jid, { delete: this.key }, { quoted: null });

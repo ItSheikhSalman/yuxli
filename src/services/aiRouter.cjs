@@ -29,7 +29,7 @@ class BaseAIProvider {
   }
 
   isConfigured() {
-    if (this.id === "flipia") {
+    if (this.id === "flipia" || this.id === "pollinations") {
       return true; // 100% Free! Zero API key needed!
     }
     if (this.id === "openai") {
@@ -41,6 +41,9 @@ class BaseAIProvider {
   }
 
   getKey() {
+    const aiFailover = require("./aiFailover.cjs");
+    const active = aiFailover.getActiveKey(this.id);
+    if (active) return active;
     return settings.get(this.keySetting) || "";
   }
 
@@ -71,7 +74,7 @@ class BaseAIProvider {
       text: tr(
         `[Media attached (${mime}) — current provider does not support this media type]`,
         `[تم إرفاق وسائط (${mime}) — المزود الحالي لا يدعم هذا النوع من الوسائط]`,
-        `[میڈیا منسلک ہے (${mime}) — موجودہ AI ماڈل اس قسم کے میڈیا کو سپورٹ نہیں کرتا]`,
+        `[Media sath attached hy (${mime}) — mojuda provider is media ko support nahi karta]`,
       ),
     });
     return null;
@@ -92,19 +95,50 @@ function registerProvider(id, providerInstance) {
 }
 
 function getProvider(id = settings.get("ai_provider")) {
-  const key = String(id || "gemini").toLowerCase();
+  let key = String(id || "gemini").toLowerCase();
+  if (key === "auto") {
+    const candidates = ["gemini", "groq", "openai", "anthropic", "flipia", "pollinations"];
+    for (const c of candidates) {
+      const p = REGISTRY.get(c);
+      if (p && p.isConfigured()) {
+        key = c;
+        break;
+      }
+    }
+    if (key === "auto") key = "flipia";
+  }
   const provider = REGISTRY.get(key);
   if (!provider) {
-    throw new Error(tr(`Unknown provider: ${id}`, `مزود غير معروف: ${id}`, `مزود غير معروف (نامعلوم فراہم کنندہ): ${id}`));
+    throw new Error(tr(`Unknown provider: ${id}`, `مزود غير معروف: ${id}`, `Unknown provider: ${id} (Provider nahi mila)`));
   }
   return provider;
 }
 
+function ensureProvidersLoaded() {
+  if (!REGISTRY.has("gemini")) {
+    try {
+      require("./aiAgent.cjs");
+    } catch {
+      // ignore
+    }
+  }
+  if (!REGISTRY.has("groq")) {
+    try {
+      require("./aiProviders.cjs");
+    } catch {
+      // ignore
+    }
+  }
+}
+
 function hasProvider(id) {
-  return REGISTRY.has(String(id || "").toLowerCase());
+  ensureProvidersLoaded();
+  const clean = String(id || "").toLowerCase();
+  return clean === "auto" || REGISTRY.has(clean);
 }
 
 function listProviders() {
+  ensureProvidersLoaded();
   return Array.from(REGISTRY.values());
 }
 

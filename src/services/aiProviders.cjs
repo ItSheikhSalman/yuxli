@@ -57,6 +57,37 @@ const ADAPTERS = {
     parseResponse: parseOpenAIResponse,
     toolResultMessages: () => [],
   },
+  groq: {
+    label: "Groq",
+    keySetting: "groq_api_key",
+    modelSetting: "groq_model",
+    baseUrlSetting: "groq_base_url",
+    defaultBaseUrl: "https://api.groq.com/openai/v1",
+    tools: openaiTools,
+    systemMessage: (systemInstruction) => [{ role: "system", content: systemInstruction }],
+    userMessage: (text) => ({ role: "user", content: text }),
+    historyToMessages: historyToOpenAI,
+    parseResponse: parseOpenAIResponse,
+    toolResultMessages: (calls, results) =>
+      calls.map((call, i) => ({
+        role: "tool",
+        tool_call_id: call.id,
+        content: JSON.stringify(results[i] ?? {}),
+      })),
+  },
+  pollinations: {
+    label: "Free AI (Pollinations)",
+    keySetting: "",
+    modelSetting: "pollinations_model",
+    baseUrlSetting: "pollinations_base_url",
+    defaultBaseUrl: "https://text.pollinations.ai/openai",
+    tools: () => [],
+    systemMessage: (systemInstruction) => (systemInstruction ? [{ role: "system", content: systemInstruction }] : []),
+    userMessage: (text) => ({ role: "user", content: text }),
+    historyToMessages: historyToOpenAI,
+    parseResponse: parseOpenAIResponse,
+    toolResultMessages: () => [],
+  },
   openai: {
     label: "OpenAI-compatible",
     keySetting: "openai_api_key",
@@ -279,7 +310,81 @@ class FlipIAProvider extends BaseAIProvider {
   }
 }
 
+class GroqProvider extends BaseAIProvider {
+  constructor() {
+    super({
+      id: "groq",
+      label: "Groq",
+      keySetting: "groq_api_key",
+      modelSetting: "groq_model",
+      baseUrlSetting: "groq_base_url",
+      defaultBaseUrl: "https://api.groq.com/openai/v1",
+      supportsFiles: false,
+    });
+  }
+
+  getModel() {
+    return settings.get("groq_model") || "llama-3.3-70b-versatile";
+  }
+
+  async prepareMedia(
+    parts,
+    mediaMessage,
+    mimeOverride,
+    { downloadContentFromMessage, downloadType } = {},
+  ) {
+    return prepareInlineImageMedia(
+      "groq",
+      parts,
+      mediaMessage,
+      mimeOverride,
+      downloadContentFromMessage,
+      downloadType,
+    );
+  }
+
+  async runTurn(options) {
+    return runProviderAgent("groq", options);
+  }
+}
+
+class PollinationsProvider extends BaseAIProvider {
+  constructor() {
+    super({
+      id: "pollinations",
+      label: "Free AI (Pollinations)",
+      keySetting: "",
+      modelSetting: "pollinations_model",
+      baseUrlSetting: "pollinations_base_url",
+      defaultBaseUrl: "https://text.pollinations.ai/openai",
+      supportsFiles: false,
+    });
+  }
+
+  isConfigured() {
+    return true; // 100% Free! Zero key needed!
+  }
+
+  getKey() {
+    return "free-pollinations";
+  }
+
+  getModel() {
+    return settings.get("pollinations_model") || "openai";
+  }
+
+  getBaseUrl() {
+    return settings.get("pollinations_base_url") || "https://text.pollinations.ai/openai";
+  }
+
+  async runTurn(options) {
+    return runProviderAgent("pollinations", options);
+  }
+}
+
 registerProvider("flipia", new FlipIAProvider());
+registerProvider("groq", new GroqProvider());
+registerProvider("pollinations", new PollinationsProvider());
 registerProvider("openai", new OpenAIProvider());
 registerProvider("anthropic", new AnthropicProvider());
 
@@ -291,16 +396,12 @@ function adapterFor(provider) {
 
 /**
  * The settings key holding the API key of whichever provider is active.
- *
- * Gemini is deliberately not in ADAPTERS — its loop lives in aiAgent.cjs and
- * needs no wire adapter — so the key lookup is its own total map over all
- * three providers, default included. This runs inside the /stats handler and
- * in front of every AI command, so a provider the map does not know must be
- * the only thing that throws here.
  */
 const PROVIDER_KEY_SETTINGS = Object.freeze({
   gemini: "gemini_api_key",
+  groq: "groq_api_key",
   flipia: "flipia_model",
+  pollinations: "pollinations_model",
   openai: "openai_api_key",
   anthropic: "anthropic_api_key",
 });
@@ -689,10 +790,17 @@ function requestFor(
     };
   }
 
-  const effectiveKey = (apiKey && String(apiKey).trim()) || "dummy";
+  const headers = {};
+  const effectiveKey = apiKey && String(apiKey).trim();
+  if (effectiveKey && effectiveKey !== "free-no-key" && effectiveKey !== "free-pollinations" && effectiveKey !== "dummy") {
+    headers.Authorization = `Bearer ${effectiveKey}`;
+  } else if (provider !== "flipia" && provider !== "pollinations") {
+    headers.Authorization = "Bearer dummy";
+  }
+
   return {
     url: `${baseUrl}/chat/completions`,
-    headers: { Authorization: `Bearer ${effectiveKey}` },
+    headers,
     body: {
       model,
       messages: [...adapter.systemMessage(systemInstruction), ...messages],

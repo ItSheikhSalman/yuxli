@@ -37,11 +37,13 @@ const { createStatus } = require("../utils/statusMessage.cjs");
 const { formatMarkdownForWhatsApp } = require("../utils/markdownParser.cjs");
 const { isOwnerJidSync } = require("../utils/permissions.cjs");
 const { resolveCaller } = require("../services/aiToolAuth.cjs");
+const normalizeJid = require("../utils/normalizeJid.cjs");
 const {
   runAgent,
   formatSources,
   isFileReferenceError,
   sanitizeHistoryForFiles,
+  sanitizeHistoryForSession,
   activeProviderKeySetting,
 } = require("../services/aiAgent.cjs");
 const { getProvider, hasProvider } = require("../services/aiRouter.cjs");
@@ -52,6 +54,34 @@ const {
   assertProviderRequestUrl,
 } = require("../utils/providerUrl.cjs");
 const { tr } = require("../utils/i18n.cjs");
+const aiMood = require("../services/aiMood.cjs");
+
+// In-memory mutex per sessionKey to serialize overlapping turns for the same session.
+// Prevents race conditions and history loss when messages arrive in rapid succession.
+// Different users in groups run concurrently in parallel without blocking each other.
+const activeSessionLocks = new Map();
+
+async function withSessionLock(sessionKey, fn) {
+  const prev = activeSessionLocks.get(sessionKey) || Promise.resolve();
+  let release;
+  const current = new Promise((resolve) => {
+    release = resolve;
+  });
+  activeSessionLocks.set(
+    sessionKey,
+    prev.then(() => current).catch(() => current),
+  );
+
+  try {
+    await prev;
+    return await fn();
+  } finally {
+    release();
+    if (activeSessionLocks.get(sessionKey) === current) {
+      activeSessionLocks.delete(sessionKey);
+    }
+  }
+}
 
 // Per-(chat, sender) explicit context buffer for the multi-message workflow.
 // Entries accumulate until `!gemini send` flushes them into a single call.
@@ -118,7 +148,8 @@ function clearAllContextBuffers() {
 let geminiCache = { key: null, baseUrl: null, genAI: null };
 
 function geminiClients() {
-  const key = settings.get("gemini_api_key");
+  const aiFailover = require("../services/aiFailover.cjs");
+  const key = aiFailover.getActiveKey("gemini") || settings.get("gemini_api_key");
   if (!key) return { genAI: null };
   const baseUrl = assertProviderBaseUrl(settings.get("gemini_base_url"), {
     allowLoopback: true,
@@ -264,27 +295,27 @@ module.exports = {
   chat: "all",
 
   async execute(sock, msg, args, body, groupMetadata, ctx = {}) {
-    const chatId = msg.key.remoteJid;
+    const rawChatId = msg.key.remoteJid;
+    const chatId = normalizeJid(rawChatId);
     const userName = msg.pushName;
     const isGroup = chatId.endsWith("@g.us");
 
-    const senderId = msg.key.fromMe ? null : isGroup ? msg.key.participant : msg.key.remoteJid;
+    const senderId = msg.key.fromMe ? null : isGroup ? msg.key.participant : rawChatId;
+    const normalizedSenderId = senderId ? normalizeJid(senderId) : null;
     const isOwner = msg.key.fromMe || isOwnerJidSync(senderId);
+
+    // In a group, each user has their own isolated conversation thread so multiple
+    // users talking at the same time on different topics never collide or mix up context.
+    const sessionKey = isGroup && normalizedSenderId ? `${chatId}::${normalizedSenderId}` : chatId;
 
     // Resolve sub-command. Aliases like !del arrive via ctx.invokedName, while
     // `!gemini del ...` arrives as args[0].
     const invoked = (ctx?.invokedName || "").toLowerCase();
     const aliasSubCmds = new Set(["del", "resetai", "delall", "generate"]);
-    const inlineSubCmds = new Set([
-      "add",
-      "send",
-      "clear",
-      "show",
-      "del",
-      "resetai",
-      "delall",
-      "generate",
-    ]);
+    const isExplicitGemini = invoked === "gemini";
+    const inlineSubCmds = isExplicitGemini
+      ? new Set(["add", "send", "clear", "show", "del", "resetai", "delall", "generate"])
+      : new Set(["del", "resetai", "delall", "generate"]);
     const candidateInline = args[0]?.toLowerCase();
     const subCommand = aliasSubCmds.has(invoked)
       ? invoked
@@ -292,13 +323,30 @@ module.exports = {
         ? candidateInline
         : null;
 
-    // --- conversation history management (owner only) ---
+    // --- conversation history management ---
     if (subCommand === "del" || subCommand === "resetai") {
+      if (isGroup && !isOwner && normalizedSenderId) {
+        // Ordinary user in a group resetting their own conversation thread
+        await deleteChatHistoryAsync(sessionKey);
+        return sendBotMessage(
+          sock,
+          chatId,
+          {
+            text: tr(
+              `✅ @${normalizedSenderId.split("@")[0]}, your personal AI conversation thread has been cleared.`,
+              `✅ @${normalizedSenderId.split("@")[0]}, تم مسح سجل محادثتك بنجاح.`,
+              `✅ @${normalizedSenderId.split("@")[0]}، آپ کی ذاتی AI گفتگو کی ہسٹری صاف کر دی گئی ہے۔`,
+            ),
+            mentions: [normalizedSenderId],
+          },
+          { replyTo: msg },
+        );
+      }
       if (!isOwner)
         return sendBotMessage(
           sock,
           chatId,
-          { text: tr("🚫 Only the bot owner can use this.", "🚫 هذا الأمر مخصص للمالك فقط.") },
+          { text: tr("🚫 Only the bot owner can use this.", "🚫 هذا الأمر مخصص للمالك فقط.", "🚫 یہ کمانڈ صرف بوٹ اونر کے لیے ہے۔") },
           { replyTo: msg },
         );
       await deleteChatHistoryAsync(chatId);
@@ -311,6 +359,7 @@ module.exports = {
               "_(Long-term memory isn't cleared this way — use `!memory clear` if that's what you meant.)_",
             "✅ تم مسح سجل المحادثة.\n" +
               "_(لا تُحذف الذاكرة الدائمة بهذه الطريقة. استخدم `!memory clear` إذا أردت حذفها.)_",
+            "✅ گفتگو کی تمام ہسٹری صاف کر دی گئی ہے۔",
           ),
         },
         { replyTo: msg },
@@ -629,7 +678,8 @@ module.exports = {
         );
       }
     } else if (!parts.length && prompt) {
-      parts.push({ text: prompt });
+      const turnPrompt = isGroup && userName ? `[${userName}]: ${prompt}` : prompt;
+      parts.push({ text: turnPrompt });
     }
 
     if (parts.length === 0) {
@@ -704,18 +754,8 @@ module.exports = {
     if (!activeProvider.isConfigured()) {
       if (hasProvider("flipia")) {
         activeProvider = getProvider("flipia");
-      } else {
-        return sendBotMessage(
-          sock,
-          chatId,
-          {
-            text: tr(
-              `Settings problem: no API key is set for the current AI provider (${activeProvider.label || activeProvider.id}) — set it in the control panel.`,
-              `خطأ في الإعدادات: لم يُضبط مفتاح مزوّد الذكاء الاصطناعي الحالي (${activeProvider.label || activeProvider.id}) — اضبطه من لوحة التحكم.`,
-            ),
-          },
-          { replyTo: msg },
-        );
+      } else if (hasProvider("pollinations")) {
+        activeProvider = getProvider("pollinations");
       }
     }
 
@@ -724,6 +764,32 @@ module.exports = {
     // authorize against it and nothing else — not the quoted message's author,
     // not a name in a web page, not anything the model writes into arguments.
     const caller = await resolveCaller({ msg, sock, groupMetadata, text: body || "" });
+
+    // Mentions/replies are targets or context.
+    const targets = [...caller.mentionedJids, caller.quotedParticipant].filter(Boolean);
+    const myJid = sock?.user?.id ? normalizeJid(sock.user.id) : null;
+    const validTargets = [...new Set(targets)]
+      .map((t) => normalizeJid(t))
+      .filter((t) => t && t !== myJid && t !== normalizedSenderId);
+
+    const rawPromptText = prompt || "";
+    const roastKeywordMatch = /(\broast\b|روسٹ|zalil|bezzat|dhulai|class\s*lo|isko\s*batao|burn\b|cook\b|destroy\b|suar|kuta|kutta|bc|bsdk|dala|fuck|bitch|dog|pig|harami|kamina|chirkut|chapri)/i.test(
+      rawPromptText,
+    );
+    const currentChatMode = aiMood.getChatMode(chatId, normalizedSenderId);
+    const isTargetedRoast = validTargets.length > 0 && (roastKeywordMatch || currentChatMode === "roast");
+
+    let targetInfo = null;
+    if (validTargets.length > 0) {
+      const primaryTarget = validTargets[0];
+      const targetPhone = primaryTarget.split("@")[0];
+      targetInfo = {
+        targetJid: primaryTarget,
+        targetTag: `@${targetPhone}`,
+        allTargets: validTargets,
+      };
+    }
+
     const agentContext = {
       caller,
       // Infrastructure, not identity: tools that post media (speak, poll)
@@ -732,18 +798,26 @@ module.exports = {
       sock,
       // What the system prompt tells the model about the conversation.
       chatId,
+      sessionKey,
       senderId: caller.senderId,
       senderName: userName,
       isOwner: caller.isOwner,
       isAdmin: caller.isOwner || caller.isBotAdmin,
       isGroup,
       chatName: caller.chatName,
+      latestUserText: prompt,
+      targetInfo,
+      isTargetedRoast,
     };
 
-    // Mentions/replies are ids the model can't invent — hand them over so
-    // "اعمل الراجل ده أدمن" has something concrete to act on.
-    const targets = [...caller.mentionedJids, caller.quotedParticipant].filter(Boolean);
-    if (targets.length) {
+    if (isTargetedRoast && targetInfo) {
+      parts.unshift({
+        text: `[TARGETED FRIEND ROAST REQUEST]\n` +
+          `Target friend to roast: ${targetInfo.targetTag} (${targetInfo.targetJid})\n` +
+          `Requested by: ${userName || "User"} (${normalizedSenderId || "sender"})\n` +
+          `Instruction: The user explicitly tagged their friend ${targetInfo.targetTag} to be roasted! Directly target ${targetInfo.targetTag} with savage, witty, hilarious, and spicy burns! Tag them directly as "${targetInfo.targetTag}" in your response. You are authorized to use raw authentic Pakistani/Desi slang and playful curse words (suar, kuta, bc, bsdk, dala, dog, pig, bitch, fuck, etc.) for close friends banter ("friends wala mazak"). Deliver lethal, unforgettable comedic burns!`,
+      });
+    } else if (targets.length) {
       parts.unshift({
         text: tr(
           `(IDs mentioned in the message: ${[...new Set(targets)].join(", ")})`,
@@ -752,67 +826,122 @@ module.exports = {
       });
     }
 
-    // The one message that will carry the whole run.
-    const status = await createStatus(sock, chatId, tr("🤖 Thinking...", "🤖 جارٍ التفكير...", "🤖 سوچ رہا ہوں..."), {
-      replyTo: msg,
-    });
+    const isAutoReply = Boolean(ctx?.isAutoReply || ctx?.silentStatus);
 
-    async function attempt(historyOverride) {
-      const history = historyOverride ?? ((await getChatHistoryAsync(chatId)) || []);
-      const result = await runAgent({
-        parts,
-        history,
-        status,
-        context: agentContext,
-        provider: activeProvider,
-      });
-      if (result.history?.length) {
-        await saveChatHistoryAsync(chatId, result.history);
-      }
-      return result;
-    }
-
-    try {
-      let result;
-      try {
-        result = await attempt();
-      } catch (firstErr) {
-        // A dead fileData URI in the history poisons every later call — scrub
-        // it once and retry so the user never sees the expiry.
-        if (!isFileReferenceError(firstErr)) throw firstErr;
-
-        const oldHistory = (await getChatHistoryAsync(chatId)) || [];
-        const cleaned = sanitizeHistoryForFiles(oldHistory);
-        await saveChatHistoryAsync(chatId, cleaned);
-        logger.info(
-          `[Gemini] sanitized history for chat ${chatId}: ${oldHistory.length} -> ${cleaned.length}; retrying once`,
-        );
-        result = await attempt(cleaned);
-      }
-
-      const text =
-        result.text?.trim() ||
-        tr(
-          "The model sent no answer. Try asking another way.",
-          "لم يردّ النموذج. حاول صياغة السؤال بطريقة أخرى.",
-          "ماڈل نے کوئی جواب نہیں دیا۔ براہ کرم دوبارہ پوچھیں۔",
-        );
-      // Appended only when Gemini really grounded the answer on a search —
-      // formatSources() returns "" for an answer the model gave from its own
-      // knowledge, so there is never a Sources block with nothing behind it.
-      const responseText = formatMarkdownForWhatsApp(`${text}${formatSources(result.sources)}`);
-      await status.finish(responseText);
-    } catch (error) {
-      logger.error({ err: error }, "Error in !gemini command");
-      await status.fail(
-        error,
-        tr(
-          "Something went wrong while talking to the AI",
-          "حصلت مشكلة وأنا بكلم الذكاء الاصطناعي",
-          "AI سے رابطہ کرنے میں مسئلہ پیش آیا",
-        ),
+    await withSessionLock(sessionKey, async () => {
+      // The one message that will carry the whole run (silent in auto-reply / human mode)
+      const status = await createStatus(
+        sock,
+        chatId,
+        tr("🤖 Thinking...", "🤖 جارٍ التفكير...", "🤖 Soch raha hoon..."),
+        {
+          replyTo: msg,
+          silent: isAutoReply,
+        },
       );
-    }
+
+      async function attempt(historyOverride) {
+        const history = historyOverride ?? ((await getChatHistoryAsync(sessionKey)) || []);
+        const result = await runAgent({
+          parts,
+          history,
+          status,
+          context: agentContext,
+          provider: activeProvider,
+        });
+        if (result.history?.length) {
+          await saveChatHistoryAsync(sessionKey, result.history);
+        }
+        return result;
+      }
+
+      try {
+        let result;
+        try {
+          result = await attempt();
+        } catch (firstErr) {
+          // A dead fileData URI in the history poisons every later call — scrub
+          // it once and retry so the user never sees the expiry.
+          if (isFileReferenceError(firstErr)) {
+            const oldHistory = (await getChatHistoryAsync(sessionKey)) || [];
+            const cleaned = sanitizeHistoryForFiles(oldHistory);
+            await saveChatHistoryAsync(sessionKey, cleaned);
+            logger.info(
+              `[Gemini] sanitized history for session ${sessionKey}: ${oldHistory.length} -> ${cleaned.length}; retrying once`,
+            );
+            result = await attempt(cleaned);
+          } else {
+            // If the model/SDK rejected history formatting or had tool desynchronization,
+            // sanitize history to clean text turns and retry once to keep context alive!
+            const oldHistory = (await getChatHistoryAsync(sessionKey)) || [];
+            if (oldHistory.length > 0) {
+              logger.warn(
+                { err: firstErr?.message },
+                `[Gemini] History error for session ${sessionKey}; recovering with text-only turns to preserve context`,
+              );
+              const cleaned = sanitizeHistoryForSession(oldHistory);
+              await saveChatHistoryAsync(sessionKey, cleaned);
+              result = await attempt(cleaned);
+            } else {
+              throw firstErr;
+            }
+          }
+        }
+
+        const text =
+          result.text?.trim() ||
+          tr(
+            "The model sent no answer. Try asking another way.",
+            "لم يردّ النموذج. حاول صياغة السؤال بطريقة أخرى.",
+            "Model ne koi jawab nahi diya. Dubara pooch k dekhein.",
+          );
+        // Appended only when Gemini really grounded the answer on a search —
+        // formatSources() returns "" for an answer the model gave from its own
+        // knowledge, so there is never a Sources block with nothing behind it.
+        let responseText = formatMarkdownForWhatsApp(`${text}${formatSources(result.sources)}`);
+
+        // Check for emoji reaction directive from the AI, e.g. [REACT: 👍], [REACT: 😂], [REACT: ❤️]
+        const reactMatch = responseText.match(/\[REACT:\s*([\p{Emoji}\u200d\uFE0F\S]+?)\]/u);
+        if (reactMatch) {
+          const reactionEmoji = reactMatch[1].trim();
+          responseText = responseText.replace(reactMatch[0], "").trim();
+          try {
+            await sock.sendMessage(rawChatId, {
+              react: {
+                text: reactionEmoji,
+                key: msg.key,
+              },
+            });
+          } catch (reactErr) {
+            logger.debug({ err: reactErr?.message }, "[Gemini] Failed to send reaction");
+          }
+        }
+
+        // If the AI only reacted (no remaining text), remove status placeholder and finish
+        if (!responseText && reactMatch) {
+          await status.remove();
+          return;
+        }
+
+        // Extract all mentioned @phone numbers from text and combine with validTargets
+        const textMentions = (responseText.match(/@(\d{7,16})/g) || []).map(
+          (m) => `${m.replace("@", "")}@s.whatsapp.net`,
+        );
+        const allOutboundMentions = [...new Set([...validTargets, ...textMentions])];
+
+        await status.finish(responseText, { mentions: allOutboundMentions });
+      } catch (error) {
+        logger.error({ err: error }, "Error in !gemini command");
+        await status.fail(
+          error,
+          tr(
+            "Something went wrong while talking to the AI",
+            "حصلت مشكلة وأنا بكلم الذكاء الاصطناعي",
+            "AI se baat karne me koi masla hua",
+          ),
+        );
+      }
+    });
   },
 };
 

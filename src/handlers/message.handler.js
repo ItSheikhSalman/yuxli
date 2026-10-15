@@ -16,6 +16,7 @@ const autoDelete = require("../services/autoDelete.cjs");
 const settings = require("../config/settings.cjs");
 const { getProvider, hasProvider } = require("../services/aiRouter.cjs");
 const { resolveGroupMetadata } = require("../utils/groupMetadataCache.cjs");
+const botAccess = require("../services/botAccess.cjs");
 
 // Envelopes that carry no user-visible content: message revokes and edits
 // (protocolMessage), reactions, poll votes, the undecrypted edit envelope, and
@@ -96,6 +97,23 @@ export async function handleIncomingMessage(sock, m) {
     logger.error({ err: error }, "auto-delete hook failed");
   }
 
+  // If the message is from the account owner and not a command, record it in chat history
+  // so the AI knows what the owner previously said when the other person replies!
+  if (msg.key?.fromMe && body && typeof body === "string") {
+    const rawChatId = msg.key.remoteJid;
+    const prefix = runtimeConfig.getPrefix();
+    if (
+      !body.startsWith(prefix) &&
+      rawChatId &&
+      !rawChatId.endsWith("@g.us") &&
+      !rawChatId.includes("@broadcast") &&
+      !rawChatId.includes("@newsletter")
+    ) {
+      const { recordOutgoingTurnAsync } = require("../utils/storage-hub.cjs");
+      recordOutgoingTurnAsync(normalizeJid(rawChatId), body).catch(() => {});
+    }
+  }
+
   // Everything the bot says about this message — a moderation warning, a
   // command's reply — goes out in one language (see utils/i18n.cjs). A
   // command narrows this down to its own arguments.
@@ -119,6 +137,9 @@ async function processMessage(sock, msg, body) {
     } catch (err) {
       logger.error({ err }, "Failed to update user metadata");
     }
+  // Enforce Bot Access Mode (public, onlyme/self, specific allowed groups, dm_only)
+  if (!botAccess.isMessageAllowed(sock, msg, isGroup)) {
+    return;
   }
 
   if (isGroup) {
@@ -152,37 +173,61 @@ async function processMessage(sock, msg, body) {
 
 async function handleAutoAiReply(sock, msg, body, isGroup) {
   if (msg.key?.fromMe) return false;
-  if (!body || !body.trim()) return false;
+
+  const hasVoice = Boolean(msg.message?.audioMessage);
+  const hasImage = Boolean(msg.message?.imageMessage);
+  const hasVideo = Boolean(msg.message?.videoMessage);
+  const hasDocument = Boolean(msg.message?.documentMessage);
+  const hasMedia = hasVoice || hasImage || hasVideo || hasDocument;
+
+  const rawText = String(body || "").trim();
+  if (!rawText && !hasMedia) return false;
 
   const autoDm = settings.get("ai_auto_reply_dm");
   const autoMention = settings.get("ai_auto_reply_mention");
 
   let shouldReply = false;
-  let cleanText = body.trim();
+  let cleanText = rawText;
+  if (!cleanText && hasVoice) cleanText = "";
+  else if (!cleanText && hasImage) cleanText = "";
+  else if (!cleanText && hasVideo) cleanText = "";
+  else if (!cleanText && hasDocument) cleanText = "";
 
-  if (!isGroup && autoDm) {
-    shouldReply = true;
-  } else if (isGroup && autoMention) {
-    const botJid = normalizeJid(sock.user?.id);
-    const botNum = botJid ? botJid.split("@")[0] : null;
-    const contextInfo =
-      msg.message?.extendedTextMessage?.contextInfo ||
-      msg.message?.imageMessage?.contextInfo ||
-      msg.message?.videoMessage?.contextInfo;
+  const chatId = normalizeJid(msg.key.remoteJid);
+  const { getChatAutoReply } = require("../services/aiAutoReply.cjs");
+  const chatPolicy = getChatAutoReply(chatId);
 
-    const mentionedJids = (contextInfo?.mentionedJid || []).map(normalizeJid);
-    const isQuotingBot = contextInfo?.participant && normalizeJid(contextInfo.participant) === botJid;
-    const isMentioned = botJid && mentionedJids.includes(botJid);
-
-    if (isQuotingBot || isMentioned) {
+  if (!isGroup) {
+    if (autoDm && chatPolicy !== "off") {
       shouldReply = true;
-      if (botNum) {
-        cleanText = cleanText.replace(new RegExp(`@${botNum}\\b`, "gi"), "").trim();
+    }
+  } else {
+    if (chatPolicy === "off") {
+      shouldReply = false;
+    } else if (chatPolicy === "all") {
+      shouldReply = true;
+    } else if (chatPolicy === "mention" && autoMention) {
+      const botJid = normalizeJid(sock.user?.id);
+      const botNum = botJid ? botJid.split("@")[0] : null;
+      const contextInfo =
+        msg.message?.extendedTextMessage?.contextInfo ||
+        msg.message?.imageMessage?.contextInfo ||
+        msg.message?.videoMessage?.contextInfo;
+
+      const mentionedJids = (contextInfo?.mentionedJid || []).map(normalizeJid);
+      const isQuotingBot = contextInfo?.participant && normalizeJid(contextInfo.participant) === botJid;
+      const isMentioned = botJid && mentionedJids.includes(botJid);
+
+      if (isQuotingBot || isMentioned) {
+        shouldReply = true;
+        if (botNum && cleanText) {
+          cleanText = cleanText.replace(new RegExp(`@${botNum}\\b`, "gi"), "").trim();
+        }
       }
     }
   }
 
-  if (!shouldReply || !cleanText) return false;
+  if (!shouldReply) return false;
 
   try {
     let provider = getProvider();
@@ -199,7 +244,10 @@ async function handleAutoAiReply(sock, msg, body, isGroup) {
 
     const groupMeta = isGroup ? await resolveGroupMetadata(sock, msg.key.remoteJid) : null;
     logger.info({ chat: msg.key.remoteJid, isGroup }, "[AI] Direct auto-response triggered");
-    await geminiCmd.execute(sock, msg, cleanText.split(/ +/), cleanText, groupMeta, { invokedName: "ai" });
+    await geminiCmd.execute(sock, msg, cleanText.split(/ +/), cleanText, groupMeta, {
+      invokedName: "ai",
+      isAutoReply: true,
+    });
     return true;
   } catch (err) {
     logger.error({ err }, "[AI] Direct auto-response failed");

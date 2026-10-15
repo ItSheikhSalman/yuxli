@@ -986,7 +986,10 @@ function saveChatHistory(chatId, historyArray) {
 }
 
 function deleteChatHistory(chatId) {
-  const { changes } = q("DELETE FROM ai_history WHERE chat_id = ?").run(chatId);
+  const { changes } = q("DELETE FROM ai_history WHERE chat_id = ? OR chat_id LIKE ?").run(
+    chatId,
+    `${chatId}::%`,
+  );
   return changes > 0;
 }
 

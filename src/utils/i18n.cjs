@@ -28,7 +28,7 @@ const scope = new AsyncLocalStorage();
 const ARABIC_LETTERS = /[\u0621-\u064A\u0671-\u06D3\u06FA-\u06FF]/;
 const URDU_LETTERS = /[\u0679\u0688\u0691\u06BA\u06C1\u06D2\u06BE\u067E\u0686\u06AF\u0698]/;
 const URDU_WORDS = /(?:^|\s)(?:کیا|کیسے|کیسی|کیسا|حال|ٹھیک|ہاں|نہیں|مجھے|میرا|میری|میرے|تیرا|تیری|تیرے|آپ|تم|ہم|ہمارا|ہونا|کرو|کریں|بتاؤ|بتائیں|شکریہ|اچھا|بھائی|یار|کیوں|کب|کہاں|کون|کس|والا|والی|والے|تھا|تھی|تھے|ہوں|ہیں|ہے)(?:$|\s)/;
-const ROMAN_URDU_WORDS = /\b(kya|kaise|kaisay|kaisa|kaisi|haal|theek|thik|haan|nahi|nahin|mujhe|mujhey|tum|tumhara|tumhari|aap|aapka|aapki|aapke|hum|hamara|mera|meri|mere|tera|teri|tere|karo|karein|batao|batayein|bolo|shukriya|acha|achha|bhai|yaar|kyun|kyu|kab|kahan|kaun|wala|wali|wale|tha|thi|the|hoon|hain|hai)\b/i;
+const ROMAN_URDU_WORDS = /\b(kya|kaise|kaisay|kaisa|kaisi|haal|theek|thik|haan|han|nahi|nahin|na|mujhe|mujhey|tum|tumhara|tumhari|aap|aapka|aapki|aapke|hum|hamara|mera|meri|mere|tera|teri|tere|karo|karein|batao|batayein|bolo|shukriya|acha|achha|bhai|yaar|yr|kyun|kyu|kab|kahan|kaun|wala|wali|wale|tha|thi|the|hoon|hon|hain|hai|hy|bhi|hi|pe|pr|ko|se|sy|par|ab|phir|phr|bhejo|sunao|dekh|dekho|smjh|samjho|yar)\b/i;
 
 const LATIN_WORD = /[a-z][a-z'’-]*/gi;
 // A whole token made of letters. `3fa85f64-…` (an id), `2d6`, `10pm` are not
@@ -38,10 +38,93 @@ const TOKEN_EDGES = /^[\s.,!?:;()"'`[\]{}<>|*_~]+|[\s.,!?:;()"'`[\]{}<>|*_~]+$/g
 // Not language: links, mentions, e-mail addresses.
 const NOT_WORDS = /(?:https?:\/\/|www\.)\S+|\S+@\S+|@\S+/gi;
 
+const ROMAN_URDU_DICTIONARY = {
+  // General & status
+  "Something went wrong": "Kuch masla ho gaya",
+  "Something went wrong.": "Kuch masla ho gaya.",
+  "Something went wrong with the sticker.": "Sticker me koi masla aa gaya.",
+  "Something went wrong while talking to the AI": "AI se baat karne me masla hua",
+  "unknown": "maloom nahi",
+  "Error": "Masla",
+  "Done.": "Ho gaya.",
+  "Done": "Ho gaya",
+  "Success": "Kamyab",
+  "Please wait...": "Thora intezar karein...",
+  "Processing...": "Process ho raha hy...",
+  "Searching...": "Dhoond raha hoon...",
+  "Writing the answer...": "Jawab likh raha hoon...",
+  "Thinking...": "Soch raha hoon...",
+  "🤖 Thinking...": "🤖 Soch raha hoon...",
+  "🤖 Writing the answer...": "🤖 Jawab likh raha hoon...",
+  "🔗 Shortening...": "🔗 Link chota kar raha hoon...",
+  "📥 Sending...": "📥 Bhej raha hoon...",
+  "🎨 Making the image...": "🎨 Image bana raha hoon...",
+  "The model sent no answer. Try asking another way.": "Model ne koi jawab nahi diya. Dubara pooch k dekhein.",
+  "I ran the tools I have but couldn't reach a final answer. Try asking more clearly.": "Pura dhoondne ke baad bhi koi final jawab nahi mila. Thora wazeh pooch k dekhein.",
+  "No Gemini API key is set": "Gemini API key set nahi hy",
+  "No Gemini API key is set — image generation only runs on Gemini": "Gemini API key set nahi hy — image generation sirf Gemini pe chalti hy",
+  "*Sources:*": "*Hawalay / Sources:*",
+  "There is nothing to save": "Save karne ke liye kuch nahi hy",
+
+  // Permissions & access
+  "Only the bot owner can use this command.": "Sirf bot owner yeh command use kar sakta hy.",
+  "🚫 Only the bot owner can use this command.": "🚫 Sirf bot owner yeh command use kar sakta hy.",
+  "Only group admins can use this command.": "Sirf group admins yeh command use kar sakte hain.",
+  "🚫 Only group admins can use this command.": "🚫 Sirf group admins yeh command use kar sakte hain.",
+  "⚠️ This command only works in groups (or for the owner in private).": "⚠️ Yeh command sirf groups me kaam karti hy (ya owner ke liye private me).",
+  "Only group admins and the owner can use this command.": "Sirf group admins aur owner yeh command use kar sakte hain.",
+  "🚫 Only group admins and the owner can use this command.": "🚫 Sirf group admins aur owner yeh command use kar sakte hain.",
+  "⚠️ This command only works in groups, or for the owner.": "⚠️ Yeh command sirf groups me ya owner ke liye kaam karti hy.",
+  "Unknown permission level.": "Permission level maloom nahi hy.",
+  "🚫 Unknown permission level.": "🚫 Permission level maloom nahi hy.",
+  "⛔ This command is turned off right now.": "⛔ Yeh command abhi band hy.",
+  "⚠️ This command only works in groups.": "⚠️ Yeh command sirf groups me kaam karti hy.",
+  "⚠️ This command only works in private chats.": "⚠️ Yeh command sirf private chat me kaam karti hy.",
+  "⚠️ This command only works in private chat.": "⚠️ Yeh command sirf private chat me kaam karti hy.",
+  "⚠️ You need to be a group admin to use this command.": "⚠️ Yeh command chalane ke liye aap ka group admin hona zaroori hy.",
+  "⚠️ I need to be a group admin to do that.": "⚠️ Yeh karne ke liye bot ka group admin hona zaroori hy.",
+  "⚠️ Sorry, only the bot owner and admins can change the bot's language.": "⚠️ Yeh setting sirf bot owner aur admins change kar sakte hain.",
+  "❌ Unknown option.": "❌ Galat option.",
+
+  // Status & options
+  "Auto (follows each message)": "Auto (har message ki zuban ke mutabiq)",
+  "English": "English",
+  "Arabic": "Arabic (العربية)",
+  "Roman Urdu": "Roman Urdu (رومن اردو)",
+};
+
+function toRomanUrdu(text) {
+  if (typeof text !== "string") return text;
+  const direct = ROMAN_URDU_DICTIONARY[text] || ROMAN_URDU_DICTIONARY[text.trim()];
+  if (direct) return direct;
+
+  if (text.startsWith("❌ *") && text.includes("*Type:*")) {
+    return text
+      .replace(/\*Type:\*/g, "*Qisam:*")
+      .replace(/\*Details:\*/g, "*Tafseelat:*")
+      .replace(/Something went wrong while talking to the AI/g, "AI se baat karne me masla hua")
+      .replace(/Something went wrong/g, "Kuch masla ho gaya")
+      .replace(/The command failed/g, "Command run nahi ho saki")
+      .replace(/unknown/g, "maloom nahi");
+  }
+
+  const timeoutMatch = text.match(/^(.*?) took longer than (\d+) seconds$/);
+  if (timeoutMatch) {
+    return `${timeoutMatch[1]} me ${timeoutMatch[2]} second se zyada waqt lag gaya`;
+  }
+
+  const notFoundMatch = text.match(/^❌ Command "\*?(.*?)\*?" not found\./);
+  if (notFoundMatch) {
+    return `❌ Command "*${notFoundMatch[1]}*" nahi mili.\nSaari commands dekhne ke liye !help likhein.`;
+  }
+
+  return text;
+}
+
 /** The configured language, or null for "auto". */
 function configuredLang() {
   const setting = settings.get("bot_language");
-  return setting === "ar" || setting === "en" || setting === "ur" ? setting : null;
+  return setting === "ar" || setting === "en" || setting === "ur" ? setting : "ur";
 }
 
 /**
@@ -122,7 +205,8 @@ function tr(en, ar, ur) {
   const lang = currentLang();
   if (lang === "en") return en;
   if (lang === "ar") return ar;
-  return ur || en;
+  if (ur) return ur;
+  return toRomanUrdu(en);
 }
 
-module.exports = { detectLang, syntaxWords, langForCommand, withLang, currentLang, tr };
+module.exports = { detectLang, syntaxWords, langForCommand, withLang, currentLang, tr, toRomanUrdu };

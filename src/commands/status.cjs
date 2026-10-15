@@ -1,98 +1,94 @@
-// file: /commands/status.js
+// Professional System Health & Diagnostics Command (!status, !info, !system)
 
 const os = require("os");
 const baileysVersion = require("@whiskeysockets/baileys/package.json").version;
 const logger = require("../utils/logger.cjs");
 const { checkFfmpeg } = require("../utils/thumbnail.cjs");
-const { tr } = require("../utils/i18n.cjs");
+const settings = require("../config/settings.cjs");
+const botAccess = require("../services/botAccess.cjs");
+const aiFailover = require("../services/aiFailover.cjs");
 
-/**
- * A helper function to format seconds into a human-readable string.
- * e.g., 86461 seconds -> "1 day, 0 hours, 1 minute, 1 second"
- * @param {number} seconds - The total seconds to format.
- * @returns {string} The formatted uptime string.
- */
 function formatUptime(seconds) {
   const d = Math.floor(seconds / (3600 * 24));
   const h = Math.floor((seconds % (3600 * 24)) / 3600);
   const m = Math.floor((seconds % 3600) / 60);
   const s = Math.floor(seconds % 60);
 
-  return tr(`${d}d ${h}h ${m}m ${s}s`, `${d} يوم, ${h} ساعة, ${m} دقيقة, ${s} ثانية`);
+  const parts = [];
+  if (d > 0) parts.push(`${d}d`);
+  if (h > 0) parts.push(`${h}h`);
+  if (m > 0) parts.push(`${m}m`);
+  parts.push(`${s}s`);
+  return parts.join(" ");
 }
 
 module.exports = {
   name: "status",
+  aliases: ["info", "system", "stats", "حالة"],
   description: {
-    en: "Shows the bot's system status.",
-    ar: "يعرض حالة نظام البوت.",
+    en: "Displays complete system diagnostics, AI provider info, and runtime metrics.",
+    ur: "Complete system diagnostics, AI engine aur runtime stats dekhein.",
+    ar: "عرض تشخيصات النظام الكاملة ومحرك الذكاء الاصطناعي وإحصائيات التشغيل.",
   },
   usage: {
     en: "status",
+    ur: "status",
     ar: "status",
   },
-  chat: "all", // Can be used in any chat
+  chat: "all",
 
   async execute(sock, msg) {
     try {
-      // --- GATHERING DATA ---
+      const uptime = formatUptime(process.uptime());
+      const memory = process.memoryUsage();
+      const rssMb = (memory.rss / (1024 * 1024)).toFixed(1);
+      const heapMb = (memory.heapUsed / (1024 * 1024)).toFixed(1);
+      const totalRamGb = (os.totalmem() / (1024 * 1024 * 1024)).toFixed(1);
+      const freeRamGb = (os.freemem() / (1024 * 1024 * 1024)).toFixed(1);
 
-      // 1. Uptime
-      const uptimeSeconds = process.uptime();
-      const formattedUptime = formatUptime(uptimeSeconds);
+      const provider = (settings.get("ai_provider") || "gemini").toLowerCase();
+      const activeKeyCount = aiFailover.getKeyCount(provider);
+      const botMode = botAccess.getAccessMode();
+      const allowedGroups = botAccess.getAllowedGroups();
 
-      // 2. RAM Usage
-      // process.memoryUsage().rss is the Resident Set Size in bytes
-      const rssBytes = process.memoryUsage().rss;
-      const rssMb = (rssBytes / 1024 / 1024).toFixed(2); // Convert to MB
-
-      // 3. Node.js Version
-      const nodeVersion = process.version;
-
-      // 4. Operating System Info
-      const platform = os.platform();
-      const osRelease = os.release();
-
-      // 5. ffmpeg — media previews (jpegThumbnail) depend on it, and a broken
-      //    binary is otherwise invisible.
       const ffmpeg = await checkFfmpeg();
-      const ffmpegLine = ffmpeg.ok
-        ? `✅ ${ffmpeg.version || tr("working", "يعمل")}`
-        : tr(`❌ not working (${ffmpeg.path})`, `❌ لا يعمل (${ffmpeg.path})`);
+      const ffmpegStatus = ffmpeg.ok ? "✅ Operational" : "❌ Unavailable";
 
-      // --- BUILDING THE REPLY ---
-      const reply = tr(
-        `*🤖 Yuxli Bot Status 🤖*
-👨‍💻 *Developer:* Sheikh Salman
+      const card = [
+        `╭───「 📊 *SYSTEM STATUS & BOT HEALTH* 」`,
+        `│`,
+        `├─ 🧠 *AI Intelligence Engine:*`,
+        `│  • Active Provider: *${provider.toUpperCase()}*`,
+        `│  • Keys Configured: \`${activeKeyCount} key(s) rotating\``,
+        `│  • Auto Failover: \`Active (Groq ⇄ Gemini ⇄ Free)\``,
+        `│  • Default Language: *Roman Urdu (رومن اردو)*`,
+        `│`,
+        `├─ 🛡️ *Access & Scope Control:*`,
+        `│  • Bot Work Mode: *${botMode.toUpperCase()}*`,
+        `│  • Authorized Groups: \`${allowedGroups.length} whitelisted\``,
+        `│`,
+        `├─ 💻 *Host & Hardware Metrics:*`,
+        `│  • System Uptime: \`${uptime}\``,
+        `│  • Process RAM (RSS): \`${rssMb} MB\` (Heap: \`${heapMb} MB\`)`,
+        `│  • Server RAM: \`${freeRamGb} GB free / ${totalRamGb} GB total\``,
+        `│  • Platform: \`${os.platform()} (${os.arch()})\``,
+        `│  • Node.js: \`${process.version}\``,
+        `│  • Baileys Core: \`v${baileysVersion}\``,
+        `│  • Media Transcoder: ${ffmpegStatus}`,
+        `│`,
+        `├─ 👨‍💻 *Credits & Creator:*`,
+        `│  • Developer: *Sheikh Salman*`,
+        `│  • Studio: *Yuxli Technologies*`,
+        `│  • Engine: *Yuxli v2.5 Enterprise*`,
+        `│`,
+        `╰───「 🟢 100% Online & Stable 」`,
+      ].join("\n");
 
-*⏰ Uptime:* ${formattedUptime}
-*📊 Memory:* ${rssMb} MB
-*🟢 Node.js:* ${nodeVersion}
-*📚 Baileys:* v${baileysVersion}
-*💻 OS:* ${platform}
-*💿 OS release:* ${osRelease}
-*🎞️ ffmpeg (thumbnails):* ${ffmpegLine}
-🌐 *GitHub:* https://github.com/ItSheikhSalman/yuxli`,
-        `*🤖 حالة بوت يوكسلي (Yuxli) 🤖*
-👨‍💻 *المطور:* الشيخ سلمان (Sheikh Salman)
-
-*⏰ وقت التشغيل:* ${formattedUptime}
-*📊 استخدام الذاكرة:* ${rssMb} MB
-*🟢 إصدار Node.js:* ${nodeVersion}
-*📚 إصدار Baileys:* v${baileysVersion}
-*💻 نظام التشغيل:* ${platform}
-*💿 إصدار نظام التشغيل:* ${osRelease}
-*🎞️ ffmpeg (الصور المصغرة):* ${ffmpegLine}`,
-      );
-
-      await sock.sendMessage(msg.key.remoteJid, { text: reply });
+      await sock.sendMessage(msg.key.remoteJid, { text: card }, { quoted: msg });
     } catch (error) {
-      logger.error(error, "[Error] في أمر !status:");
+      logger.error({ err: error }, "[Status] Failed to build status card");
       await sock.sendMessage(msg.key.remoteJid, {
-        text: tr(
-          "Something went wrong while reading the system status.",
-          "حدث خطأ أثناء جلب حالة النظام.",
-        ),
+        text: "❌ Status card render karne me masla hua.",
       });
     }
   },

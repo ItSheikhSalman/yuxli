@@ -66,6 +66,16 @@ const EDIT_IN_PLACE_EXCLUDE = new Set([
   "dp",
   "logo",
   "imagine",
+  "roast",
+  "currency",
+  "summarize",
+  "joke",
+  "shayari",
+  "botmode",
+  "filter",
+  "autoreply",
+  "mode",
+  "model",
 ]);
 
 // Wrap a socket so commands reply nicely:

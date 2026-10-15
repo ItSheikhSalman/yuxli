@@ -32,6 +32,7 @@ const {
   assertProviderRequestUrl,
 } = require("../utils/providerUrl.cjs");
 const { toolDeclarations, describeCall, runTool } = require("./aiTools.cjs");
+const aiMood = require("./aiMood.cjs");
 const {
   BaseAIProvider,
   registerProvider,
@@ -57,7 +58,8 @@ const { runProviderAgent, activeProviderKeySetting } = require("./aiProviders.cj
 let clientCache = { key: null, baseUrl: null, client: null };
 
 function geminiClient() {
-  const key = settings.get("gemini_api_key");
+  const aiFailover = require("./aiFailover.cjs");
+  const key = aiFailover.getActiveKey("gemini") || settings.get("gemini_api_key");
   if (!key) return null;
   const baseUrl = assertProviderBaseUrl(settings.get("gemini_base_url"), {
     allowLoopback: true,
@@ -92,9 +94,9 @@ try {
 // has been copied". The real persona is the operator's copy of ai-persona.md.
 // No product identity in here: that comes from src/config/ai-identity.cjs and is
 // prepended separately, so it survives any edit to the persona.
-const DEFAULT_PERSONA = `You are a capable personal WhatsApp assistant.
-Be concise and direct by default, reply in Urdu (اردو), and
-use your tools instead of guessing when something needs to be looked up.`;
+const DEFAULT_PERSONA = `You are a personal WhatsApp assistant that chats naturally like a real human.
+ALWAYS reply in natural, everyday Roman Urdu by default.
+Be concise, direct, and conversational, and use your tools instead of guessing.`;
 
 let personaCache = { text: null, stamp: null };
 
@@ -143,18 +145,19 @@ function nowLabel() {
   }
 }
 
-function botLangDirective() {
+function botLangDirective(mode = "auto", isRoast = false) {
   const botLang = settings.get("bot_language") || "ur";
-  if (botLang === "ur") {
-    return "- Language instruction: Always reply in Urdu (اردو), clear, natural, polite, respectful, and well-phrased. If the user writes in Roman Urdu (e.g. 'kya haal hai', 'batao'), you can reply in Roman Urdu or Urdu as appropriate. When using the speak tool (voice notes), always provide the text in Urdu.";
+  if (isRoast || mode === "roast") {
+    return "- Primary Language Directive: Reply in natural everyday Roman Urdu with sharp, savage humor, raw authentic friend roast slang, and punchy comebacks. Drop polite corporate robotic restraint.";
   }
   if (botLang === "en") {
-    return "- Language instruction: Always reply in English, clear, professional, natural, and direct.";
+    return "- Primary Language Directive: Reply in English, natural, conversational, and direct.";
   }
   if (botLang === "ar") {
-    return "- Language instruction: Always reply in Modern Standard Arabic (العربية الفصحى), clear, professional, and well-phrased.";
+    return "- Primary Language Directive: Reply in Modern Standard Arabic (العربية الفصحى), natural and clear.";
   }
-  return "- Language instruction: Reply in Urdu (اردو) by default, or automatically reply in the language the user writes in (Urdu if Urdu/Roman Urdu, English if English, Modern Standard Arabic if Arabic). When asked for voice notes or speech, always speak in Urdu.";
+  // Default and Urdu: ALWAYS default to natural everyday Roman Urdu!
+  return "- Primary Language Directive: ALWAYS reply in natural, everyday Roman Urdu by default (e.g. 'haan theek hy', 'acha sahi', 'kahan ho?', 'main aa raha hoon', 'ok', 'chalo done'). Never sound like an AI bot; sound like a real Pakistani WhatsApp user. Only write in Urdu script if the user specifically writes in Urdu script or explicitly asks for it.";
 }
 
 /**
@@ -166,7 +169,10 @@ function botLangDirective() {
  * src/config/ai-identity.cjs) and is never rendered by the panel.
  */
 function buildSystemInstruction(context = {}) {
-  const { chatId, senderName, senderId, isOwner, isAdmin, isGroup, chatName } = context;
+  const { chatId, senderName, senderId, isOwner, isAdmin, isGroup, chatName, targetInfo, isTargetedRoast, latestUserText } = context;
+  const currentMode = aiMood.getChatMode(chatId, senderId);
+  const dynamicCue = aiMood.detectExpressionCue(latestUserText || "");
+  const isRoasting = currentMode === "roast" || isTargetedRoast || dynamicCue?.modeHint === "roast";
 
   const runtime = [
     "# Current context",
@@ -175,14 +181,23 @@ function buildSystemInstruction(context = {}) {
     `- Where: ${isGroup ? `a group chat${chatName ? ` called "${chatName}"` : ""}` : "a private one-to-one chat"}`,
     `- Local time now: ${nowLabel()}`,
     isGroup
-      ? "- This is a group: every participant sees your reply. Say nothing here that belongs to one person."
+      ? "- This is a group chat with multiple active participants. Each participant has their own conversation topic with you. Answer the current speaker's topic accurately."
       : "- This is a private chat: only this person sees your reply.",
-    botLangDirective(),
+    botLangDirective(currentMode, isRoasting),
   ].join("\n");
 
   const memoryBlock = memory.buildMemoryContext(chatId);
+  const moodBlock = aiMood.buildMoodPrompt(chatId, latestUserText || "", {
+    senderId,
+    senderName,
+    isGroup,
+    targetInfo,
+    isTargetedRoast,
+  });
+  const aiFilter = require("./aiFilter.cjs");
+  const filterBlock = aiFilter.buildFilterInstruction(chatId);
 
-  return [aiIdentity.systemBlock, loadPersona(), runtime, memoryBlock].filter(Boolean).join("\n\n");
+  return [aiIdentity.systemBlock, loadPersona(), runtime, moodBlock, filterBlock, memoryBlock].filter(Boolean).join("\n\n");
 }
 
 /** A turn the conversation can legally start from. */
@@ -242,6 +257,45 @@ function sanitizeHistoryForFiles(history) {
       return { ...turn, parts };
     })
     .filter(Boolean);
+}
+
+/** Flatten tool call/response turns to resilient text turns so context is preserved when SDK/API rejects tool parts */
+function sanitizeHistoryForSession(history) {
+  if (!Array.isArray(history)) return [];
+  const cleaned = [];
+
+  for (const turn of history) {
+    if (!turn || !Array.isArray(turn.parts)) continue;
+    const role = turn.role === "model" ? "model" : "user";
+    const parts = [];
+
+    for (const part of turn.parts) {
+      if (part?.text) {
+        parts.push({ text: part.text });
+      } else if (part?.functionCall) {
+        parts.push({ text: `[Action: ${part.functionCall.name || "tool"}]` });
+      } else if (part?.functionResponse) {
+        const resp = part.functionResponse.response;
+        const respStr = typeof resp === "object" ? JSON.stringify(resp) : String(resp || "");
+        parts.push({ text: `[Result: ${respStr.slice(0, 300)}]` });
+      }
+    }
+
+    if (parts.length > 0) {
+      const last = cleaned[cleaned.length - 1];
+      if (last && last.role === role) {
+        last.parts.push(...parts);
+      } else {
+        cleaned.push({ role, parts });
+      }
+    }
+  }
+
+  while (cleaned.length && cleaned[0].role !== "user") {
+    cleaned.shift();
+  }
+
+  return trimHistory(cleaned);
 }
 
 function withTimeout(promise, ms, label) {
@@ -497,16 +551,81 @@ registerProvider("gemini", new GeminiProvider());
  * Modular dispatch through getProvider().
  */
 async function runAgent(options = {}) {
-  let provider = options.provider || getProvider();
-  if (!provider.isConfigured() && hasProvider("flipia")) {
-    provider = getProvider("flipia");
+  const aiFailover = require("./aiFailover.cjs");
+  const autoFallback = settings.get("ai_auto_fallback") !== false;
+  let preferredProvider = options.provider || getProvider();
+
+  // If auto-fallback is off, run directly on chosen provider
+  if (!autoFallback) {
+    if (!preferredProvider.isConfigured() && hasProvider("flipia")) {
+      preferredProvider = getProvider("flipia");
+    }
+    const result = await preferredProvider.runTurn({
+      ...options,
+      history: trimHistory(options.history),
+      systemInstruction: buildSystemInstruction(options.context),
+    });
+    return { ...result, history: trimHistory(result.history) };
   }
-  const result = await provider.runTurn({
-    ...options,
-    history: trimHistory(options.history),
-    systemInstruction: buildSystemInstruction(options.context),
-  });
-  return { ...result, history: trimHistory(result.history) };
+
+  // Automatic multi-key rotation and multi-provider failover cascade!
+  const chain = aiFailover.getFallbackChain(preferredProvider.id);
+  const trimmed = trimHistory(options.history);
+  const instruction = buildSystemInstruction(options.context);
+
+  let lastError = null;
+  for (const pid of chain) {
+    if (!hasProvider(pid)) continue;
+    const provider = getProvider(pid);
+    if (!provider.isConfigured()) continue;
+
+    const keys = aiFailover.getAllKeys(pid);
+    let attemptsLeft = Math.max(1, keys.length);
+
+    while (attemptsLeft > 0) {
+      attemptsLeft--;
+      try {
+        const result = await provider.runTurn({
+          ...options,
+          history: trimmed,
+          systemInstruction: instruction,
+        });
+        return { ...result, history: trimHistory(result.history) };
+      } catch (err) {
+        lastError = err;
+        const isQuota = aiFailover.isQuotaOrRateLimitError(err);
+        logger.warn(
+          { provider: pid, err: err?.message, isQuota },
+          `[aiAgent] Provider ${pid} attempt failed`,
+        );
+
+        // If this provider has multiple keys and hit quota, rotate key and retry!
+        if (keys.length > 1 && isQuota && attemptsLeft > 0) {
+          aiFailover.rotateKey(pid);
+          continue;
+        }
+
+        // Otherwise break out of key loop and cascade to next provider
+        break;
+      }
+    }
+
+    // Cascade to next provider in chain
+    logger.info(`[aiAgent] Cascading from ${pid} to next available provider in fallback chain`);
+    if (options.status) {
+      try {
+        await options.status.update(
+          tr(
+            `⚡ Quota limit reached; swapping AI provider...`,
+            `⚡ تم الوصول للحد الأقصى؛ جارٍ التبديل لمزود بديل...`,
+            `⚡ ٹوکن لِمٹ ختم، خودکار متبادل AI پر سوئچ ہو رہا ہے...`,
+          ),
+        );
+      } catch {}
+    }
+  }
+
+  throw lastError || new Error("All AI providers in fallback chain failed");
 }
 
 async function runGeminiTurn({
@@ -545,6 +664,12 @@ async function runGeminiTurn({
         systemInstruction: instruction,
         ...(tools.length ? { tools } : {}),
         ...(toolConfig ? { toolConfig } : {}),
+        safetySettings: [
+          { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+          { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+          { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+          { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
+        ],
       },
     });
   };
@@ -680,6 +805,7 @@ module.exports = {
   activeProviderKeySetting,
   isFileReferenceError,
   sanitizeHistoryForFiles,
+  sanitizeHistoryForSession,
   trimHistory,
   PERSONA_FILE,
   detectModelCapabilities,
