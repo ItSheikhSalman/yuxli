@@ -497,7 +497,45 @@ await statusCmd.execute(mockSock, mockFromMeMsg);
 assert.ok(sentMessage.includes("SYSTEM STATUS & BOT HEALTH") && sentMessage.includes("AI Intelligence Engine"), "Status dashboard card rendered");
 console.log("✓ Redesigned diagnostics cards passed\n");
 
-console.log("ALL 24 MOOD, MEMORY, GROUP ISOLATION, ROMAN URDU, NEW FEATURES & DIAGNOSTIC TESTS PASSED! 🎉");
+// Test 25: WhatsApp Code Copy Box & Professional Typography Formatting
+console.log("Test 25: WhatsApp Code Copy Box & Formatting");
+const { formatMarkdownForWhatsApp } = require("../src/utils/markdownParser.cjs");
+
+const sampleMarkdown = [
+  "# Python Script",
+  "Here is the function:",
+  "```python",
+  "def greet(name):",
+  '    return f"Hello {name}"',
+  "```",
+  "Check [Documentation](https://python.org) for details.",
+  "* Feature 1",
+  "* Feature 2",
+  "---",
+  "Done!",
+].join("\n");
+
+const parsed = formatMarkdownForWhatsApp(sampleMarkdown);
+
+// Verify code block is wrapped in full monospace ```\ncode\n``` copy box
+assert.ok(parsed.includes("```\ndef greet(name):"), "Code block properly padded with newline for copy box");
+assert.ok(parsed.includes("🐍 *Python:*"), "Language badge attached to code block");
+
+// Verify links converted to WhatsApp clickable links
+assert.ok(parsed.includes("*Documentation:* https://python.org"), "Markdown link converted to clickable URL");
+
+// Verify bullets converted to avoid bold collisions
+assert.ok(parsed.includes("• Feature 1") && parsed.includes("• Feature 2"), "Bullet asterisks converted to •");
+
+// Verify divider
+assert.ok(parsed.includes("───────────────────"), "Horizontal rule converted to clean divider");
+
+// Verify header badge
+assert.ok(parsed.includes("📌 *Python Script*"), "Heading converted with clean badge");
+console.log("✓ WhatsApp code copy box & formatting passed\n");
+
+console.log("ALL 25 MOOD, MEMORY, GROUP ISOLATION, ROMAN URDU, NEW FEATURES, CODE BOX & DIAGNOSTIC TESTS PASSED! 🎉");
+
 
 
 
