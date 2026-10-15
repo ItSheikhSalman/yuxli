@@ -51,17 +51,20 @@ Current Mode: *${label}*
 
     if (action === "mention" || action === "tag") {
       setChatAutoReply(chatId, "mention");
-      return reply(`✅ Auto-reply set ho gaya: *Mention Only* (@bot mention ya quote karne pe jawab dega).`);
+      setChatAutoReply(rawChatId, "mention");
+      return reply(`✅ Auto-reply set ho gaya: *Mention Only* (@bot mention karne pe jawab dega).`);
     }
 
-    if (action === "all" || action === "always" || action === "every") {
+    if (action === "all" || action === "always" || action === "every" || action === "on") {
       setChatAutoReply(chatId, "all");
-      return reply(`✅ Auto-reply set ho gaya: *All Messages*! Bot ab is chat me har message pe real insaan ki tarha natural reply karega!`);
+      setChatAutoReply(rawChatId, "all");
+      return reply(`✅ Auto-reply set ho gaya: *All Messages*! Bot ab is chat me messages ka natural reply karega.`);
     }
 
-    if (action === "off" || action === "disable") {
+    if (action === "off" || action === "disable" || action === "band" || action === "bnd" || action === "stop" || action === "close" || action === "mute") {
       setChatAutoReply(chatId, "off");
-      return reply(`✅ Auto-reply set ho gaya: *Off*. Bot ab sirf direct command par reply karega.`);
+      setChatAutoReply(rawChatId, "off");
+      return reply(`✅ Auto-reply *OFF* ho gaya! Bot ab is chat me bina command ke koi jawab nahi dega.`);
     }
 
     return reply(`Usage:\n• \`${prefix}autoreply mention\`\n• \`${prefix}autoreply all\`\n• \`${prefix}autoreply off\``);

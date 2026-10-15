@@ -463,4 +463,40 @@ export const api = {
     api.delete<{ success: boolean; cleared: number }>(
       ruleId ? `/auto-delete/log?ruleId=${encodeURIComponent(ruleId)}` : "/auto-delete/log",
     ),
+
+  // Bot Access Scope & Whitelist
+  getBotAccess: () =>
+    api.get<{
+      success: boolean;
+      mode: string;
+      modes: Record<string, { id: string; label: string; emoji: string; desc: string }>;
+      allowedGroups: Array<{ id: string; subject?: string | null; addedAt?: number }>;
+      allowedDms: Array<{ id: string; name?: string | null; addedAt?: number }>;
+    }>("/bot-access"),
+  setBotAccessMode: (mode: string) =>
+    api.post<{ success: boolean; mode: string }>("/bot-access/mode", { mode }),
+  addAllowedGroup: (id: string, subject?: string | null) =>
+    api.post<{ success: boolean; allowedGroups: any[] }>("/bot-access/groups", { id, subject }),
+  removeAllowedGroup: (id: string) =>
+    api.delete<{ success: boolean; allowedGroups: any[] }>(
+      `/bot-access/groups/${encodeURIComponent(id)}`,
+    ),
+  addAllowedDm: (id: string, name?: string | null) =>
+    api.post<{ success: boolean; allowedDms: any[] }>("/bot-access/dms", { id, name }),
+  removeAllowedDm: (id: string) =>
+    api.delete<{ success: boolean; allowedDms: any[] }>(
+      `/bot-access/dms/${encodeURIComponent(id)}`,
+    ),
+
+  // Bot Permissions (Owners & Admins)
+  getPermissions: () =>
+    api.get<{
+      success: boolean;
+      owners: Array<{ jid: string; lid?: string | null; displayName?: string | null; phone?: string | null }>;
+      admins: Array<{ jid: string; lid?: string | null; displayName?: string | null; phone?: string | null }>;
+    }>("/permissions"),
+  addOwner: (identifier: string) =>
+    api.post<{ success: boolean; user: any; owners: any[] }>("/permissions/owners", { identifier }),
+  removeOwner: (id: string) =>
+    api.delete<{ success: boolean; owners: any[] }>(`/permissions/owners/${encodeURIComponent(id)}`),
 };

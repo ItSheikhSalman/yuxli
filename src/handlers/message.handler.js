@@ -217,10 +217,11 @@ async function handleAutoAiReply(sock, msg, body, isGroup) {
         msg.message?.videoMessage?.contextInfo;
 
       const mentionedJids = (contextInfo?.mentionedJid || []).map(normalizeJid);
-      const isQuotingBot = contextInfo?.participant && normalizeJid(contextInfo.participant) === botJid;
-      const isMentioned = botJid && mentionedJids.includes(botJid);
+      const isMentioned = Boolean(botJid && mentionedJids.includes(botJid));
 
-      if (isQuotingBot || isMentioned) {
+      // In groups, only auto-reply when the bot is explicitly tagged/mentioned (@bot).
+      // Simply quoting an old bot message to discuss it with a friend will NOT trigger the bot!
+      if (isMentioned) {
         shouldReply = true;
         if (botNum && cleanText) {
           cleanText = cleanText.replace(new RegExp(`@${botNum}\\b`, "gi"), "").trim();

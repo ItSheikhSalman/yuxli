@@ -126,6 +126,9 @@ export interface GroupItem {
   antilinkEnabled?: boolean;
   mediaRestriction?: string;
   welcomeEnabled?: boolean;
+  isWhitelisted?: boolean;
+  contentFilter?: string;
+  autoReply?: string;
 }
 
 export interface LogItem {

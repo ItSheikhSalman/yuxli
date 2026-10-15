@@ -43,22 +43,29 @@ import {
 } from "../components/ui";
 import { useI18n } from "../context/I18nContext";
 
+interface QuickModel {
+  id: string;
+  name: string;
+  tag?: string;
+}
+
 interface ProviderPreset {
   id: string;
   name: string;
   descKey: string;
-  provider: "gemini" | "openai" | "anthropic" | "flipia";
+  provider: "gemini" | "openai" | "anthropic" | "flipia" | "pollinations" | "groq";
   defaultModel: string;
   defaultBaseUrl: string;
   keySetting: string;
   modelSetting: string;
   baseUrlSetting?: string;
+  quickModels?: QuickModel[];
 }
 
 const PRESETS: ProviderPreset[] = [
   {
     id: "flipia",
-    name: "Free AI (Flip-IA)",
+    name: "Free AI (Flip-IA — 100% Free)",
     descKey: "providerFlipIADesc",
     provider: "flipia",
     defaultModel: "Olmo-3.1-32B-Instruct",
@@ -66,32 +73,68 @@ const PRESETS: ProviderPreset[] = [
     keySetting: "",
     modelSetting: "flipia_model",
     baseUrlSetting: "flipia_base_url",
+    quickModels: [
+      { id: "Olmo-3.1-32B-Instruct", name: "Olmo 3.1 32B", tag: "Recommended" },
+      { id: "molmo2-8b", name: "Molmo2 8B", tag: "Vision" },
+      { id: "trinity-large-thinking", name: "Trinity Large", tag: "Reasoning" },
+      { id: "gemini-3.5-flash", name: "Gemini 3.5 Flash", tag: "Fast" },
+      { id: "gpt-5.5", name: "GPT 5.5", tag: "Smart" },
+    ],
+  },
+  {
+    id: "pollinations",
+    name: "Free AI (Pollinations — 100% Free)",
+    descKey: "providerPollinationsDesc",
+    provider: "pollinations",
+    defaultModel: "openai",
+    defaultBaseUrl: "https://text.pollinations.ai/openai",
+    keySetting: "",
+    modelSetting: "pollinations_model",
+    baseUrlSetting: "pollinations_base_url",
+    quickModels: [
+      { id: "openai", name: "GPT-4o Mini", tag: "Fast & Free" },
+      { id: "deepseek", name: "DeepSeek R1", tag: "Reasoning" },
+      { id: "qwen-coder", name: "Qwen 2.5 Coder 32B", tag: "Coding" },
+      { id: "mistral", name: "Mistral Nemo", tag: "Balanced" },
+      { id: "llama", name: "Llama 3.3 70B", tag: "Flagship" },
+    ],
+  },
+  {
+    id: "groq",
+    name: "Groq Cloud (Fast Llama & DeepSeek)",
+    descKey: "providerGroqDesc",
+    provider: "groq",
+    defaultModel: "llama-3.3-70b-versatile",
+    defaultBaseUrl: "https://api.groq.com/openai/v1",
+    keySetting: "groq_api_key",
+    modelSetting: "groq_model",
+    baseUrlSetting: "groq_base_url",
+    quickModels: [
+      { id: "llama-3.3-70b-versatile", name: "Llama 3.3 70B", tag: "Recommended" },
+      { id: "deepseek-r1-distill-llama-70b", name: "DeepSeek R1 70B", tag: "Reasoning" },
+      { id: "llama-3.1-8b-instant", name: "Llama 3.1 8B", tag: "Ultra Fast" },
+      { id: "llama-3.2-11b-vision-preview", name: "Llama 3.2 11B", tag: "Vision" },
+    ],
   },
   {
     id: "gemini",
     name: "Google Gemini",
     descKey: "providerGeminiDesc",
     provider: "gemini",
-    defaultModel: "gemini-3.7-flash",
+    defaultModel: "gemini-2.5-flash",
     defaultBaseUrl: "",
     keySetting: "gemini_api_key",
     modelSetting: "gemini_model",
     baseUrlSetting: "gemini_base_url",
-  },
-  {
-    id: "groq",
-    name: "Groq Cloud",
-    descKey: "providerGroqDesc",
-    provider: "openai",
-    defaultModel: "llama-3.3-70b-versatile",
-    defaultBaseUrl: "https://api.groq.com/openai/v1",
-    keySetting: "openai_api_key",
-    modelSetting: "openai_model",
-    baseUrlSetting: "openai_base_url",
+    quickModels: [
+      { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash", tag: "Recommended" },
+      { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro", tag: "Advanced" },
+      { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", tag: "Fast" },
+    ],
   },
   {
     id: "openai",
-    name: "OpenAI",
+    name: "OpenAI (Official GPT-4o)",
     descKey: "providerOpenAIDesc",
     provider: "openai",
     defaultModel: "gpt-4o-mini",
@@ -99,17 +142,42 @@ const PRESETS: ProviderPreset[] = [
     keySetting: "openai_api_key",
     modelSetting: "openai_model",
     baseUrlSetting: "openai_base_url",
+    quickModels: [
+      { id: "gpt-4o-mini", name: "GPT-4o Mini", tag: "Economical" },
+      { id: "gpt-4o", name: "GPT-4o", tag: "Flagship" },
+      { id: "o3-mini", name: "o3-mini", tag: "Reasoning" },
+    ],
   },
   {
-    id: "ollama",
-    name: "Ollama (Local)",
-    descKey: "providerOllamaDesc",
+    id: "deepseek",
+    name: "DeepSeek Cloud (Official API)",
+    descKey: "providerDeepSeekDesc",
     provider: "openai",
-    defaultModel: "llama3.2",
-    defaultBaseUrl: "http://localhost:11434/v1",
+    defaultModel: "deepseek-chat",
+    defaultBaseUrl: "https://api.deepseek.com/v1",
     keySetting: "openai_api_key",
     modelSetting: "openai_model",
     baseUrlSetting: "openai_base_url",
+    quickModels: [
+      { id: "deepseek-chat", name: "DeepSeek V3", tag: "Chat" },
+      { id: "deepseek-reasoner", name: "DeepSeek R1", tag: "Reasoning" },
+    ],
+  },
+  {
+    id: "openrouter",
+    name: "OpenRouter (Multi-Model Gateway)",
+    descKey: "providerOpenRouterDesc",
+    provider: "openai",
+    defaultModel: "meta-llama/llama-3.3-70b-instruct:free",
+    defaultBaseUrl: "https://openrouter.ai/api/v1",
+    keySetting: "openai_api_key",
+    modelSetting: "openai_model",
+    baseUrlSetting: "openai_base_url",
+    quickModels: [
+      { id: "meta-llama/llama-3.3-70b-instruct:free", name: "Llama 3.3 70B", tag: "Free" },
+      { id: "deepseek/deepseek-r1:free", name: "DeepSeek R1", tag: "Free" },
+      { id: "google/gemini-2.0-flash-exp:free", name: "Gemini 2.0 Flash", tag: "Free" },
+    ],
   },
   {
     id: "anthropic",
@@ -121,6 +189,21 @@ const PRESETS: ProviderPreset[] = [
     keySetting: "anthropic_api_key",
     modelSetting: "anthropic_model",
     baseUrlSetting: "anthropic_base_url",
+    quickModels: [
+      { id: "claude-3-5-sonnet-20241022", name: "Claude 3.5 Sonnet", tag: "Top Tier" },
+      { id: "claude-3-5-haiku-20241022", name: "Claude 3.5 Haiku", tag: "Fast" },
+    ],
+  },
+  {
+    id: "ollama",
+    name: "Ollama (Local Offline)",
+    descKey: "providerOllamaDesc",
+    provider: "openai",
+    defaultModel: "llama3.2",
+    defaultBaseUrl: "http://localhost:11434/v1",
+    keySetting: "openai_api_key",
+    modelSetting: "openai_model",
+    baseUrlSetting: "openai_base_url",
   },
 ];
 
@@ -128,10 +211,13 @@ function presetFromSettings(settings: Record<string, any>): ProviderPreset {
   const currentProvider = settings["ai_provider"] || "flipia";
   return (
     PRESETS.find((p) => {
-      if (p.provider !== currentProvider) return false;
-      if (p.id === "flipia") return true;
-      if (p.id === "gemini") return true;
-      if (p.id === "anthropic") return true;
+      if (currentProvider === "flipia" && p.id === "flipia") return true;
+      if (currentProvider === "pollinations" && p.id === "pollinations") return true;
+      if (currentProvider === "groq" && p.id === "groq") return true;
+      if (currentProvider === "gemini" && p.id === "gemini") return true;
+      if (currentProvider === "anthropic" && p.id === "anthropic") return true;
+      if (p.id === "deepseek" && settings["openai_base_url"]?.includes("deepseek.com")) return true;
+      if (p.id === "openrouter" && settings["openai_base_url"]?.includes("openrouter.ai")) return true;
       if (p.id === "groq" && settings["openai_base_url"]?.includes("groq.com")) return true;
       if (p.id === "ollama" && settings["openai_base_url"]?.includes("11434")) return true;
       if (
@@ -594,6 +680,44 @@ export const AIAssistantView: React.FC = () => {
           </Select>
           <span className="font-mono text-xs text-muted">{currentModelVal}</span>
         </div>
+
+        {selectedPreset.quickModels && selectedPreset.quickModels.length > 0 && (
+          <div className="flex flex-col gap-1.5 pt-1">
+            <span className="text-xs font-semibold text-text-main flex items-center gap-1.5">
+              <Sparkles size={13} className="text-brand-cyan" />
+              Popular Models for {selectedPreset.name.split("—")[0].split("(")[0].trim()}:
+            </span>
+            <div className="flex flex-wrap gap-1.5">
+              {selectedPreset.quickModels.map((qm) => {
+                const isSelected =
+                  (providerForm.draft.model || "").toLowerCase() === qm.id.toLowerCase();
+                return (
+                  <button
+                    key={qm.id}
+                    type="button"
+                    onClick={() => providerForm.setField("model", qm.id)}
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-medium border transition-all cursor-pointer ${
+                      isSelected
+                        ? "bg-brand-blue/20 border-brand-cyan text-brand-cyan shadow-sm"
+                        : "bg-panel-raised border-line text-muted hover:text-text-main hover:border-line-hover"
+                    }`}
+                  >
+                    <span>{qm.name}</span>
+                    {qm.tag && (
+                      <span
+                        className={`text-[10px] px-1 py-0.2 rounded font-sans uppercase font-bold ${
+                          isSelected ? "bg-brand-cyan/20 text-brand-cyan" : "bg-panel text-muted"
+                        }`}
+                      >
+                        {qm.tag}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {requiresApiKey && <p className="text-xs text-warn">{t("connectKeyFirstPrompt")}</p>}
 

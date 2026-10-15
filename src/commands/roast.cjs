@@ -82,8 +82,8 @@ module.exports = {
     }
 
     const roastPrompt = customNotes
-      ? `Roast ${targetTag} savagely and hilariously! Special topic/habit to roast: "${customNotes}". Make it brutal, witty, and unforgettable friend banter!`
-      : `Roast ${targetTag} savagely and hilariously in authentic Pakistani close-friends banter style! Mock their funny habits, look, attitude, and excuses!`;
+      ? `Roast ${targetTag} savagely and hilariously! Special topic: "${customNotes}". STRICT RULE: Exactly 1 to 2 sharp, hilarious lines (max 25 words) with emojis! Never write essays or long paragraphs!`
+      : `Roast ${targetTag} savagely and hilariously in authentic Pakistani close-friends banter style! STRICT RULE: Exactly 1 to 2 sharp, hilarious lines (max 25 words) with emojis! Never write essays or long paragraphs!`;
 
     const targetInfo = {
       targetTag,

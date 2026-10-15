@@ -38,7 +38,9 @@ import {
   getRecentDebts,
   getSchedules,
   rememberSavedName,
-  resolveUserPhone,
+  getAllOwners,
+  getAllBotAdmins,
+  setUserRole,
   saveGroupSettings,
 } from "../utils/storage.esm.js";
 import normalizeJid, { isLidJid } from "../utils/normalizeJid.esm.js";
@@ -434,7 +436,11 @@ router.post(
           ? "anthropic_api_key"
           : provKey === "flipia"
             ? "flipia_model"
-            : "openai_api_key";
+            : provKey === "pollinations"
+              ? "pollinations_model"
+              : provKey === "groq"
+                ? "groq_api_key"
+                : "openai_api_key";
     const activeBaseUrlSetting =
       provKey === "gemini"
         ? "gemini_base_url"
@@ -442,11 +448,24 @@ router.post(
           ? "anthropic_base_url"
           : provKey === "flipia"
             ? "flipia_base_url"
-            : "openai_base_url";
+            : provKey === "pollinations"
+              ? "pollinations_base_url"
+              : provKey === "groq"
+                ? "groq_base_url"
+                : "openai_base_url";
 
     const offeredKey = typeof apiKey === "string" ? apiKey.trim() : "";
-    const effectiveKey = offeredKey || (provKey === "flipia" ? "dummy" : settings.get(activeKeySetting)) || "";
-    const effectiveBaseUrl = baseUrl || (provKey === "flipia" ? "https://flip-ia.vercel.app/v1" : settings.get(activeBaseUrlSetting)) || "";
+    const isFree = provKey === "flipia" || provKey === "pollinations";
+    const defaultUrl =
+      provKey === "flipia"
+        ? "https://flip-ia.vercel.app/v1"
+        : provKey === "pollinations"
+          ? "https://text.pollinations.ai/openai"
+          : provKey === "groq"
+            ? "https://api.groq.com/openai/v1"
+            : "";
+    const effectiveKey = offeredKey || (isFree ? "dummy" : settings.get(activeKeySetting)) || "";
+    const effectiveBaseUrl = baseUrl || settings.get(activeBaseUrlSetting) || defaultUrl;
 
     try {
       const result = await discoverProviderModels({
@@ -978,6 +997,62 @@ router.delete("/bot-access/dms/:id", (req, res) => {
     res.json({ success: true, allowedDms: botAccess.getAllowedDms() });
   } catch (error) {
     fail(res, error, "Error removing allowed DM");
+  }
+// ===========================================================================
+// Bot Permissions & Roles (Owners & Bot Admins)
+// ===========================================================================
+
+router.get("/permissions", (req, res) => {
+  try {
+    res.json({
+      success: true,
+      owners: getAllOwners(),
+      admins: getAllBotAdmins(),
+    });
+  } catch (error) {
+    fail(res, error, "Error fetching permissions");
+  }
+});
+
+router.post("/permissions/owners", (req, res) => {
+  try {
+    const { identifier } = req.body || {};
+    if (!identifier) return badRequest(res, "Identifier (phone or JID) is required");
+    const user = setUserRole(identifier, "owner", true);
+    res.json({ success: true, user, owners: getAllOwners() });
+  } catch (error) {
+    fail(res, error, "Error adding owner");
+  }
+});
+
+router.delete("/permissions/owners/:id", (req, res) => {
+  try {
+    const { id } = req.params;
+    setUserRole(id, "owner", false);
+    res.json({ success: true, owners: getAllOwners() });
+  } catch (error) {
+    fail(res, error, "Error removing owner");
+  }
+});
+
+router.post("/permissions/admins", (req, res) => {
+  try {
+    const { identifier } = req.body || {};
+    if (!identifier) return badRequest(res, "Identifier (phone or JID) is required");
+    const user = setUserRole(identifier, "admin", true);
+    res.json({ success: true, user, admins: getAllBotAdmins() });
+  } catch (error) {
+    fail(res, error, "Error adding admin");
+  }
+});
+
+router.delete("/permissions/admins/:id", (req, res) => {
+  try {
+    const { id } = req.params;
+    setUserRole(id, "admin", false);
+    res.json({ success: true, admins: getAllBotAdmins() });
+  } catch (error) {
+    fail(res, error, "Error removing admin");
   }
 });
 
