@@ -137,6 +137,8 @@ async function processMessage(sock, msg, body) {
     } catch (err) {
       logger.error({ err }, "Failed to update user metadata");
     }
+  }
+
   // Enforce Bot Access Mode (public, onlyme/self, specific allowed groups, dm_only)
   if (!botAccess.isMessageAllowed(sock, msg, isGroup)) {
     return;

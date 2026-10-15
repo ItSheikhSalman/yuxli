@@ -95,6 +95,7 @@ function registerProvider(id, providerInstance) {
 }
 
 function getProvider(id = settings.get("ai_provider")) {
+  ensureProvidersLoaded();
   let key = String(id || "gemini").toLowerCase();
   if (key === "auto") {
     const candidates = ["gemini", "groq", "openai", "anthropic", "flipia", "pollinations"];
@@ -122,7 +123,7 @@ function ensureProvidersLoaded() {
       // ignore
     }
   }
-  if (!REGISTRY.has("groq")) {
+  if (!REGISTRY.has("groq") || !REGISTRY.has("pollinations") || !REGISTRY.has("flipia")) {
     try {
       require("./aiProviders.cjs");
     } catch {

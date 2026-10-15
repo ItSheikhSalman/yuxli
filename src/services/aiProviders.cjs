@@ -861,9 +861,9 @@ async function runProviderAgent(
   } = {},
 ) {
   const adapter = adapterFor(provider);
-
-  const apiKey = adapter.keySetting ? settings.get(adapter.keySetting) : "free-no-key";
-  if (!apiKey && provider !== "flipia") throw new Error(`${adapter.label} API key is not configured`);
+  const aiFailover = require("./aiFailover.cjs");
+  const apiKey = adapter.keySetting ? (aiFailover.getActiveKey(provider) || settings.get(adapter.keySetting)) : "free-no-key";
+  if (!apiKey && provider !== "flipia" && provider !== "pollinations") throw new Error(`${adapter.label} API key is not configured`);
 
   const stepBudget = maxSteps ?? settings.get("ai_max_tool_steps");
   const model = settings.get(adapter.modelSetting);

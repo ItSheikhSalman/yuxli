@@ -82,6 +82,10 @@ const { discoverProviderModels, DiscoveryError } = require("../services/llmDisco
 const settingsTransfer = require("../services/settingsTransfer.cjs");
 const autoDelete = require("../services/autoDelete.cjs");
 const cron = require("node-cron");
+const botAccess = require("../services/botAccess.cjs");
+const aiFilter = require("../services/aiFilter.cjs");
+const aiAutoReply = require("../services/aiAutoReply.cjs");
+const aiFailover = require("../services/aiFailover.cjs");
 
 const router = Router();
 
@@ -705,6 +709,9 @@ function groupView(groupId, stored) {
     antilinkEnabled: !!config.antilink?.enabled,
     welcomeEnabled: !!config.welcome_system?.enabled,
     mediaRestriction,
+    isWhitelisted: botAccess.isGroupAllowed(groupId),
+    contentFilter: aiFilter.getChatFilter(groupId),
+    autoReply: aiAutoReply.getChatAutoReply(groupId),
   };
 }
 
@@ -874,6 +881,22 @@ router.patch("/groups/:id", (req, res) => {
     if (patch.rules !== undefined) {
       current.rules = String(patch.rules).slice(0, 4000);
     }
+
+    if (patch.isWhitelisted !== undefined) {
+      if (patch.isWhitelisted) {
+        botAccess.addAllowedGroup(groupId, current.subject || null);
+      } else {
+        botAccess.removeAllowedGroup(groupId);
+      }
+    }
+
+    if (patch.contentFilter !== undefined) {
+      aiFilter.setChatFilter(groupId, patch.contentFilter);
+    }
+
+    if (patch.autoReply !== undefined) {
+      aiAutoReply.setChatAutoReply(groupId, patch.autoReply);
+    }
   } catch (error) {
     return badRequest(res, error.message);
   }
@@ -884,6 +907,149 @@ router.patch("/groups/:id", (req, res) => {
     res.json({ success: true, group: groupView(groupId, current) });
   } catch (error) {
     fail(res, error, "Error saving group settings");
+  }
+});
+
+// ===========================================================================
+// Bot Access Scope & Whitelist (Groups & DMs)
+// ===========================================================================
+
+router.get("/bot-access", (req, res) => {
+  try {
+    res.json({
+      success: true,
+      mode: botAccess.getAccessMode(),
+      modes: botAccess.ACCESS_MODES,
+      allowedGroups: botAccess.getAllowedGroups(),
+      allowedDms: botAccess.getAllowedDms(),
+    });
+  } catch (error) {
+    fail(res, error, "Error reading bot access settings");
+  }
+});
+
+router.post("/bot-access/mode", (req, res) => {
+  try {
+    const { mode } = req.body || {};
+    if (!mode) return badRequest(res, "Mode is required");
+    const updated = botAccess.setAccessMode(mode);
+    res.json({ success: true, mode: updated });
+  } catch (error) {
+    fail(res, error, "Error updating bot access mode");
+  }
+});
+
+router.post("/bot-access/groups", (req, res) => {
+  try {
+    const { id, subject } = req.body || {};
+    if (!id) return badRequest(res, "Group ID is required");
+    botAccess.addAllowedGroup(id, subject || null);
+    res.json({ success: true, allowedGroups: botAccess.getAllowedGroups() });
+  } catch (error) {
+    fail(res, error, "Error adding allowed group");
+  }
+});
+
+router.delete("/bot-access/groups/:id", (req, res) => {
+  try {
+    const { id } = req.params;
+    botAccess.removeAllowedGroup(id);
+    res.json({ success: true, allowedGroups: botAccess.getAllowedGroups() });
+  } catch (error) {
+    fail(res, error, "Error removing allowed group");
+  }
+});
+
+router.post("/bot-access/dms", (req, res) => {
+  try {
+    const { id, name } = req.body || {};
+    if (!id) return badRequest(res, "Phone or contact JID is required");
+    botAccess.addAllowedDm(id, name || null);
+    res.json({ success: true, allowedDms: botAccess.getAllowedDms() });
+  } catch (error) {
+    fail(res, error, "Error adding allowed DM");
+  }
+});
+
+router.delete("/bot-access/dms/:id", (req, res) => {
+  try {
+    const { id } = req.params;
+    botAccess.removeAllowedDm(id);
+    res.json({ success: true, allowedDms: botAccess.getAllowedDms() });
+  } catch (error) {
+    fail(res, error, "Error removing allowed DM");
+  }
+});
+
+// ===========================================================================
+// Multi-Key AI Provider & Model Management
+// ===========================================================================
+
+router.get("/ai/config", (req, res) => {
+  try {
+    res.json({
+      success: true,
+      provider: settings.get("ai_provider") || "auto",
+      autoFallback: settings.get("ai_auto_fallback") !== false,
+      groqModel: settings.get("groq_model") || "llama-3.3-70b-versatile",
+      geminiModel: settings.get("gemini_model") || "gemini-2.5-flash",
+      openaiModel: settings.get("openai_model") || "gpt-4o-mini",
+      anthropicModel: settings.get("anthropic_model") || "claude-3-5-sonnet-20241022",
+      keyCounts: {
+        gemini: aiFailover.getKeyCount("gemini"),
+        groq: aiFailover.getKeyCount("groq"),
+        openai: aiFailover.getKeyCount("openai"),
+        anthropic: aiFailover.getKeyCount("anthropic"),
+      },
+      hasKey: {
+        gemini: Boolean(aiFailover.getActiveKey("gemini")),
+        groq: Boolean(aiFailover.getActiveKey("groq")),
+        openai: Boolean(aiFailover.getActiveKey("openai")),
+        anthropic: Boolean(aiFailover.getActiveKey("anthropic")),
+      },
+    });
+  } catch (error) {
+    fail(res, error, "Error reading AI configuration");
+  }
+});
+
+router.post("/ai/config", (req, res) => {
+  try {
+    const {
+      provider,
+      autoFallback,
+      groqKey,
+      geminiKey,
+      openaiKey,
+      anthropicKey,
+      groqModel,
+      geminiModel,
+      openaiModel,
+    } = req.body || {};
+
+    if (provider !== undefined) settingsTransfer.applySettingChange("ai_provider", provider);
+    if (autoFallback !== undefined) settingsTransfer.applySettingChange("ai_auto_fallback", Boolean(autoFallback));
+    if (groqKey !== undefined && groqKey !== "") settingsTransfer.applySettingChange("groq_api_key", groqKey);
+    if (geminiKey !== undefined && geminiKey !== "") settingsTransfer.applySettingChange("gemini_api_key", geminiKey);
+    if (openaiKey !== undefined && openaiKey !== "") settingsTransfer.applySettingChange("openai_api_key", openaiKey);
+    if (anthropicKey !== undefined && anthropicKey !== "") settingsTransfer.applySettingChange("anthropic_api_key", anthropicKey);
+    if (groqModel !== undefined) settingsTransfer.applySettingChange("groq_model", groqModel);
+    if (geminiModel !== undefined) settingsTransfer.applySettingChange("gemini_model", geminiModel);
+    if (openaiModel !== undefined) settingsTransfer.applySettingChange("openai_model", openaiModel);
+
+    res.json({
+      success: true,
+      message: "AI configuration saved successfully",
+      provider: settings.get("ai_provider"),
+      keyCounts: {
+        gemini: aiFailover.getKeyCount("gemini"),
+        groq: aiFailover.getKeyCount("groq"),
+        openai: aiFailover.getKeyCount("openai"),
+        anthropic: aiFailover.getKeyCount("anthropic"),
+      },
+    });
+  } catch (error) {
+    fail(res, error, "Error saving AI configuration");
   }
 });
 

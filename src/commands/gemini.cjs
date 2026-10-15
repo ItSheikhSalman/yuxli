@@ -777,10 +777,14 @@ module.exports = {
       rawPromptText,
     );
     const currentChatMode = aiMood.getChatMode(chatId, normalizedSenderId);
-    const isTargetedRoast = validTargets.length > 0 && (roastKeywordMatch || currentChatMode === "roast");
+    const isTargetedRoast = Boolean(
+      ctx?.isTargetedRoast ||
+      (validTargets.length > 0 && (roastKeywordMatch || currentChatMode === "roast")) ||
+      (roastKeywordMatch && (validTargets.length > 0 || args.length > 0))
+    );
 
-    let targetInfo = null;
-    if (validTargets.length > 0) {
+    let targetInfo = ctx?.targetInfo || null;
+    if (!targetInfo && validTargets.length > 0) {
       const primaryTarget = validTargets[0];
       const targetPhone = primaryTarget.split("@")[0];
       targetInfo = {
@@ -788,6 +792,14 @@ module.exports = {
         targetTag: `@${targetPhone}`,
         allTargets: validTargets,
       };
+    } else if (!targetInfo && isTargetedRoast) {
+      if (rawPromptText.toLowerCase().includes(" me") || rawPromptText.toLowerCase().startsWith("me") || rawPromptText.toLowerCase().includes("mujhe")) {
+        targetInfo = {
+          targetJid: normalizedSenderId,
+          targetTag: userName ? `@${userName}` : `@${(normalizedSenderId || "user").split("@")[0]}`,
+          allTargets: [normalizedSenderId].filter(Boolean),
+        };
+      }
     }
 
     const agentContext = {
@@ -810,12 +822,14 @@ module.exports = {
       isTargetedRoast,
     };
 
-    if (isTargetedRoast && targetInfo) {
+    if (isTargetedRoast) {
+      const targetTag = targetInfo?.targetTag || userName || "friend";
+      const targetJid = targetInfo?.targetJid || "friend";
       parts.unshift({
         text: `[TARGETED FRIEND ROAST REQUEST]\n` +
-          `Target friend to roast: ${targetInfo.targetTag} (${targetInfo.targetJid})\n` +
+          `Target friend to roast: ${targetTag} (${targetJid})\n` +
           `Requested by: ${userName || "User"} (${normalizedSenderId || "sender"})\n` +
-          `Instruction: The user explicitly tagged their friend ${targetInfo.targetTag} to be roasted! Directly target ${targetInfo.targetTag} with savage, witty, hilarious, and spicy burns! Tag them directly as "${targetInfo.targetTag}" in your response. You are authorized to use raw authentic Pakistani/Desi slang and playful curse words (suar, kuta, bc, bsdk, dala, dog, pig, bitch, fuck, etc.) for close friends banter ("friends wala mazak"). Deliver lethal, unforgettable comedic burns!`,
+          `Instruction: Directly target ${targetTag} with savage, witty, hilarious, and spicy burns! Tag them directly as "${targetTag}" in your response. You are authorized to use raw authentic Pakistani/Desi slang and playful curse words (suar, kuta, bc, bsdk, dala, dog, pig, bitch, fuck, chapri, chirkut, etc.) for close friends banter ("friends wala mazak"). Deliver lethal, unforgettable comedic burns!`,
       });
     } else if (targets.length) {
       parts.unshift({

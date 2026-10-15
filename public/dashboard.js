@@ -900,13 +900,29 @@
   VIEWS.ai = {
     title: "AI",
     load: guard(async () => {
-      const [{ persona }, { scopes }] = await Promise.all([
+      const [{ persona }, { scopes }, aiCfg] = await Promise.all([
         api("/ai/persona"),
         api("/ai/memory"),
+        api("/ai/config").catch(() => null),
       ]);
 
       $("#persona-body").value = persona.body;
       $("#persona-file").textContent = persona.file;
+
+      if (aiCfg) {
+        if ($("#ai-active-provider-select")) $("#ai-active-provider-select").value = aiCfg.provider || "auto";
+        if ($("#ai-groq-model-select")) $("#ai-groq-model-select").value = aiCfg.groqModel || "llama-3.3-70b-versatile";
+        if ($("#ai-auto-fallback-toggle")) $("#ai-auto-fallback-toggle").checked = aiCfg.autoFallback !== false;
+
+        const badge = $("#ai-provider-badge");
+        if (badge) {
+          badge.textContent = aiCfg.provider === "auto" ? "Smart Auto-Failover" : aiCfg.provider.toUpperCase();
+        }
+
+        if ($("#groq-keys-badge")) $("#groq-keys-badge").textContent = `${aiCfg.keyCounts?.groq || 0} active keys`;
+        if ($("#gemini-keys-badge")) $("#gemini-keys-badge").textContent = `${aiCfg.keyCounts?.gemini || 0} active keys`;
+        if ($("#openai-keys-badge")) $("#openai-keys-badge").textContent = `${aiCfg.keyCounts?.openai || 0} active keys`;
+      }
 
       $("#memory-list").innerHTML = scopes.length
         ? scopes
@@ -936,6 +952,34 @@
   });
 
   function initAiActions() {
+    $("#save-ai-config-btn")?.addEventListener(
+      "click",
+      guard(async () => {
+        const payload = {
+          provider: $("#ai-active-provider-select")?.value,
+          groqModel: $("#ai-groq-model-select")?.value,
+          autoFallback: $("#ai-auto-fallback-toggle")?.checked,
+        };
+        const groqK = $("#ai-groq-key")?.value?.trim();
+        const geminiK = $("#ai-gemini-key")?.value?.trim();
+        const openaiK = $("#ai-openai-key")?.value?.trim();
+        if (groqK) payload.groqKey = groqK;
+        if (geminiK) payload.geminiKey = geminiK;
+        if (openaiK) payload.openaiKey = openaiK;
+
+        await api("/ai/config", {
+          method: "POST",
+          body: payload,
+        });
+
+        toast("AI configuration & API keys saved successfully!", "ok");
+        if ($("#ai-groq-key")) $("#ai-groq-key").value = "";
+        if ($("#ai-gemini-key")) $("#ai-gemini-key").value = "";
+        if ($("#ai-openai-key")) $("#ai-openai-key").value = "";
+        VIEWS.ai.load();
+      })
+    );
+
     $("#persona-save").addEventListener(
       "click",
       guard(async () => {
@@ -1001,12 +1045,34 @@
         <summary>
           <span>${title}</span>
           ${members}
+          ${group.isWhitelisted ? '<span class="tag ok">whitelisted</span>' : ""}
+          ${group.contentFilter === "off" ? '<span class="tag">unfiltered</span>' : '<span class="tag warn">filter:on</span>'}
           ${group.antilink.enabled ? '<span class="tag warn">antilink</span>' : ""}
           ${group.antispam.enabled ? '<span class="tag warn">antispam</span>' : ""}
           <span class="chev">›</span>
         </summary>
 
         <div class="group-body">
+          <div>
+            <h3>Bot &amp; AI Scope</h3>
+            ${toggle("isWhitelisted", "Allow Bot in this Group (Whitelist)", group.isWhitelisted)}
+            <label class="field" style="margin-top:6px">
+              <span>Content Filter</span>
+              <select data-group="${id}" data-field="contentFilter">
+                <option value="off"${group.contentFilter === "off" ? " selected" : ""}>OFF — Unfiltered &amp; Savage Roasts</option>
+                <option value="on"${group.contentFilter === "on" ? " selected" : ""}>ON — Filter Bad Words</option>
+              </select>
+            </label>
+            <label class="field" style="margin-top:6px">
+              <span>AI Auto-Reply Policy</span>
+              <select data-group="${id}" data-field="autoReply">
+                <option value="mention"${group.autoReply === "mention" ? " selected" : ""}>Reply on @Mention / Tag only</option>
+                <option value="all"${group.autoReply === "all" ? " selected" : ""}>Reply to All Messages</option>
+                <option value="off"${group.autoReply === "off" ? " selected" : ""}>OFF — Commands Only</option>
+              </select>
+            </label>
+          </div>
+
           <div>
             <h3>Links</h3>
             ${toggle("antilink.enabled", "Block links", group.antilink.enabled)}
@@ -1128,6 +1194,9 @@
     );
 
     return {
+      isWhitelisted: Boolean(read("isWhitelisted")?.checked),
+      contentFilter: read("contentFilter")?.value || "off",
+      autoReply: read("autoReply")?.value || "mention",
       antilink: {
         enabled: read("antilink.enabled").checked,
         mode: read("antilink.mode").value,
@@ -1161,7 +1230,33 @@
   VIEWS.groups = {
     title: "Groups",
     load: guard(async () => {
-      const { groups } = await api("/groups");
+      const [{ groups }, botAccessData] = await Promise.all([
+        api("/groups"),
+        api("/bot-access").catch(() => null),
+      ]);
+
+      if (botAccessData) {
+        if ($("#bot-access-mode-select")) $("#bot-access-mode-select").value = botAccessData.mode || "public";
+        const badge = $("#current-access-mode-badge");
+        if (badge) {
+          const modeInfo = botAccessData.modes?.[botAccessData.mode] || { label: botAccessData.mode };
+          badge.textContent = `${modeInfo.emoji || ""} ${modeInfo.label || botAccessData.mode}`;
+        }
+        if ($("#allowed-dms-count")) {
+          $("#allowed-dms-count").textContent = `${botAccessData.allowedDms?.length || 0} allowed contacts`;
+        }
+        if ($("#allowed-dms-list")) {
+          $("#allowed-dms-list").innerHTML = (botAccessData.allowedDms || []).length
+            ? botAccessData.allowedDms.map(dm => `
+                <div class="pill" style="display:inline-flex; align-items:center; gap:8px; padding:6px 12px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:20px;">
+                  <span>👤 <strong>${esc(dm.name || dm.id.split('@')[0])}</strong> (${esc(dm.id.split('@')[0])})</span>
+                  <button type="button" data-remove-dm="${esc(dm.id)}" style="background:none; border:none; color:#ef4444; cursor:pointer; font-weight:bold; font-size:1.1rem; line-height:1; padding:0 4px;" title="Remove allowed contact">&times;</button>
+                </div>
+              `).join("")
+            : `<div class="hint" style="width:100%">No specific private contacts whitelisted. Add phone numbers above to allow them in Whitelist mode.</div>`;
+        }
+      }
+
       $("#groups-list").innerHTML = groups.length
         ? groups.map(groupCard).join("")
         : `<div class="card"><div class="empty">The bot isn't in any group yet.</div></div>`;
@@ -1169,6 +1264,40 @@
   };
 
   function initGroupActions() {
+    $("#save-access-mode-btn")?.addEventListener("click", guard(async () => {
+      const mode = $("#bot-access-mode-select")?.value;
+      await api("/bot-access/mode", { method: "POST", body: { mode } });
+      toast("Bot access mode updated successfully!", "ok");
+      VIEWS.groups.load();
+    }));
+
+    $("#add-dm-btn")?.addEventListener("click", guard(async () => {
+      const phoneInput = $("#new-dm-phone");
+      const nameInput = $("#new-dm-name");
+      const phone = phoneInput?.value?.trim();
+      const name = nameInput?.value?.trim();
+      if (!phone) {
+        toast("Please enter a phone number", "danger");
+        return;
+      }
+      await api("/bot-access/dms", { method: "POST", body: { id: phone, name } });
+      toast("Contact added to whitelist", "ok");
+      phoneInput.value = "";
+      if (nameInput) nameInput.value = "";
+      VIEWS.groups.load();
+    }));
+
+    $("#allowed-dms-list")?.addEventListener("click", (event) => {
+      const btn = event.target.closest("[data-remove-dm]");
+      if (!btn) return;
+      const jid = btn.dataset.removeDm;
+      guard(async () => {
+        await api(`/bot-access/dms/${encodeURIComponent(jid)}`, { method: "DELETE" });
+        toast("Contact removed from whitelist", "ok");
+        VIEWS.groups.load();
+      })();
+    });
+
     $("#groups-list").addEventListener("click", (event) => {
       const button = event.target.closest("[data-save-group]");
       if (!button) return;
@@ -1717,7 +1846,6 @@
             toast(`Prefix updated to "${val}"`, "ok");
           }));
         }
-      }
       } else if (activeSettingsTab === "security") {
         const serverKeys = ["port", "bind_address", "trust_proxy", "public_domain", "dashboard_origin"];
         const items = serverKeys.map((k) => byKey.get(k)).filter(Boolean);

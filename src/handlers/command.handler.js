@@ -1,4 +1,4 @@
-import { readdirSync } from "fs";
+import { existsSync, readdirSync } from "fs";
 import { createRequire } from "module";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
@@ -312,6 +312,21 @@ export function getAliasIndex() {
   return aliasIndex;
 }
 
+function tryDynamicLoadCommand(name) {
+  if (!name || typeof name !== "string") return;
+  const clean = name.toLowerCase().trim();
+  const directPath = join(__dirname, "../commands", `${clean}.cjs`);
+  if (existsSync(directPath)) {
+    registerCommandFile(directPath, null);
+    return;
+  }
+  const groupPath = join(__dirname, "../commands/group", `${clean}.cjs`);
+  if (existsSync(groupPath)) {
+    registerCommandFile(groupPath, "group");
+    return;
+  }
+}
+
 // Handle command execution
 export async function handleCommand(sock, msg, body) {
   const isGroup = msg.key.remoteJid.endsWith("@g.us");
@@ -321,7 +336,11 @@ export async function handleCommand(sock, msg, body) {
 
   const args = body.slice(prefix.length).trim().split(/ +/);
   const invokedName = args.shift().toLowerCase();
-  const command = commands.get(invokedName);
+  let command = commands.get(invokedName);
+  if (!command) {
+    tryDynamicLoadCommand(invokedName);
+    command = commands.get(invokedName);
+  }
   if (!command) return false;
 
   // Everything this command sends goes out in one language: the bot's, or in

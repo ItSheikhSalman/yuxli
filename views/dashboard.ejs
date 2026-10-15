@@ -462,6 +462,89 @@
                 The prompt the model gets, and everything it has been told to
                 remember.
               </p>
+            <!-- AI Provider & Multi-Key Manager -->
+            <div class="card" style="margin-bottom: 24px; border: 1px solid rgba(16, 185, 129, 0.3); background: linear-gradient(135deg, rgba(255,255,255,0.02) 0%, rgba(16, 185, 129, 0.04) 100%);">
+              <div class="card-head">
+                <div>
+                  <span class="eyebrow" style="color: #10b981;">AI Infrastructure &amp; Failover</span>
+                  <h2 style="margin: 0; font-size: 1.25rem;">⚡ Multi-Key AI Providers &amp; Auto-Rotation</h2>
+                </div>
+                <div class="spacer"></div>
+                <span class="tag ok" id="ai-provider-badge">Auto Failover</span>
+              </div>
+
+              <p class="hint" style="margin: 8px 0 16px 0;">
+                Configure AI API keys with multi-key support (comma-separated keys). If one key hits quota or rate limits (429), the bot automatically rotates keys and cascades providers so chats never stop.
+              </p>
+
+              <div class="inline" style="gap: 16px; margin-bottom: 16px; flex-wrap: wrap;">
+                <label class="field" style="flex: 1; min-width: 250px;">
+                  <span>Primary AI Provider</span>
+                  <select id="ai-active-provider-select">
+                    <option value="auto">Smart Auto-Failover (Gemini ➔ Groq ➔ OpenAI ➔ Free AI)</option>
+                    <option value="groq">Groq (Ultra-Fast Llama 3.3, DeepSeek R1)</option>
+                    <option value="gemini">Google Gemini (Gemini 2.5 Flash / Pro)</option>
+                    <option value="flipia">Free AI — Flip-IA (100% Free, Zero Key Needed)</option>
+                    <option value="pollinations">Free AI — Pollinations (100% Free, Zero Key Needed)</option>
+                    <option value="openai">OpenAI / Compatible Endpoint</option>
+                    <option value="anthropic">Anthropic Claude</option>
+                  </select>
+                </label>
+
+                <label class="field" style="flex: 1; min-width: 200px;">
+                  <span>Groq Model</span>
+                  <select id="ai-groq-model-select">
+                    <option value="llama-3.3-70b-versatile">Llama 3.3 70B Versatile (Recommended)</option>
+                    <option value="deepseek-r1-distill-llama-70b">DeepSeek R1 Distill Llama 70B (Reasoning)</option>
+                    <option value="llama-3.1-8b-instant">Llama 3.1 8B Instant (Blazing Fast)</option>
+                    <option value="mixtral-8x7b-32768">Mixtral 8x7B (32k Context)</option>
+                    <option value="qwen-2.5-32b">Qwen 2.5 32B</option>
+                  </select>
+                </label>
+
+                <label class="switch" style="align-self: center; margin-top: 20px;">
+                  <input type="checkbox" id="ai-auto-fallback-toggle" checked />
+                  <span class="track"></span>
+                  <span><strong>Auto-Failover</strong> on 429 / Quota</span>
+                </label>
+              </div>
+
+              <!-- Multi-key entries -->
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 20px;">
+                <div style="background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; border: 1px solid var(--border, rgba(255,255,255,0.08));">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <label for="ai-groq-key" style="font-weight: 600; font-size: 0.9rem;">Groq API Key(s)</label>
+                    <span class="tag" id="groq-keys-badge">0 keys</span>
+                  </div>
+                  <textarea id="ai-groq-key" rows="2" placeholder="Paste single or comma-separated keys: gsk_1, gsk_2..." style="font-family: monospace; font-size: 0.8rem; resize: vertical;"></textarea>
+                  <span class="hint" style="font-size: 0.75rem;">Free keys from console.groq.com/keys</span>
+                </div>
+
+                <div style="background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; border: 1px solid var(--border, rgba(255,255,255,0.08));">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <label for="ai-gemini-key" style="font-weight: 600; font-size: 0.9rem;">Gemini API Key(s)</label>
+                    <span class="tag" id="gemini-keys-badge">0 keys</span>
+                  </div>
+                  <textarea id="ai-gemini-key" rows="2" placeholder="Paste single or comma-separated keys: AIzaSy1, AIzaSy2..." style="font-family: monospace; font-size: 0.8rem; resize: vertical;"></textarea>
+                  <span class="hint" style="font-size: 0.75rem;">Free keys from aistudio.google.com</span>
+                </div>
+
+                <div style="background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; border: 1px solid var(--border, rgba(255,255,255,0.08));">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <label for="ai-openai-key" style="font-weight: 600; font-size: 0.9rem;">OpenAI API Key(s)</label>
+                    <span class="tag" id="openai-keys-badge">0 keys</span>
+                  </div>
+                  <textarea id="ai-openai-key" rows="2" placeholder="sk-..., sk-..." style="font-family: monospace; font-size: 0.8rem; resize: vertical;"></textarea>
+                  <span class="hint" style="font-size: 0.75rem;">OpenAI / compatible endpoint keys</span>
+                </div>
+              </div>
+
+              <div class="inline form-actions">
+                <button class="btn btn-primary" id="save-ai-config-btn" type="button">
+                  Save AI Configuration
+                </button>
+                <span class="hint">Instant hot-reload — no bot restart required.</span>
+              </div>
             </div>
 
             <div class="card">
@@ -529,7 +612,69 @@
                 Moderation settings per group. Same values the
                 <code>!group</code> commands change.
               </p>
+            <!-- Bot Scope & Whitelist Access Control -->
+            <div class="card" style="margin-bottom: 24px; border: 1px solid rgba(99, 102, 241, 0.3); background: linear-gradient(135deg, rgba(255,255,255,0.02) 0%, rgba(99, 102, 241, 0.04) 100%);">
+              <div class="card-head">
+                <div>
+                  <span class="eyebrow" style="color: #6366f1;">Permissions &amp; Scope</span>
+                  <h2 style="margin: 0; font-size: 1.25rem;">🎯 Bot Access Scope &amp; Whitelist Control</h2>
+                </div>
+                <div class="spacer"></div>
+                <span class="tag" id="current-access-mode-badge" style="background: rgba(99, 102, 241, 0.2); color: #818cf8; font-weight: 600;">Public</span>
+              </div>
+
+              <p class="hint" style="margin: 8px 0 16px 0;">
+                Control exactly where your bot operates and who is allowed to talk to it. Set strict whitelist boundaries, group-only modes, or owner-only privacy directly from the web panel.
+              </p>
+
+              <div class="inline" style="gap: 16px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 20px;">
+                <label class="field" style="flex: 1; min-width: 260px;">
+                  <span style="font-weight: 600;">Active Access Scope</span>
+                  <select id="bot-access-mode-select">
+                    <option value="public">🌍 Public — Works in All Chats &amp; Groups</option>
+                    <option value="self">🔒 Only Me / Self — Responds ONLY to Bot Owner</option>
+                    <option value="groups">👥 Specific Groups Only — Whitelisted groups (+ Owner DMs)</option>
+                    <option value="whitelist">🎯 Strict Whitelist — Whitelisted Groups &amp; Whitelisted Contacts only</option>
+                    <option value="dm_only">💬 DMs Only — Private 1-on-1 chats only (Ignores all groups)</option>
+                  </select>
+                </label>
+                <button class="btn btn-primary" id="save-access-mode-btn" type="button" style="height: 40px;">
+                  Save Access Mode
+                </button>
+              </div>
+
+              <!-- Whitelisted DMs / Contacts -->
+              <div style="border-top: 1px solid var(--border, rgba(255,255,255,0.08)); padding-top: 16px; margin-top: 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                  <h3 style="margin: 0; font-size: 1rem; display: flex; align-items: center; gap: 8px;">
+                    📱 Whitelisted Private Contacts (Allowed DMs)
+                    <span class="tag" id="allowed-dms-count">0 contacts</span>
+                  </h3>
+                </div>
+                <div class="inline role-control" style="margin-bottom: 12px;">
+                  <label class="sr-only" for="new-dm-phone">Phone number</label>
+                  <input
+                    type="tel"
+                    id="new-dm-phone"
+                    placeholder="Phone number e.g. 923001234567"
+                    style="flex: 2"
+                  />
+                  <input
+                    type="text"
+                    id="new-dm-name"
+                    placeholder="Contact name (optional)"
+                    style="flex: 1"
+                  />
+                  <button class="btn btn-primary" id="add-dm-btn" type="button">
+                    + Allow Contact
+                  </button>
+                </div>
+                <div id="allowed-dms-list" style="display: flex; flex-wrap: wrap; gap: 8px;">
+                  <!-- Rendered dynamically -->
+                </div>
+              </div>
             </div>
+
             <div id="groups-list"><div class="loading">Loading…</div></div>
           </section>
 

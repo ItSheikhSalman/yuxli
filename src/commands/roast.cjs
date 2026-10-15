@@ -47,11 +47,21 @@ module.exports = {
     // 2. Quoted participant
     const quotedParticipant = contextInfo?.participant;
 
+    const senderId = normalizeJid(msg.key.participant || msg.key.remoteJid);
+    const senderPhone = senderId ? senderId.split("@")[0] : "dost";
+    const senderName = msg.pushName || senderPhone;
+
     let targetJid = null;
     let targetTag = null;
     let customNotes = "";
 
-    if (mentionedJids.length > 0) {
+    const firstWord = (args[0] || "").toLowerCase().trim();
+
+    if (firstWord === "me" || firstWord === "mujhe" || firstWord === "mera") {
+      targetJid = senderId;
+      targetTag = `@${senderName}`;
+      customNotes = args.slice(1).join(" ").trim();
+    } else if (mentionedJids.length > 0) {
       targetJid = normalizeJid(mentionedJids[0]);
       const phone = targetJid.split("@")[0];
       targetTag = `@${phone}`;
@@ -63,13 +73,12 @@ module.exports = {
       customNotes = args.join(" ").trim();
     } else if (args.length > 0) {
       targetTag = args.join(" ").trim();
-      targetJid = null;
-    }
-
-    if (!targetTag) {
-      return reply(
-        `🔥 *Friend Roast Mode* 🔥\n\nBhai kis ko roast karwana hy?\n• Dost ko mention karein: \`${prefix}roast @friend\`\n• Kisi ke message pe reply karein: \`${prefix}roast\`\n• Ya naam likhein: \`${prefix}roast Ali\``
-      );
+      targetJid = targetTag;
+    } else {
+      // No target provided — roast the sender playfully!
+      targetJid = senderId;
+      targetTag = `@${senderName}`;
+      customNotes = "Apna hi roast karwane aa gaye bina kisi ka naam liye!";
     }
 
     const roastPrompt = customNotes
