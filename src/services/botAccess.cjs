@@ -266,7 +266,13 @@ function isMessageAllowed(sock, msg, isGroup) {
       const groupId = normalizeJid(msg.key.remoteJid);
       return isGroupAllowed(groupId);
     }
-    // In "Specific Groups Only" mode, personal chats from non-owners are strictly ignored!
+    // If specific DMs are also whitelisted, allow those contacts
+    const allowedDms = getAllowedDms();
+    if (allowedDms.length > 0) {
+      const rawChatId = normalizeJid(msg.key.remoteJid);
+      return isDmAllowed(rawChatId) || (senderId && isDmAllowed(senderId));
+    }
+    // In "Specific Groups Only" mode without whitelisted DMs, non-owners are strictly ignored!
     return false;
   }
 
@@ -282,19 +288,22 @@ function isMessageAllowed(sock, msg, isGroup) {
   }
 
   // 5. "Public" mode:
-  // If the operator has specifically whitelisted allowed groups, honor that whitelist!
-  // Never leak bot replies to unauthorized groups or personal DMs when allowed groups exist.
+  // If the operator has specifically whitelisted allowed groups or allowed DMs, honor that whitelist!
   const allowedGroups = getAllowedGroups();
-  if (allowedGroups.length > 0) {
-    if (isGroup) {
-      const groupId = normalizeJid(msg.key.remoteJid);
-      return isGroupAllowed(groupId);
-    }
-    const allowedDms = getAllowedDms();
-    if (allowedDms.length > 0) {
-      const rawChatId = normalizeJid(msg.key.remoteJid);
-      return isDmAllowed(rawChatId) || (senderId && isDmAllowed(senderId));
-    }
+  const allowedDms = getAllowedDms();
+
+  if (isGroup && allowedGroups.length > 0) {
+    const groupId = normalizeJid(msg.key.remoteJid);
+    return isGroupAllowed(groupId);
+  }
+
+  if (!isGroup && allowedDms.length > 0) {
+    const rawChatId = normalizeJid(msg.key.remoteJid);
+    return isDmAllowed(rawChatId) || (senderId && isDmAllowed(senderId));
+  }
+
+  // If allowed groups exist but no DMs are allowed, protect owner by ignoring stranger DMs
+  if (!isGroup && allowedGroups.length > 0 && allowedDms.length === 0) {
     return false;
   }
 

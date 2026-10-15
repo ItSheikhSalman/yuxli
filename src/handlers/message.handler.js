@@ -3,7 +3,7 @@ import { handleAntiSpam } from "../middleware/antispam.middleware.js";
 import { checkBlacklist } from "../middleware/blacklist.middleware.js";
 import { trackForwardedMessage } from "../middleware/forward-tracking.middleware.js";
 import normalizeJid from "../utils/normalizeJid.esm.js";
-import { getSenderCandidates, isBotAdminInGroup, sameUser } from "../utils/permissions.esm.js";
+import { getSenderCandidates, isBotAdminInGroup, isOwnerJidSync, sameUser } from "../utils/permissions.esm.js";
 import { rememberMessage } from "../utils/recentMessageCache.esm.js";
 import { saveUserMetadata, updateUserLastSeen } from "../utils/storage.esm.js";
 import { handleCommand, getLoadedCommands } from "./command.handler.js";
@@ -196,10 +196,22 @@ async function handleAutoAiReply(sock, msg, body, isGroup) {
   else if (!cleanText && hasDocument) cleanText = "";
 
   const chatId = normalizeJid(msg.key.remoteJid);
+  const senderId = normalizeJid(msg.key.participant || msg.key.remoteJid);
   const { getChatAutoReply } = require("../services/aiAutoReply.cjs");
   const chatPolicy = getChatAutoReply(chatId);
 
   if (!isGroup) {
+    const isOwner = Boolean(senderId && isOwnerJidSync(senderId));
+    const allowedDms = botAccess.getAllowedDms();
+    const isWhitelistedDm = botAccess.isDmAllowed(chatId) || (senderId && botAccess.isDmAllowed(senderId));
+
+    // If specific contacts are whitelisted, or mode is whitelist/groups, NEVER auto-reply to unauthorized contacts
+    if (allowedDms.length > 0 || botAccess.getAccessMode() === "whitelist" || botAccess.getAccessMode() === "groups") {
+      if (!isOwner && !isWhitelistedDm) {
+        return false;
+      }
+    }
+
     if (autoDm && chatPolicy !== "off") {
       shouldReply = true;
     }

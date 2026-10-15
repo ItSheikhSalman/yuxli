@@ -144,6 +144,7 @@ const botAccess = require("../src/services/botAccess.cjs");
 const botmodeCmd = require("../src/commands/botmode.cjs");
 
 // Default mode is public
+botAccess.setAccessMode("public");
 assert.strictEqual(botAccess.getAccessMode(), "public");
 
 // Set mode to self / onlyme
@@ -551,7 +552,37 @@ assert.ok(mamiPrompt.includes("NEVER call them \"bhai\""), "Forbidden to call Ma
 assert.ok(!mamiPrompt.includes("SAVAGE ANGER"), "Roast/anger not triggered for elder");
 console.log("✓ Elder family relationship detection passed\n");
 
-console.log("ALL 26 MOOD, MEMORY, GROUP ISOLATION, ROMAN URDU, NEW FEATURES, CODE BOX & DIAGNOSTIC TESTS PASSED! 🎉");
+// Test 27: Direct Contact Allow / Disallow & Whitelist Control (!allow, !disallow, !allowed)
+console.log("Test 27: Direct Contact Allow / Disallow & Whitelist Control");
+const specialContact = "923451122334@s.whatsapp.net";
+const strangerContact = "923119998888@s.whatsapp.net";
+
+// Owner executes !allow 923451122334
+await botmodeCmd.execute(mockSock, mockFromMeMsg, ["allow", "923451122334"], "!allow 923451122334", null, { invokedName: "allow" });
+assert.strictEqual(botAccess.isDmAllowed(specialContact), true, "Special contact is whitelisted");
+assert.strictEqual(botAccess.getAccessMode(), "whitelist", "Access mode automatically set to whitelist");
+
+// Whitelisted contact message is allowed
+const specialMsg = { key: { remoteJid: specialContact, participant: specialContact, fromMe: false } };
+assert.strictEqual(botAccess.isMessageAllowed(mockSock, specialMsg, false), true, "Special whitelisted contact message allowed");
+
+// Stranger/unknown contact message is strictly rejected!
+const strangerMsg = { key: { remoteJid: strangerContact, participant: strangerContact, fromMe: false } };
+assert.strictEqual(botAccess.isMessageAllowed(mockSock, strangerMsg, false), false, "Stranger message strictly rejected");
+
+// Owner executes !allowed / !whitelist (view list)
+await botmodeCmd.execute(mockSock, mockFromMeMsg, [], "!allowed", null, { invokedName: "allowed" });
+assert.ok(sentMessage.includes("AUTHORIZED & WHITELISTED CHATS"), "Allowed list header present");
+assert.ok(sentMessage.includes("923451122334"), "Special contact included in allowed list");
+
+// Owner executes !disallow 923451122334
+await botmodeCmd.execute(mockSock, mockFromMeMsg, ["disallow", "923451122334"], "!disallow 923451122334", null, { invokedName: "disallow" });
+assert.strictEqual(botAccess.isDmAllowed(specialContact), false, "Special contact successfully removed from whitelist");
+
+botAccess.setAccessMode("public"); // Restore
+console.log("✓ Direct contact allow / disallow & whitelist control passed\n");
+
+console.log("ALL 27 MOOD, MEMORY, GROUP ISOLATION, ROMAN URDU, NEW FEATURES, CODE BOX & DIAGNOSTIC TESTS PASSED! 🎉");
 
 
 

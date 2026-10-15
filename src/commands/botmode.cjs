@@ -14,16 +14,30 @@ const { tr } = require("../utils/i18n.cjs");
 
 module.exports = {
   name: "botmode",
-  aliases: ["workmode", "scope", "allowgroup", "disallowgroup", "groupscope", "onlyme"],
+  aliases: [
+    "workmode",
+    "scope",
+    "allow",
+    "disallow",
+    "allowdm",
+    "disallowdm",
+    "allowgroup",
+    "disallowgroup",
+    "whitelist",
+    "allowed",
+    "allowedlist",
+    "groupscope",
+    "onlyme",
+  ],
   description: {
-    en: "Controls bot work mode: public, onlyme (self), specific groups, or dm_only. Manage whitelisted groups.",
-    ur: "بوٹ کے کام کرنے کا دائرہ کار: پبلک، صرف میں (Only Me)، مخصوص گروپس، یا صرف DM۔",
-    ar: "التحكم في نطاق عمل البوت: عام، خاص بالمالك فقط (Only Me)، مجموعات محددة، أو محادثات خاصة فقط.",
+    en: "Controls bot work mode: public, onlyme (self), specific groups, or whitelist. Manually allow specific individual contacts and groups.",
+    ur: "بوٹ کے کام کرنے کا دائرہ کار: پبلک، صرف میں (Only Me)، مخصوص گروپس، یا مخصوص منظور شدہ کانٹیکٹس (Whitelist)۔",
+    ar: "التحكم في نطاق عمل البوت: عام، خاص بالمالك فقط (Only Me)، مجموعات محددة، أو قائمة المسموح لهم (Whitelist).",
   },
   usage: {
-    en: "botmode\nbotmode public\nbotmode onlyme\nbotmode specific\nbotmode dm\nbotmode allow\nbotmode disallow\nbotmode list",
-    ur: "botmode (سٹیٹس دیکھیں)\nbotmode public (سب کے لیے کھلا)\nbotmode onlyme (صرف میرے لیے)\nbotmode specific (صرف منظور شدہ گروپس)\nbotmode dm (صرف پرائیویٹ چیٹس)\nbotmode allow (اس گروپ کو منظور کریں)\nbotmode disallow (اس گروپ کو ہٹائیں)\nbotmode list (منظور شدہ گروپس کی لسٹ)",
-    ar: "botmode\nbotmode public\nbotmode onlyme\nbotmode specific\nbotmode dm\nbotmode allow\nbotmode disallow\nbotmode list",
+    en: "!allow (whitelists this chat/contact)\n!disallow (removes this chat)\n!allowed (lists all allowed chats)\n!botmode whitelist\n!botmode public",
+    ur: "!allow (اس کانٹیکٹ یا گروپ کو منظور کریں)\n!disallow (اسے لسٹ سے ہٹائیں)\n!allowed (منظور شدہ کانٹیکٹس کی لسٹ دیکھیں)\n!botmode whitelist (صرف منظور شدہ چیٹس کے لیے)\n!botmode public (سب کے لیے کھلا)",
+    ar: "!allow (السماح لهذه المحادثة/جهة الاتصال)\n!disallow (إزالة من القائمة)\n!allowed (عرض القائمة المسموحة)\n!botmode whitelist\n!botmode public",
   },
   chat: "all",
 
@@ -53,17 +67,41 @@ module.exports = {
     // Direct alias shortcuts:
     if (invoked === "onlyme") {
       action = "onlyme";
-    } else if (invoked === "allowgroup") {
+    } else if (invoked === "allow" || invoked === "allowgroup" || invoked === "allowdm") {
       action = "allow";
-    } else if (invoked === "disallowgroup") {
+    } else if (invoked === "disallow" || invoked === "disallowgroup" || invoked === "disallowdm") {
       action = "disallow";
+    } else if (invoked === "allowed" || invoked === "allowedlist" || (invoked === "whitelist" && (!args[0] || args[0] === "list"))) {
+      action = "list";
     }
 
     // 1. Allow Shortcut (Groups or DMs)
     if (action === "allow" || action === "add") {
-      let target = args[1] ? normalizeJid(args[1]) : normalizeJid(rawChatId);
-      if (!target.includes("@")) {
-        target = `${target.replace(/\D/g, "")}@s.whatsapp.net`;
+      const contextInfo =
+        msg.message?.extendedTextMessage?.contextInfo ||
+        msg.message?.imageMessage?.contextInfo ||
+        msg.message?.videoMessage?.contextInfo;
+      const quoted = contextInfo?.participant;
+      const mentioned = contextInfo?.mentionedJid?.[0];
+
+      let candidate = null;
+      for (const a of args) {
+        if (!a) continue;
+        const lower = a.toLowerCase();
+        if (lower === "allow" || lower === "add" || lower === "dm" || lower === "group") continue;
+        candidate = a;
+        break;
+      }
+      let rawTarget = candidate || mentioned || quoted || rawChatId;
+
+      let target = normalizeJid(rawTarget);
+      if (!target.includes("@") || target === "@s.whatsapp.net") {
+        const digits = String(rawTarget).replace(/\D/g, "");
+        if (digits) {
+          target = `${digits}@s.whatsapp.net`;
+        } else {
+          target = normalizeJid(rawChatId);
+        }
       }
       const targetIsGroup = target.endsWith("@g.us");
 
@@ -79,14 +117,21 @@ module.exports = {
         }
 
         if (added) {
-          return reply(`✅ Group added to allowed list!${modeNote}\n🏷️ *Name:* ${subject || "Group"}\n🆔 *ID:* \`${target}\``);
+          return reply(`✅ Group added to allowed list!${modeNote}\n🏷️ *Name:* ${subject || "Group"}\n🆔 *ID:* \`${target}\`\n\n_Sirf is group aur doosre allowed chats me bot active rahega._`);
         } else {
           return reply(`ℹ️ This group is already in the allowed list.${modeNote}`);
         }
       } else {
         // Personal DM whitelist
         const dmPhone = target.split("@")[0];
-        const added = botAccess.addAllowedDm(target, dmPhone);
+        let contactName = null;
+        try {
+          const { getUserMetadata } = require("../db/store.cjs");
+          const meta = getUserMetadata(target);
+          contactName = meta?.savedName || meta?.displayName || null;
+        } catch {}
+
+        const added = botAccess.addAllowedDm(target, contactName || dmPhone);
 
         const currentMode = botAccess.getAccessMode();
         let modeNote = "";
@@ -95,35 +140,58 @@ module.exports = {
           modeNote = "\n🔄 _Switched Bot Mode to **Whitelist** (authorized chats only)._";
         }
 
+        const nameLabel = contactName ? ` (${contactName})` : "";
         if (added) {
-          return reply(`✅ Personal DM added to allowed list!${modeNote}\n👤 *Contact:* \`${dmPhone}\`\n🆔 *ID:* \`${target}\``);
+          return reply(`✅ *Contact Allowed (Whitelisted)!*${modeNote}\n\n👤 *Contact:* \`${dmPhone}\`${nameLabel}\n🆔 *ID:* \`${target}\`\n\n🔒 *Security:* Bot ab SIRF is contact aur specifically allowed chats ko reply karega! Anjaan aur baaqi sab logon ko ignore karega.`);
         } else {
-          return reply(`ℹ️ This user/DM is already in the allowed list.${modeNote}`);
+          return reply(`ℹ️ This contact is already in the allowed list.${modeNote}`);
         }
       }
     }
 
     // 2. Disallow Shortcut (Groups or DMs)
     if (action === "disallow" || action === "remove" || action === "del") {
-      let target = args[1] ? normalizeJid(args[1]) : normalizeJid(rawChatId);
-      if (!target.includes("@")) {
-        target = `${target.replace(/\D/g, "")}@s.whatsapp.net`;
+      const contextInfo =
+        msg.message?.extendedTextMessage?.contextInfo ||
+        msg.message?.imageMessage?.contextInfo ||
+        msg.message?.videoMessage?.contextInfo;
+      const quoted = contextInfo?.participant;
+      const mentioned = contextInfo?.mentionedJid?.[0];
+
+      let candidate = null;
+      for (const a of args) {
+        if (!a) continue;
+        const lower = a.toLowerCase();
+        if (lower === "disallow" || lower === "remove" || lower === "del" || lower === "dm" || lower === "group") continue;
+        candidate = a;
+        break;
+      }
+      let rawTarget = candidate || mentioned || quoted || rawChatId;
+
+      let target = normalizeJid(rawTarget);
+      if (!target.includes("@") || target === "@s.whatsapp.net") {
+        const digits = String(rawTarget).replace(/\D/g, "");
+        if (digits) {
+          target = `${digits}@s.whatsapp.net`;
+        } else {
+          target = normalizeJid(rawChatId);
+        }
       }
       const targetIsGroup = target.endsWith("@g.us");
 
       if (targetIsGroup) {
         const removed = botAccess.removeAllowedGroup(target);
         if (removed) {
-          return reply(`🚫 Group removed from allowed list: \`${target}\``);
+          return reply(`🚫 Group removed from allowed list: \`${target}\`\n_Bot ab is group me reply nahi karega._`);
         } else {
           return reply(`ℹ️ This group was not in the allowed list.`);
         }
       } else {
         const removed = botAccess.removeAllowedDm(target);
         if (removed) {
-          return reply(`🚫 Personal DM removed from allowed list: \`${target}\``);
+          return reply(`🚫 Contact removed from allowed list: \`${target}\`\n_Bot ab is contact ko reply nahi karega._`);
         } else {
-          return reply(`ℹ️ This user/DM was not in the allowed list.`);
+          return reply(`ℹ️ This contact was not in the allowed list.`);
         }
       }
     }
@@ -132,14 +200,26 @@ module.exports = {
     if (action === "list" || action === "groups_list" || action === "whitelist") {
       const allowedGroups = botAccess.getAllowedGroups();
       const allowedDms = botAccess.getAllowedDms();
+      const currentMode = botAccess.getAccessMode();
+      const currentMeta = botAccess.ACCESS_MODES[currentMode] || botAccess.ACCESS_MODES.public;
 
-      if (!allowedGroups.length && !allowedDms.length) {
-        return reply("📋 *No groups or personal DMs whitelisted yet.*\nUse `!botmode allow` inside any chat to authorize it.");
+      let listText = `🎯 *AUTHORIZED & WHITELISTED CHATS*\n\n`;
+      listText += `⚙️ *Active Mode:* ${currentMeta.emoji} *${currentMeta.label}*\n\n`;
+
+      listText += `💬 *Allowed Personal Contacts (${allowedDms.length}):*\n`;
+      if (allowedDms.length) {
+        listText += allowedDms
+          .map((d, idx) => {
+            const id = typeof d === "string" ? d : d.id;
+            const name = typeof d === "object" && d.name ? `*${d.name}* — ` : "";
+            return `${idx + 1}. ${name}\`${id}\``;
+          })
+          .join("\n");
+      } else {
+        listText += "_(No contacts allowed yet — use `!allow` to add)_\n";
       }
 
-      let listText = "🎯 *AUTHORIZED WHITELISTED CHATS*\n\n";
-
-      listText += `👥 *Groups (${allowedGroups.length}):*\n`;
+      listText += `\n\n👥 *Allowed Groups (${allowedGroups.length}):*\n`;
       if (allowedGroups.length) {
         listText += allowedGroups
           .map((g, idx) => {
@@ -152,18 +232,11 @@ module.exports = {
         listText += "_(No groups allowed yet)_\n";
       }
 
-      listText += `\n\n💬 *Personal DMs (${allowedDms.length}):*\n`;
-      if (allowedDms.length) {
-        listText += allowedDms
-          .map((d, idx) => {
-            const id = typeof d === "string" ? d : d.id;
-            const name = typeof d === "object" && d.name ? `*${d.name}* — ` : "";
-            return `${idx + 1}. ${name}\`${id}\``;
-          })
-          .join("\n");
-      } else {
-        listText += "_(No personal DMs allowed yet)_\n";
-      }
+      listText += `\n\n💡 *Shortcuts:*
+• \`${prefix}allow\` — Allow current chat/contact
+• \`${prefix}allow <number>\` — Allow by phone number
+• \`${prefix}disallow\` — Remove current chat
+• \`${prefix}botmode whitelist\` — Strict whitelist mode`;
 
       return reply(listText);
     }
