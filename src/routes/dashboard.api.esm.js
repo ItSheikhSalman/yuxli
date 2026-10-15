@@ -998,6 +998,7 @@ router.delete("/bot-access/dms/:id", (req, res) => {
   } catch (error) {
     fail(res, error, "Error removing allowed DM");
   }
+});
 // ===========================================================================
 // Bot Permissions & Roles (Owners & Bot Admins)
 // ===========================================================================
