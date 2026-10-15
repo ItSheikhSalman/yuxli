@@ -1,5 +1,5 @@
 // file: frontend/src/components/ui/index.ts
-export { Badge, type BadgeProps, type BadgeTone, StatusPill } from "./badge";
+export { Badge, type BadgeProps, type BadgeTone, CountBadge, StatusPill } from "./badge";
 export {
   Button,
   type ButtonProps,
@@ -9,7 +9,7 @@ export {
   IconButton,
   type IconButtonProps,
 } from "./button";
-export { Card, CardHeader, type CardProps, PageHeader, Panel, Section } from "./card";
+export { Card, CardHeader, type CardProps, PageHeader, Panel, Section, StatCard } from "./card";
 export {
   Chip,
   ChipInput,

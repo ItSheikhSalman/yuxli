@@ -1,11 +1,17 @@
 /* file: frontend/src/index.css */
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap");
 @import "tailwindcss";
 
 @theme {
-  --color-brand-blue: #176bfa;
-  --color-brand-blue-deep: #0b50d0;
-  --color-brand-cyan: #21cef3;
+  /* Brand */
+  --color-brand-blue: #2563ff;
+  --color-brand-blue-deep: #1849d6;
+  --color-brand-cyan: #06d6e8;
   --color-brand-purple: #a855f7;
+  --color-brand-green: #10b981;
+  --color-brand-amber: #f59e0b;
+
+  /* Semantic surface tokens — resolved per-theme */
   --color-bg: var(--bg);
   --color-bg-soft: var(--bg-soft);
   --color-panel: var(--panel);
@@ -17,101 +23,128 @@
   --color-text-main: var(--text);
   --color-muted: var(--muted);
   --color-faint: var(--faint);
+
+  /* Status */
   --color-ok: #10b981;
   --color-warn: #f59e0b;
   --color-danger: #ef4444;
   --color-info: #3b82f6;
+
+  /* Fonts */
   --font-sans: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
   --font-arabic: "Tajawal", "Plus Jakarta Sans", system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", monospace;
+  --font-mono: "JetBrains Mono", "Fira Code", monospace;
 }
+
+/* ============================================================
+   Themes
+   ============================================================ */
 
 :root,
 [data-theme="dark"],
 [data-theme="navy"] {
   color-scheme: dark;
-  --bg: #060d19;
-  --bg-soft: #0a1629;
-  --panel: #0e1d35;
-  --panel-raised: #122543;
-  --panel-hover: #172d52;
-  --panel-solid: #0e1d35;
-  --line: rgba(70, 105, 155, 0.25);
-  --line-soft: rgba(70, 105, 155, 0.15);
-  --text: #f3f7fd;
-  --muted: #9ab0ce;
-  --faint: #627b9f;
-  --grad-primary: linear-gradient(135deg, #176bfa 0%, #087ff2 50%, #21cef3 100%);
-  --grad-glow: radial-gradient(circle at 50% 0%, rgba(33, 206, 243, 0.09) 0%, transparent 70%);
+  --bg: #050b18;
+  --bg-soft: #091323;
+  --panel: #0c1a30;
+  --panel-raised: #101e38;
+  --panel-hover: #152547;
+  --panel-solid: #0c1a30;
+  --line: rgba(59, 100, 170, 0.22);
+  --line-soft: rgba(59, 100, 170, 0.12);
+  --text: #eef4fd;
+  --muted: #8baac9;
+  --faint: #526a89;
+  --grad-primary: linear-gradient(135deg, #2563ff 0%, #06d6e8 100%);
+  --grad-glow: radial-gradient(ellipse 80% 50% at 50% -10%, rgba(37, 99, 255, 0.18) 0%, transparent 65%);
+  --grad-sidebar: linear-gradient(180deg, #0d1d38 0%, #071525 100%);
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-brand: 0 0 20px rgba(37, 99, 255, 0.35), 0 4px 12px rgba(37, 99, 255, 0.2);
 }
 
 [data-theme="emerald"] {
   color-scheme: dark;
-  --bg: #03130e;
-  --bg-soft: #062018;
-  --panel: #0a2d22;
-  --panel-raised: #0f3b2d;
-  --panel-hover: #154c3b;
-  --panel-solid: #0a2d22;
-  --line: rgba(16, 185, 129, 0.25);
-  --line-soft: rgba(16, 185, 129, 0.14);
-  --text: #ecfdf5;
-  --muted: #a7f3d0;
-  --faint: #6ee7b7;
-  --grad-primary: linear-gradient(135deg, #059669 0%, #10b981 50%, #34d399 100%);
-  --grad-glow: radial-gradient(circle at 50% 0%, rgba(16, 185, 129, 0.12) 0%, transparent 70%);
+  --bg: #020e09;
+  --bg-soft: #051a10;
+  --panel: #08271b;
+  --panel-raised: #0d3525;
+  --panel-hover: #124531;
+  --panel-solid: #08271b;
+  --line: rgba(16, 185, 129, 0.2);
+  --line-soft: rgba(16, 185, 129, 0.1);
+  --text: #e8fdf4;
+  --muted: #7fdfb2;
+  --faint: #4bb98a;
+  --grad-primary: linear-gradient(135deg, #059669 0%, #34d399 100%);
+  --grad-glow: radial-gradient(ellipse 80% 50% at 50% -10%, rgba(16, 185, 129, 0.18) 0%, transparent 65%);
+  --grad-sidebar: linear-gradient(180deg, #0a2e1e 0%, #051910 100%);
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-brand: 0 0 20px rgba(16, 185, 129, 0.35), 0 4px 12px rgba(16, 185, 129, 0.2);
 }
 
 [data-theme="violet"] {
   color-scheme: dark;
-  --bg: #090514;
-  --bg-soft: #120b24;
-  --panel: #1b1037;
-  --panel-raised: #25164c;
-  --panel-hover: #321c66;
-  --panel-solid: #1b1037;
-  --line: rgba(168, 85, 247, 0.25);
-  --line-soft: rgba(168, 85, 247, 0.14);
-  --text: #faf5ff;
-  --muted: #d8b4fe;
-  --faint: #c084fc;
-  --grad-primary: linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #c084fc 100%);
-  --grad-glow: radial-gradient(circle at 50% 0%, rgba(168, 85, 247, 0.12) 0%, transparent 70%);
+  --bg: #070312;
+  --bg-soft: #100a22;
+  --panel: #190e35;
+  --panel-raised: #22144a;
+  --panel-hover: #2d1c62;
+  --panel-solid: #190e35;
+  --line: rgba(168, 85, 247, 0.2);
+  --line-soft: rgba(168, 85, 247, 0.1);
+  --text: #f5f0ff;
+  --muted: #c4a8f0;
+  --faint: #9b79d4;
+  --grad-primary: linear-gradient(135deg, #7c3aed 0%, #c084fc 100%);
+  --grad-glow: radial-gradient(ellipse 80% 50% at 50% -10%, rgba(168, 85, 247, 0.2) 0%, transparent 65%);
+  --grad-sidebar: linear-gradient(180deg, #1d0e40 0%, #0c0522 100%);
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-brand: 0 0 20px rgba(168, 85, 247, 0.4), 0 4px 12px rgba(168, 85, 247, 0.2);
 }
 
 [data-theme="midnight"] {
   color-scheme: dark;
   --bg: #000000;
-  --bg-soft: #09090b;
-  --panel: #121215;
-  --panel-raised: #18181b;
-  --panel-hover: #222226;
-  --panel-solid: #121215;
-  --line: rgba(255, 255, 255, 0.14);
-  --line-soft: rgba(255, 255, 255, 0.08);
-  --text: #ffffff;
-  --muted: #a1a1aa;
-  --faint: #71717a;
-  --grad-primary: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
-  --grad-glow: radial-gradient(circle at 50% 0%, rgba(6, 182, 212, 0.12) 0%, transparent 70%);
+  --bg-soft: #080808;
+  --panel: #101010;
+  --panel-raised: #161616;
+  --panel-hover: #1e1e1e;
+  --panel-solid: #101010;
+  --line: rgba(255, 255, 255, 0.1);
+  --line-soft: rgba(255, 255, 255, 0.06);
+  --text: #f8f8f8;
+  --muted: #9a9a9a;
+  --faint: #6a6a6a;
+  --grad-primary: linear-gradient(135deg, #06b6d4 0%, #6366f1 100%);
+  --grad-glow: radial-gradient(ellipse 80% 50% at 50% -10%, rgba(99, 102, 241, 0.15) 0%, transparent 65%);
+  --grad-sidebar: linear-gradient(180deg, #141414 0%, #080808 100%);
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.7), 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-brand: 0 0 20px rgba(6, 182, 212, 0.3), 0 4px 12px rgba(6, 182, 212, 0.15);
 }
 
 [data-theme="light"] {
   color-scheme: light;
-  --bg: #f8fafc;
-  --bg-soft: #f1f5f9;
+  --bg: #f0f4fb;
+  --bg-soft: #e8eef9;
   --panel: #ffffff;
-  --panel-raised: #f8fafc;
-  --panel-hover: #f1f5f9;
+  --panel-raised: #f8faff;
+  --panel-hover: #eef3fd;
   --panel-solid: #ffffff;
-  --line: #e2e8f0;
-  --line-soft: #edf2f7;
-  --text: #0f172a;
-  --muted: #64748b;
-  --faint: #94a3b8;
-  --grad-primary: linear-gradient(135deg, #176bfa 0%, #087ff2 50%, #21cef3 100%);
-  --grad-glow: radial-gradient(circle at 50% 0%, rgba(23, 107, 250, 0.07) 0%, transparent 70%);
+  --line: #d5dff0;
+  --line-soft: #e5ecf7;
+  --text: #0f1c35;
+  --muted: #4e6282;
+  --faint: #8298bb;
+  --grad-primary: linear-gradient(135deg, #2563ff 0%, #06d6e8 100%);
+  --grad-glow: radial-gradient(ellipse 80% 50% at 50% -10%, rgba(37, 99, 255, 0.09) 0%, transparent 65%);
+  --grad-sidebar: linear-gradient(180deg, #f5f8ff 0%, #eef3fd 100%);
+  --shadow-card: 0 2px 12px rgba(15, 40, 100, 0.1), 0 1px 3px rgba(15, 40, 100, 0.07);
+  --shadow-brand: 0 0 16px rgba(37, 99, 255, 0.25), 0 4px 10px rgba(37, 99, 255, 0.15);
 }
+
+/* ============================================================
+   Base
+   ============================================================ */
 
 html,
 body {
@@ -123,6 +156,7 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   line-height: 1.5;
+  overflow-x: hidden;
 }
 
 html[dir="rtl"],
@@ -132,15 +166,17 @@ html[lang="ar"] {
   letter-spacing: normal !important;
 }
 
-/* Subtle Custom Scrollbar — the thumb is inset from the content edge, so
-   items never sit flush against it */
+/* ============================================================
+   Custom Scrollbar
+   ============================================================ */
+
 html {
   scrollbar-width: thin;
   scrollbar-color: var(--line) transparent;
 }
 ::-webkit-scrollbar {
-  width: 12px;
-  height: 12px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
@@ -148,17 +184,10 @@ html {
 ::-webkit-scrollbar-thumb {
   background: var(--line);
   border-radius: 999px;
-  /* the transparent border is the padding between thumb and content */
-  border: 4px solid transparent;
-  background-clip: padding-box;
 }
 ::-webkit-scrollbar-thumb:hover {
   background: var(--muted);
-  border: 4px solid transparent;
-  background-clip: padding-box;
 }
-
-/* Hide the scrollbar but keep the row scrollable (tab strips, chip rows) */
 .no-scrollbar {
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -167,14 +196,85 @@ html {
   display: none;
 }
 
-/* Radial ambient background glow */
+/* ============================================================
+   Utilities
+   ============================================================ */
+
 .bg-ambient-glow {
   background-image: var(--grad-glow);
   background-repeat: no-repeat;
   background-attachment: fixed;
 }
 
-/* Subtle Pulse Dot Animation */
+.gradient-text {
+  background: var(--grad-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.glass {
+  background: rgba(var(--panel-rgb, 12, 26, 48), 0.7);
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+}
+
+.glow-brand {
+  box-shadow: var(--shadow-brand);
+}
+
+.card-shadow {
+  box-shadow: var(--shadow-card);
+}
+
+/* ============================================================
+   Animations & Keyframes
+   ============================================================ */
+
+@keyframes pulse-wave {
+  0% { transform: scale(0.9); opacity: 0.9; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+@keyframes modal-enter {
+  from { opacity: 0; transform: scale(0.94) translateY(12px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(16px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes toast-out {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to   { opacity: 0; transform: translateY(8px) scale(0.96); }
+}
+@keyframes slide-in-right {
+  from { opacity: 0; transform: translateX(24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes brand-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(37, 99, 255, 0.4); }
+  50%       { box-shadow: 0 0 0 8px rgba(37, 99, 255, 0); }
+}
+
+.animate-modal-enter  { animation: modal-enter 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.animate-toast-in     { animation: toast-in 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.animate-toast-out    { animation: toast-out 0.22s ease-in forwards; }
+.animate-slide-right  { animation: slide-in-right 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.animate-fade-up      { animation: fade-up 0.25s ease-out forwards; }
+.animate-brand-pulse  { animation: brand-pulse 2s ease-in-out infinite; }
+
+/* ============================================================
+   Pulse dot
+   ============================================================ */
+
 .pulse-dot {
   width: 8px;
   height: 8px;
@@ -192,36 +292,66 @@ html {
   animation: pulse-wave 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   opacity: 0.75;
 }
-@keyframes pulse-wave {
-  0% {
-    transform: scale(0.9);
-    opacity: 0.8;
-  }
-  100% {
-    transform: scale(2.2);
-    opacity: 0;
-  }
+
+/* ============================================================
+   Skeleton Loader
+   ============================================================ */
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--panel-raised) 25%,
+    var(--panel-hover) 50%,
+    var(--panel-raised) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+  border-radius: 8px;
 }
 
-/* Modal and Toast Keyframes */
-@keyframes modal-enter {
-  from {
-    opacity: 0;
-    transform: scale(0.96) translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
+/* ============================================================
+   Focus ring
+   ============================================================ */
+
+*:focus-visible {
+  outline: 2px solid rgba(37, 99, 255, 0.7);
+  outline-offset: 2px;
+  border-radius: 6px;
 }
 
-@keyframes toast-in {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+/* ============================================================
+   Sidebar nav active indicator
+   ============================================================ */
+
+.nav-active-pill {
+  position: relative;
+}
+.nav-active-pill::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 60%;
+  border-radius: 0 4px 4px 0;
+  background: var(--grad-primary);
+}
+
+/* ============================================================
+   Progress bar for toasts
+   ============================================================ */
+
+@keyframes toast-progress {
+  from { width: 100%; }
+  to   { width: 0%; }
+}
+.toast-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  border-radius: 0 0 12px 12px;
+  background: var(--grad-primary);
+  animation: toast-progress var(--duration, 4s) linear forwards;
 }

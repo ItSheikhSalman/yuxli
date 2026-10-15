@@ -3,6 +3,7 @@
 import {
   Activity,
   Bot,
+  Calendar,
   ChevronRight,
   Clock,
   Folder,
@@ -12,7 +13,9 @@ import {
   Sliders,
   Square,
   Terminal,
+  TrendingUp,
   Users,
+  Zap,
 } from "lucide-react";
 import type { FC } from "react";
 import { useEffect, useState } from "react";
@@ -20,20 +23,18 @@ import { api } from "../api/client";
 import type { ViewTab } from "../components/Sidebar";
 import { useToast } from "../components/Toasts";
 import { Button, Card, StatusPill } from "../components/ui";
+import { StatCard } from "../components/ui/card";
 import { useI18n } from "../context/I18nContext";
 import type { DashboardStats, SessionStatus } from "../types";
 
-/** `201012345678:5@s.whatsapp.net` -> `+20 100 772 9621`, device suffix dropped. */
 const formatLinkedNumber = (id?: string | null): string | null => {
   if (!id) return null;
   const digits = id.split("@")[0].split(":")[0].replace(/\D/g, "");
   if (!digits) return null;
-  if (digits.length === 12) {
+  if (digits.length === 12)
     return `+${digits.slice(0, 2)} ${digits.slice(2, 5)} ${digits.slice(5, 8)} ${digits.slice(8)}`;
-  }
-  if (digits.length === 11) {
+  if (digits.length === 11)
     return `+${digits.slice(0, 1)} ${digits.slice(1, 4)} ${digits.slice(4, 7)} ${digits.slice(7)}`;
-  }
   return `+${digits}`;
 };
 
@@ -47,254 +48,296 @@ export const OverviewView: FC<OverviewViewProps> = ({ status, onNavigate }) => {
   const { toast } = useToast();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [starting, setStarting] = useState(false);
+  const [stopping, setStopping] = useState(false);
 
   useEffect(() => {
     let mounted = true;
     api
       .getStats()
-      .then((res) => {
-        if (mounted && res?.stats) setStats(res.stats);
-      })
-      .catch((err) => {
-        toast(err.message, "error");
-      })
-      .finally(() => {
-        if (mounted) setLoading(false);
-      });
-    return () => {
-      mounted = false;
-    };
+      .then((res) => { if (mounted && res?.stats) setStats(res.stats); })
+      .catch((err) => { toast(err.message, "error"); })
+      .finally(() => { if (mounted) setLoading(false); });
+    return () => { mounted = false; };
   }, [toast]);
 
   const formatUptime = (seconds: number) => {
     const days = Math.floor(seconds / 86400);
     const hours = Math.floor((seconds % 86400) / 3600);
     const mins = Math.floor((seconds % 3600) / 60);
-    if (days) return `${days} ${t("uptimeDayUnit")} ${hours} ${t("uptimeHourUnit")}`;
-    if (hours) return `${hours} ${t("uptimeHourUnit")} ${mins} ${t("uptimeMinuteUnit")}`;
-    return `${mins} ${t("uptimeMinuteUnit")}`;
+    if (days)  return `${days}d ${hours}h`;
+    if (hours) return `${hours}h ${mins}m`;
+    return `${mins}m`;
   };
 
   const isConnected = status?.state === "connected";
   const linkedNumber = formatLinkedNumber(status?.user?.id);
 
   const handleStart = async () => {
+    setStarting(true);
     try {
       await api.startSession();
       toast(t("starting"), "info");
     } catch (err: any) {
       toast(err.message, "error");
+    } finally {
+      setStarting(false);
     }
   };
 
   const handleStop = async () => {
+    setStopping(true);
     try {
       await api.stopSession();
       toast(t("stop"), "info");
     } catch (err: any) {
       toast(err.message, "error");
+    } finally {
+      setStopping(false);
     }
   };
+
+  const statsCards = [
+    {
+      label: t("totalGroups"),
+      value: stats?.totalGroups ?? 0,
+      icon: <Users size={18} />,
+      tone: "border-brand-blue/25 bg-brand-blue/10 text-brand-blue",
+    },
+    {
+      label: t("commandCount"),
+      value: stats?.commandCount ?? 0,
+      icon: <Terminal size={18} />,
+      tone: "border-brand-cyan/25 bg-brand-cyan/10 text-brand-cyan",
+    },
+    {
+      label: t("uptime"),
+      value: formatUptime(stats?.uptime || 0),
+      icon: <Clock size={18} />,
+      tone: "border-ok/25 bg-ok/10 text-ok",
+    },
+    {
+      label: t("activeSchedules"),
+      value: stats?.activeSchedules ?? 0,
+      icon: <MessageSquare size={18} />,
+      tone: "border-brand-purple/25 bg-brand-purple/10 text-brand-purple",
+    },
+  ];
 
   const quickNavCards: Array<{
     id: ViewTab;
     title: string;
     desc: string;
     icon: typeof Radio;
-    color: string;
+    gradient: string;
+    iconColor: string;
   }> = [
     {
       id: "connection",
       title: t("connection"),
-      desc: isConnected ? t("connected") : t(status?.state as any, "disconnected"),
+      desc: isConnected ? t("connected") : t(status?.state as any, "Disconnected"),
       icon: Radio,
-      color: "border-brand-cyan/20 bg-brand-cyan/10 text-brand-cyan",
+      gradient: "from-brand-cyan/20 to-brand-blue/10",
+      iconColor: "text-brand-cyan border-brand-cyan/25 bg-brand-cyan/10",
     },
     {
       id: "ai",
       title: t("ai"),
-      desc: t("aiAssistantDesc") || "Autonomous tool-calling AI agent",
+      desc: "Smart AI agent with tools & memory",
       icon: Bot,
-      color: "border-brand-purple/20 bg-brand-purple/10 text-brand-purple",
+      gradient: "from-brand-purple/20 to-brand-blue/10",
+      iconColor: "text-brand-purple border-brand-purple/25 bg-brand-purple/10",
     },
     {
       id: "commands",
       title: t("commands"),
-      desc: t("quickCommandsDesc").replace("{n}", String(stats?.commandCount ?? 0)),
+      desc: `${stats?.commandCount ?? 0} commands available`,
       icon: Terminal,
-      color: "border-brand-blue/20 bg-brand-blue/10 text-brand-blue",
+      gradient: "from-brand-blue/20 to-brand-cyan/10",
+      iconColor: "text-brand-blue border-brand-blue/25 bg-brand-blue/10",
     },
     {
       id: "settings",
       title: t("settings"),
-      desc: t("settingsSub") || "Prefix, ports, delays, security & storage",
+      desc: "Prefix, security, AI & storage",
       icon: Sliders,
-      color: "border-ok/20 bg-ok/10 text-ok",
-    },
-  ];
-
-  const statsCards = [
-    {
-      label: t("totalGroups"),
-      value: stats?.totalGroups ?? 0,
-      icon: Users,
-      tone: "border-brand-blue/20 bg-brand-blue/10 text-brand-blue",
-    },
-    {
-      label: t("commandCount"),
-      value: stats?.commandCount ?? 0,
-      icon: Terminal,
-      tone: "border-brand-cyan/20 bg-brand-cyan/10 text-brand-cyan",
-    },
-    {
-      label: t("uptime"),
-      value: formatUptime(stats?.uptime || 0),
-      icon: Clock,
-      tone: "border-ok/20 bg-ok/10 text-ok",
-    },
-    {
-      label: t("activeSchedules"),
-      value: stats?.activeSchedules ?? 0,
-      icon: MessageSquare,
-      tone: "border-brand-purple/20 bg-brand-purple/10 text-brand-purple",
+      gradient: "from-ok/20 to-brand-cyan/10",
+      iconColor: "text-ok border-ok/25 bg-ok/10",
     },
   ];
 
   return (
-    <div className="flex flex-col gap-6">
-      {/* Hero connection card: status, title, linked number, then one action row */}
-      <Card className="flex flex-col gap-4">
-        <div className="flex items-start gap-3">
-          <div
-            className={`flex size-11 shrink-0 items-center justify-center rounded-xl border ${
-              isConnected ? "border-ok/30 bg-ok/10 text-ok" : "border-warn/30 bg-warn/10 text-warn"
-            }`}
-          >
-            <Activity size={22} />
-          </div>
-          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              <h2 className="text-base font-extrabold tracking-tight text-text-main sm:text-lg">
-                {isConnected ? t("connected") : t(status?.state as any, "disconnected")}
-              </h2>
-              <StatusPill tone={isConnected ? "ok" : "warn"} dot pulse>
-                {isConnected ? t("online") : t("offline")}
-              </StatusPill>
+    <div className="flex flex-col gap-5 animate-fade-up">
+
+      {/* ── Hero Connection Card ── */}
+      <Card className="relative overflow-hidden">
+        {/* Background gradient decoration */}
+        <div
+          className="pointer-events-none absolute inset-0 opacity-40"
+          style={{
+            background: isConnected
+              ? "radial-gradient(ellipse at 80% 50%, rgba(16,185,129,0.15) 0%, transparent 70%)"
+              : "radial-gradient(ellipse at 80% 50%, rgba(245,158,11,0.12) 0%, transparent 70%)",
+          }}
+        />
+
+        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          {/* Status info */}
+          <div className="flex items-start gap-4">
+            <div
+              className={`flex size-14 shrink-0 items-center justify-center rounded-2xl border-2 transition-all ${
+                isConnected
+                  ? "border-ok/40 bg-ok/10 text-ok shadow-lg shadow-ok/15"
+                  : "border-warn/40 bg-warn/10 text-warn"
+              }`}
+            >
+              <Activity size={26} strokeWidth={2} />
             </div>
-            <p className="text-sm text-muted">
-              {isConnected ? (
-                linkedNumber ? (
-                  <bdi dir="ltr">{linkedNumber}</bdi>
-                ) : (
-                  t("activeListening")
-                )
-              ) : (
-                t("pausedOrLinking")
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-xl font-extrabold tracking-tight text-text-main">
+                  {isConnected ? t("connected") : t(status?.state as any, "Disconnected")}
+                </h2>
+                <StatusPill tone={isConnected ? "ok" : "warn"} dot pulse>
+                  {isConnected ? t("online") : t("offline")}
+                </StatusPill>
+              </div>
+              <p className="mt-1 text-sm text-muted">
+                {isConnected
+                  ? linkedNumber
+                    ? <bdi dir="ltr">{linkedNumber}</bdi>
+                    : t("activeListening")
+                  : t("pausedOrLinking")}
+              </p>
+              {isConnected && stats?.uptime && (
+                <div className="mt-2 flex items-center gap-1.5 text-xs text-faint">
+                  <TrendingUp size={12} />
+                  <span>Uptime: {formatUptime(stats.uptime)}</span>
+                </div>
               )}
-            </p>
+            </div>
           </div>
-        </div>
-        <div className="flex items-center gap-2.5">
-          {isConnected ? (
+
+          {/* Actions */}
+          <div className="flex flex-wrap items-center gap-2.5">
+            {isConnected ? (
+              <Button
+                variant="danger"
+                icon={<Square size={15} />}
+                onClick={handleStop}
+                loading={stopping}
+                className="min-w-[100px]"
+              >
+                {t("stop")}
+              </Button>
+            ) : (
+              <Button
+                variant="primary"
+                icon={<Play size={15} />}
+                onClick={handleStart}
+                loading={starting}
+                className="min-w-[100px]"
+              >
+                {t("start")}
+              </Button>
+            )}
             <Button
-              variant="danger"
-              icon={<Square size={16} />}
-              onClick={handleStop}
-              className="flex-1 whitespace-nowrap sm:flex-none"
+              variant="secondary"
+              icon={<Radio size={15} />}
+              onClick={() => onNavigate("connection")}
             >
-              {t("stop")}
+              {t("connection")}
             </Button>
-          ) : (
-            <Button
-              variant="primary"
-              icon={<Play size={16} />}
-              onClick={handleStart}
-              className="flex-1 whitespace-nowrap sm:flex-none"
-            >
-              {t("start")}
-            </Button>
-          )}
-          <Button
-            variant="secondary"
-            icon={<Radio size={16} />}
-            onClick={() => onNavigate("connection")}
-            className="flex-1 whitespace-nowrap sm:flex-none"
-          >
-            {t("connection")}
-          </Button>
+          </div>
         </div>
       </Card>
 
-      <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
-        {statsCards.map((card) => {
-          const Icon = card.icon;
-          return (
-            <Card key={card.label}>
-              <div className="flex items-start justify-between gap-2">
-                <span className="line-clamp-2 text-[11px] font-bold uppercase tracking-wider text-muted sm:text-xs">
-                  {card.label}
-                </span>
-                <div
-                  className={`flex size-10 shrink-0 items-center justify-center rounded-xl border ${card.tone}`}
-                >
-                  <Icon size={18} />
-                </div>
-              </div>
-              <div className="mt-2 font-mono text-2xl font-extrabold tracking-tight text-text-main sm:text-3xl">
-                {loading ? "—" : card.value}
-              </div>
-            </Card>
-          );
-        })}
+      {/* ── Stat Cards ── */}
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        {statsCards.map((card) => (
+          <StatCard
+            key={card.label}
+            label={card.label}
+            value={card.value}
+            icon={card.icon}
+            tone={card.tone}
+            loading={loading}
+          />
+        ))}
       </div>
 
+      {/* ── Quick Nav Cards ── */}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         {quickNavCards.map((card) => {
           const Icon = card.icon;
           return (
-            <Card
+            <button
               key={card.id}
-              padded={false}
-              className="h-full transition-colors hover:border-brand-blue/30"
+              type="button"
+              onClick={() => onNavigate(card.id)}
+              className={`group relative flex flex-col gap-3 rounded-2xl border border-line/70 bg-gradient-to-br ${card.gradient} p-4 text-start transition-all duration-200 hover:border-brand-blue/30 hover:-translate-y-0.5 hover:shadow-lg card-shadow sm:p-5 outline-none`}
             >
-              <Button
-                variant="ghost"
-                onClick={() => onNavigate(card.id)}
-                className="h-full w-full flex-col items-stretch justify-between gap-3 rounded-2xl p-4 text-start sm:gap-4 sm:p-5"
-              >
-                <div className="flex w-full items-center justify-between gap-2">
-                  <div
-                    className={`flex size-10 shrink-0 items-center justify-center rounded-xl border ${card.color}`}
-                  >
-                    <Icon size={18} />
-                  </div>
-                  <ChevronRight
-                    size={16}
-                    className="shrink-0 text-faint rtl:-scale-x-100"
-                    aria-hidden
-                  />
+              <div className="flex items-center justify-between">
+                <div className={`flex size-10 shrink-0 items-center justify-center rounded-xl border transition-all group-hover:scale-110 ${card.iconColor}`}>
+                  <Icon size={18} />
                 </div>
-                <div>
-                  <h3 className="text-xs font-bold text-text-main sm:text-sm">{card.title}</h3>
-                  <p className="mt-0.5 line-clamp-2 text-[11px] leading-relaxed text-muted sm:text-xs">
-                    {card.desc}
-                  </p>
-                </div>
-              </Button>
-            </Card>
+                <ChevronRight
+                  size={16}
+                  className="text-faint/40 transition-all group-hover:text-faint group-hover:translate-x-0.5 rtl:-scale-x-100"
+                  aria-hidden
+                />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-text-main">{card.title}</h3>
+                <p className="mt-0.5 line-clamp-2 text-[11px] leading-relaxed text-muted sm:text-xs">
+                  {card.desc}
+                </p>
+              </div>
+            </button>
           );
         })}
       </div>
 
-      <Card className="flex items-center gap-3.5">
-        <Folder size={20} className="shrink-0 text-faint" />
-        <div className="min-w-0 flex-1">
-          <div className="text-xs font-semibold text-muted">{t("dataDir")}</div>
-          <div className="truncate text-start font-mono text-xs text-text-main" dir="ltr">
-            {stats?.dataDir || "..."}
+      {/* ── Yuxli Brand Banner ── */}
+      <Card className="relative overflow-hidden border-line/50">
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{ background: "linear-gradient(135deg, rgba(37,99,255,0.08) 0%, rgba(6,214,232,0.05) 100%)" }}
+        />
+        <div className="relative flex items-center gap-4">
+          <div
+            className="flex size-12 shrink-0 items-center justify-center rounded-2xl text-white"
+            style={{ background: "var(--grad-primary)" }}
+          >
+            <Zap size={22} strokeWidth={2.5} />
           </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <span className="text-base font-extrabold tracking-tight text-text-main">Yuxli</span>
+              <span className="rounded-full border border-brand-cyan/30 bg-brand-cyan/10 px-2 py-0.5 text-[10px] font-bold text-brand-cyan">
+                Premium Bot
+              </span>
+            </div>
+            <p className="mt-0.5 text-xs text-muted">Professional WhatsApp AI — powered by free AI models</p>
+          </div>
+          <Button variant="primary" size="sm" icon={<Calendar size={14} />} onClick={() => onNavigate("schedules")}>
+            Schedules
+          </Button>
         </div>
       </Card>
+
+      {/* ── Data directory ── */}
+      {stats?.dataDir && (
+        <Card className="flex items-center gap-3.5 py-3">
+          <Folder size={18} className="shrink-0 text-faint" />
+          <div className="min-w-0 flex-1">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-faint">{t("dataDir")}</div>
+            <div className="truncate font-mono text-xs text-text-main" dir="ltr">
+              {stats.dataDir}
+            </div>
+          </div>
+        </Card>
+      )}
     </div>
   );
 };

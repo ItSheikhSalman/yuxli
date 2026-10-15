@@ -2,27 +2,32 @@
 import { type ComponentPropsWithoutRef, forwardRef, type ReactNode } from "react";
 import { cn } from "../../utils/cn";
 
-export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
+export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "success";
 export type ButtonSize = "sm" | "md" | "lg";
 
-/** Shared look. Specialised controls compose these classes; they do not restyle a raw <button>. */
 export const buttonVariants = {
-  base: "inline-flex shrink-0 items-center justify-center gap-2 font-bold transition-colors select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue/50 disabled:cursor-not-allowed disabled:opacity-50",
+  base: "inline-flex shrink-0 items-center justify-center gap-2 font-semibold transition-all duration-150 select-none outline-none focus-visible:ring-2 focus-visible:ring-brand-blue/50 focus-visible:ring-offset-1 focus-visible:ring-offset-panel disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.97]",
   variant: {
-    primary: "bg-brand-blue text-white shadow-md shadow-brand-blue/20 hover:bg-brand-blue-deep",
-    secondary: "border border-line bg-panel-raised text-text-main hover:bg-panel-hover",
-    ghost: "text-muted hover:bg-panel-hover hover:text-text-main",
-    danger: "bg-danger text-white shadow-md shadow-danger/20 hover:bg-danger/90",
+    primary:
+      "bg-gradient-to-r from-brand-blue to-brand-cyan text-white shadow-md hover:shadow-lg hover:opacity-90",
+    secondary:
+      "border border-line bg-panel-raised text-text-main hover:bg-panel-hover hover:border-line",
+    ghost:
+      "text-muted hover:bg-panel-hover/70 hover:text-text-main",
+    danger:
+      "bg-danger text-white shadow-md shadow-danger/20 hover:bg-danger/85 hover:shadow-danger/30",
+    success:
+      "bg-ok text-white shadow-md shadow-ok/20 hover:bg-ok/85",
   },
   size: {
-    sm: "h-10 min-h-10 rounded-lg px-3 text-xs",
-    md: "h-11 min-h-11 rounded-xl px-4 text-sm",
-    lg: "h-12 min-h-12 rounded-xl px-5 text-sm",
+    sm: "h-9 min-h-9 rounded-lg px-3 text-xs",
+    md: "h-10 min-h-10 rounded-xl px-4 text-sm",
+    lg: "h-11 min-h-11 rounded-xl px-5 text-sm",
   },
   icon: {
-    sm: "size-10 min-h-10 min-w-10 rounded-lg p-0",
-    md: "size-11 min-h-11 min-w-11 rounded-xl p-0",
-    lg: "size-12 min-h-12 min-w-12 rounded-xl p-0",
+    sm: "size-9 min-h-9 min-w-9 rounded-lg p-0",
+    md: "size-10 min-h-10 min-w-10 rounded-xl p-0",
+    lg: "size-11 min-h-11 min-w-11 rounded-xl p-0",
   },
 } as const;
 
@@ -30,7 +35,6 @@ export interface ButtonProps extends ComponentPropsWithoutRef<"button"> {
   variant?: ButtonVariant;
   size?: ButtonSize;
   loading?: boolean;
-  /** Optional leading icon. The label stays in `children`. */
   icon?: ReactNode;
 }
 
@@ -81,15 +85,12 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
 
 export interface IconButtonProps
   extends Omit<ComponentPropsWithoutRef<"button">, "children" | "aria-label"> {
-  /** Required. Used as aria-label and as the tooltip. */
   label: string;
   icon?: ReactNode;
-  /** Icon element. Prefer `icon`; `children` is accepted so callers can nest the glyph. */
   children?: ReactNode;
   variant?: ButtonVariant;
   size?: ButtonSize;
   loading?: boolean;
-  /** Toggle-style icon buttons (auto-scroll, active filter). Sets aria-pressed. */
   pressed?: boolean;
 }
 

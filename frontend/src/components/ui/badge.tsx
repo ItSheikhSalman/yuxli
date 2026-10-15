@@ -2,14 +2,15 @@
 import type { ComponentPropsWithoutRef, ReactNode } from "react";
 import { cn } from "../../utils/cn";
 
-export type BadgeTone = "ok" | "warn" | "danger" | "info" | "neutral";
+export type BadgeTone = "ok" | "warn" | "danger" | "info" | "neutral" | "purple";
 
 const TONE: Record<BadgeTone, string> = {
-  ok: "border-ok/30 bg-ok/10 text-ok",
-  warn: "border-warn/30 bg-warn/10 text-warn",
-  danger: "border-danger/30 bg-danger/10 text-danger",
-  info: "border-info/30 bg-info/10 text-info",
+  ok:      "border-ok/30 bg-ok/10 text-ok",
+  warn:    "border-warn/30 bg-warn/10 text-warn",
+  danger:  "border-danger/30 bg-danger/10 text-danger",
+  info:    "border-info/30 bg-info/10 text-info",
   neutral: "border-line bg-panel-raised text-muted",
+  purple:  "border-brand-purple/30 bg-brand-purple/10 text-brand-purple",
 };
 
 export interface BadgeProps extends ComponentPropsWithoutRef<"span"> {
@@ -20,7 +21,7 @@ export function Badge({ tone = "neutral", className, children, ...props }: Badge
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-bold",
+        "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold tracking-wide",
         TONE[tone],
         className,
       )}
@@ -40,9 +41,24 @@ export function StatusPill({
   return (
     <Badge {...props}>
       {dot && (
-        <span className={cn("size-2 shrink-0 rounded-full bg-current", pulse && "pulse-dot")} />
+        <span className={cn("size-[7px] shrink-0 rounded-full bg-current", pulse && "pulse-dot")} />
       )}
       {children}
     </Badge>
+  );
+}
+
+/** A small numeric count badge (e.g. unread count) */
+export function CountBadge({ count, className }: { count: number; className?: string }) {
+  if (count <= 0) return null;
+  return (
+    <span
+      className={cn(
+        "inline-flex min-w-[18px] items-center justify-center rounded-full bg-brand-blue px-1 py-0.5 text-[10px] font-bold text-white leading-none",
+        className,
+      )}
+    >
+      {count > 99 ? "99+" : count}
+    </span>
   );
 }
