@@ -251,50 +251,49 @@ function renderSetup(req, res, error, status = 200) {
 }
 
 app.get("/setup", noStore, (req, res) => {
-  if (secrets.hasDashboardPassword()) return res.redirect("/");
-  renderSetup(req, res, null);
+  if (isPanelSessionValid(req.session)) return res.redirect("/");
+  return res.redirect(303, "/signup");
 });
 
 app.post("/setup", (req, res, next) => {
-  if (secrets.hasDashboardPassword()) return res.redirect("/");
-
   const peer = clientAddress(req);
   const retryAfter = blockedFor(peer);
   if (retryAfter) {
     res.set("Retry-After", String(retryAfter));
-    return renderSetup(req, res, "Too many attempts. Try again later.", 429);
+    return res.status(429).render("signup", {
+      error: "Too many attempts. Try again later.",
+      minLength: secrets.MIN_PASSWORD_LENGTH,
+    });
   }
 
-  const { password, confirm, code } = req.body || {};
-
-  const requireCode = process.env.REQUIRE_SETUP_CODE === "true";
-  if (requireCode && !isLocalRequest(req) && !secrets.setupCodeMatches(code)) {
-    recordFailure(peer);
-    logger.warn({ ip: peer }, "[dashboard] Setup attempted with a wrong code");
-    return renderSetup(req, res, "Wrong setup code.", 401);
-  }
-
-  if (password !== confirm) {
-    return renderSetup(req, res, "The two passwords don't match.", 400);
+  const { name, email, password, confirm, company } = req.body || {};
+  if (confirm && password !== confirm) {
+    return res.status(400).render("signup", {
+      error: "The two passwords don't match.",
+      minLength: secrets.MIN_PASSWORD_LENGTH,
+    });
   }
 
   try {
-    secrets.setDashboardPassword(password);
-  } catch (error) {
-    return renderSetup(req, res, error.message, 400);
-  }
-
-  clearAttempts(peer);
-  logger.info({ ip: peer }, "[dashboard] Password set — first run complete");
-
-  req.session.regenerate((err) => {
-    if (err) return next(err);
-    stampPanelSession(req.session);
-    req.session.save((saveErr) => {
-      if (saveErr) return next(saveErr);
-      res.redirect(303, "/");
+    const user = store.createSaasUser({ name, email, password, company });
+    if (!secrets.hasDashboardPassword()) {
+      try { secrets.setDashboardPassword(password); } catch {}
+    }
+    clearAttempts(peer);
+    req.session.regenerate((err) => {
+      if (err) return next(err);
+      stampPanelSession(req.session, user);
+      req.session.save((saveErr) => {
+        if (saveErr) return next(saveErr);
+        res.redirect(303, "/");
+      });
     });
-  });
+  } catch (error) {
+    return res.status(400).render("signup", {
+      error: error.message,
+      minLength: secrets.MIN_PASSWORD_LENGTH,
+    });
+  }
 });
 
 // --- Routes ---------------------------------------------------------------
@@ -304,7 +303,7 @@ app.get(["/health", "/ping", "/healthz"], (req, res) => {
 });
 
 app.get("/", noStore, (req, res) => {
-  if (!secrets.hasDashboardPassword() && store.countSaasUsers() === 0) return res.redirect("/setup");
+  if (!secrets.hasDashboardPassword() && store.countSaasUsers() === 0) return res.redirect("/signup");
   if (isPanelSessionValid(req.session)) {
     const dashboardHtmlPath = path.join(assetPath("public"), "dashboard", "index.html");
     if (fs.existsSync(dashboardHtmlPath)) {
@@ -328,12 +327,12 @@ app.get("/", noStore, (req, res) => {
     }
     return res.render("dashboard");
   }
-  return res.render("login", { error: null, minLength: secrets.MIN_PASSWORD_LENGTH });
+  return res.redirect("/login");
 });
 
 app.get("/login", noStore, (req, res) => {
-  if (!secrets.hasDashboardPassword() && store.countSaasUsers() === 0) return res.redirect("/setup");
   if (isPanelSessionValid(req.session)) return res.redirect("/");
+  if (!secrets.hasDashboardPassword() && store.countSaasUsers() === 0) return res.redirect("/signup");
   return res.render("login", { error: null, minLength: secrets.MIN_PASSWORD_LENGTH });
 });
 
@@ -386,7 +385,14 @@ app.get("/signup", noStore, (req, res) => {
 
 app.post("/signup", (req, res, next) => {
   const peer = clientAddress(req);
-  const { name, email, password, company } = req.body || {};
+  const { name, email, password, confirm, company } = req.body || {};
+
+  if (confirm && password !== confirm) {
+    return res.status(400).render("signup", {
+      error: "The two passwords don't match.",
+      minLength: secrets.MIN_PASSWORD_LENGTH,
+    });
+  }
 
   try {
     const user = store.createSaasUser({ name, email, password, company });

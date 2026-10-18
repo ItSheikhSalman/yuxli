@@ -62,14 +62,15 @@
             </div>
 
             <label class="field">
-              <span>Work Email</span>
+              <span>Work Email Address</span>
               <div class="input-wrap">
                 <input
                   type="email"
                   name="email"
                   autocomplete="username"
-                  placeholder="alex@company.com (or leave empty for master key)"
+                  placeholder="name@company.com"
                   autofocus
+                  required
                 />
               </div>
             </label>
@@ -81,7 +82,7 @@
                   type="password"
                   name="password"
                   autocomplete="current-password"
-                  placeholder="Enter your password"
+                  placeholder="••••••••"
                   required
                 />
                 <button type="button" class="eye-btn" aria-label="Show password">
@@ -92,7 +93,7 @@
             </label>
 
             <button type="submit" class="btn btn-primary auth-submit">
-              Sign In to Command Center
+              Sign In to Workspace
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
             </button>
 
