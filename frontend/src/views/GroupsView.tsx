@@ -258,35 +258,35 @@ export const GroupsView: React.FC = () => {
   const ACCESS_MODE_OPTIONS = [
     {
       id: "public",
-      emoji: "🌍",
+      icon: Globe,
       title: "Public (All Chats)",
       desc: "Bot works in all groups and private chats.",
       badgeTone: "ok" as const,
     },
     {
       id: "groups",
-      emoji: "👥",
+      icon: Users,
       title: "Specific Groups Only",
       desc: "Bot ONLY responds in authorized whitelisted groups.",
       badgeTone: "info" as const,
     },
     {
       id: "self",
-      emoji: "🔒",
+      icon: Lock,
       title: "Only Me (Owner Only)",
       desc: "Bot ONLY responds to you (the owner), completely ignoring everyone else.",
       badgeTone: "warn" as const,
     },
     {
       id: "whitelist",
-      emoji: "🎯",
+      icon: ShieldCheck,
       title: "Strict Whitelist",
       desc: "Bot ONLY responds in approved groups AND approved private contacts.",
       badgeTone: "brand" as const,
     },
     {
       id: "dm_only",
-      emoji: "💬",
+      icon: MessageSquare,
       title: "DM Only (No Groups)",
       desc: "Bot responds in 1-on-1 private DMs, completely ignoring all groups.",
       badgeTone: "neutral" as const,
@@ -331,7 +331,9 @@ export const GroupsView: React.FC = () => {
                 }`}
               >
                 <div className="flex items-center justify-between w-full mb-1.5">
-                  <span className="text-lg">{opt.emoji}</span>
+                  <div className="p-1.5 rounded-lg bg-surface border border-line text-brand-indigo">
+                    <opt.icon size={16} />
+                  </div>
                   {isActive ? (
                     <Badge tone="ok">Active</Badge>
                   ) : (
@@ -468,7 +470,7 @@ export const GroupsView: React.FC = () => {
                           aria-label="Toggle Bot Allowed"
                         />
                         <span className={`text-[10px] font-bold ${isWhitelisted ? "text-ok" : "text-muted"}`}>
-                          {isWhitelisted ? "Allowed ✅" : "Disabled"}
+                          {isWhitelisted ? "Allowed" : "Disabled"}
                         </span>
                       </div>
                     </td>

@@ -21,6 +21,7 @@ const { assetPath } = require("./src/config/paths.cjs");
 const brand = require("./src/config/brand.cjs");
 const settings = require("./src/config/settings.cjs");
 const secrets = require("./src/config/secrets.cjs");
+const store = require("./src/db/store.cjs");
 const { PanelSessionStore } = require("./src/panel/session-store.cjs");
 const { getQrCode } = require("./src/utils/storage.cjs");
 const { clientAddress, isDirectLocalRequest } = require("./src/utils/requestOrigin.cjs");
@@ -51,7 +52,7 @@ function isAllowedOrigin(origin, host) {
 // otherwise skips the setup code and could claim an unconfigured panel.
 // The reset endpoints are auth doors of the same shape — code-gated and
 // throttled — so they ride along with login.
-const OPAQUE_ORIGIN_AUTH_PATHS = new Set(["/login", "/reset/request", "/reset/confirm"]);
+const OPAQUE_ORIGIN_AUTH_PATHS = new Set(["/login", "/reset/request", "/reset/confirm", "/signup"]);
 function isAllowedMutationRequest(req) {
   const origin = req.get("origin");
   const host = req.get("host");
@@ -303,16 +304,24 @@ app.get(["/health", "/ping", "/healthz"], (req, res) => {
 });
 
 app.get("/", noStore, (req, res) => {
-  if (!secrets.hasDashboardPassword()) return res.redirect("/setup");
+  if (!secrets.hasDashboardPassword() && store.countSaasUsers() === 0) return res.redirect("/setup");
   if (isPanelSessionValid(req.session)) {
     const dashboardHtmlPath = path.join(assetPath("public"), "dashboard", "index.html");
     if (fs.existsSync(dashboardHtmlPath)) {
       let html = fs.readFileSync(dashboardHtmlPath, "utf8");
       const credits = `<div class="brand-credits" style="display:none"><a href="${app.locals.brand.developerSite}">${app.locals.brand.developer}</a><a href="${app.locals.brand.studioSite}">${app.locals.brand.studio}</a></div>`;
+      const saasUser = req.session.saasUser || {
+        id: "usr_owner",
+        name: "Enterprise Admin",
+        email: "admin@enterprise.local",
+        company: "Acme Corp / Production",
+        role: "Owner",
+        plan: "Enterprise SLA",
+      };
       html = html
         .replace(
           "</head>",
-          `<script>window.__BRAND__ = ${JSON.stringify(app.locals.brand)};</script></head>`,
+          `<script>window.__BRAND__ = ${JSON.stringify(app.locals.brand)}; window.__USER__ = ${JSON.stringify(saasUser)};</script></head>`,
         )
         .replace("</body>", `${credits}</body>`);
       return res.type("html").send(html);
@@ -323,14 +332,12 @@ app.get("/", noStore, (req, res) => {
 });
 
 app.get("/login", noStore, (req, res) => {
-  if (!secrets.hasDashboardPassword()) return res.redirect("/setup");
+  if (!secrets.hasDashboardPassword() && store.countSaasUsers() === 0) return res.redirect("/setup");
   if (isPanelSessionValid(req.session)) return res.redirect("/");
   return res.render("login", { error: null, minLength: secrets.MIN_PASSWORD_LENGTH });
 });
 
 app.post("/login", (req, res, next) => {
-  if (!secrets.hasDashboardPassword()) return res.redirect("/setup");
-
   const peer = clientAddress(req);
   const retryAfter = blockedFor(peer);
   if (retryAfter) {
@@ -341,11 +348,20 @@ app.post("/login", (req, res, next) => {
     });
   }
 
-  if (!secrets.verifyDashboardPassword(req.body?.password)) {
+  const { email, password } = req.body || {};
+  let verifiedUser = null;
+
+  if (email) {
+    verifiedUser = store.verifySaasUserPassword(email, password);
+  }
+
+  const masterValid = secrets.hasDashboardPassword() && secrets.verifyDashboardPassword(password);
+
+  if (!verifiedUser && !masterValid) {
     recordFailure(peer);
     logger.warn({ ip: peer }, "[dashboard] Failed login attempt");
     return res.status(401).render("login", {
-      error: "Incorrect Password",
+      error: "Invalid email or password",
       minLength: secrets.MIN_PASSWORD_LENGTH,
     });
   }
@@ -355,12 +371,43 @@ app.post("/login", (req, res, next) => {
   // A fresh id after login, or the id an attacker planted beforehand still works.
   req.session.regenerate((err) => {
     if (err) return next(err);
-    stampPanelSession(req.session);
+    stampPanelSession(req.session, verifiedUser);
     req.session.save((saveErr) => {
       if (saveErr) return next(saveErr);
       res.redirect(303, "/");
     });
   });
+});
+
+app.get("/signup", noStore, (req, res) => {
+  if (isPanelSessionValid(req.session)) return res.redirect("/");
+  return res.render("signup", { error: null, minLength: secrets.MIN_PASSWORD_LENGTH });
+});
+
+app.post("/signup", (req, res, next) => {
+  const peer = clientAddress(req);
+  const { name, email, password, company } = req.body || {};
+
+  try {
+    const user = store.createSaasUser({ name, email, password, company });
+    if (!secrets.hasDashboardPassword()) {
+      try { secrets.setDashboardPassword(password); } catch {}
+    }
+    clearAttempts(peer);
+    req.session.regenerate((err) => {
+      if (err) return next(err);
+      stampPanelSession(req.session, user);
+      req.session.save((saveErr) => {
+        if (saveErr) return next(saveErr);
+        res.redirect(303, "/");
+      });
+    });
+  } catch (err) {
+    return res.status(400).render("signup", {
+      error: err.message,
+      minLength: secrets.MIN_PASSWORD_LENGTH,
+    });
+  }
 });
 
 // --- Password reset over WhatsApp -----------------------------------------
@@ -402,9 +449,7 @@ app.post("/reset/confirm", (req, res) => {
   return res.json({ ok: true });
 });
 
-// POST, not GET: a link that changes state gets fired by an <img> or by the
-// browser's prefetch.
-app.post("/logout", (req, res, next) => {
+const handleLogout = (req, res, next) => {
   const sid = req.sessionID;
   req.session.destroy((err) => {
     if (err) return next(err);
@@ -414,9 +459,12 @@ app.post("/logout", (req, res, next) => {
       sameSite: "lax",
       path: "/",
     });
-    res.redirect(303, "/");
+    res.redirect(303, "/login");
   });
-});
+};
+
+app.post("/logout", handleLogout);
+app.get("/logout", handleLogout);
 
 app.get("/qr", requireLoginPage, noStore, (req, res) => {
   const qr = getQrCode();

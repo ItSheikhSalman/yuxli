@@ -12,12 +12,12 @@ export interface CardProps extends ComponentPropsWithoutRef<"div"> {
 }
 
 const ACCENT_CLASSES = {
-  blue:   "border-t-brand-blue/60",
-  cyan:   "border-t-brand-cyan/60",
-  purple: "border-t-brand-purple/60",
-  green:  "border-t-ok/60",
-  amber:  "border-t-warn/60",
-  danger: "border-t-danger/60",
+  blue:   "border-t-2 border-t-brand-blue shadow-[0_-4px_16px_rgba(37,99,235,0.25)]",
+  cyan:   "border-t-2 border-t-brand-cyan shadow-[0_-4px_16px_rgba(6,182,212,0.25)]",
+  purple: "border-t-2 border-t-brand-purple shadow-[0_-4px_16px_rgba(168,85,247,0.25)]",
+  green:  "border-t-2 border-t-ok shadow-[0_-4px_16px_rgba(16,185,129,0.25)]",
+  amber:  "border-t-2 border-t-warn shadow-[0_-4px_16px_rgba(245,158,11,0.25)]",
+  danger: "border-t-2 border-t-danger shadow-[0_-4px_16px_rgba(239,68,68,0.25)]",
 } as const;
 
 export const Card = forwardRef<HTMLDivElement, CardProps>(function Card(
@@ -28,11 +28,11 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(function Card(
     <div
       ref={ref}
       className={cn(
-        "rounded-2xl border border-line/70 bg-panel card-shadow",
+        "relative rounded-2xl border border-line/80 bg-panel/90 backdrop-blur-xl card-shadow",
         "transition-all duration-200",
-        padded && "p-4 md:p-5",
-        hoverable && "hover:border-brand-blue/25 hover:-translate-y-0.5 hover:shadow-lg cursor-pointer",
-        accent && `border-t-2 ${ACCENT_CLASSES[accent]}`,
+        padded && "p-4 sm:p-5 md:p-6",
+        hoverable && "hover:border-brand-blue/35 hover:-translate-y-1 hover:shadow-xl hover:shadow-black/40 cursor-pointer",
+        accent && ACCENT_CLASSES[accent],
         className,
       )}
       {...props}
@@ -65,13 +65,15 @@ export function CardHeader({
     >
       <div className="flex min-w-0 items-center gap-3">
         {icon && (
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-cyan/10 text-brand-cyan border border-brand-cyan/20">
+          <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-cyan/15 to-brand-blue/15 text-brand-cyan border border-brand-cyan/25 shadow-sm">
             {icon}
           </div>
         )}
         <div className="min-w-0">
-          <h2 className="truncate text-base font-bold text-text-main md:text-lg">{title}</h2>
-          {description && <p className="mt-0.5 text-xs text-muted">{description}</p>}
+          <h2 className="truncate text-base font-extrabold tracking-tight text-text-main md:text-lg">
+            {title}
+          </h2>
+          {description && <p className="mt-0.5 text-xs text-muted leading-relaxed">{description}</p>}
         </div>
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
@@ -110,7 +112,7 @@ export function Section({
   className?: string;
 }) {
   return (
-    <section className={cn("flex flex-col gap-3", className)}>
+    <section className={cn("flex flex-col gap-3.5", className)}>
       {title && <CardHeader title={title} description={description} actions={actions} />}
       {children}
     </section>
@@ -132,23 +134,26 @@ export function StatCard({
   loading?: boolean;
 }) {
   return (
-    <Card className="group transition-all hover:-translate-y-0.5 hover:border-brand-blue/20">
-      <div className="flex items-start justify-between gap-2">
+    <Card className="group relative overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:border-brand-blue/35 hover:shadow-xl">
+      {/* Background ambient light */}
+      <div className="pointer-events-none absolute -end-6 -top-6 size-24 rounded-full bg-brand-cyan/5 blur-2xl group-hover:bg-brand-cyan/10 transition-all duration-300" />
+      
+      <div className="relative flex items-start justify-between gap-2">
         <span className="line-clamp-2 text-[11px] font-bold uppercase tracking-wider text-muted sm:text-xs">
           {label}
         </span>
         <div
           className={cn(
-            "flex size-10 shrink-0 items-center justify-center rounded-xl border transition-all group-hover:scale-110",
+            "flex size-11 shrink-0 items-center justify-center rounded-xl border transition-all duration-200 group-hover:scale-110 shadow-sm",
             tone,
           )}
         >
           {icon}
         </div>
       </div>
-      <div className="mt-3 font-mono text-2xl font-extrabold tracking-tight text-text-main sm:text-3xl">
+      <div className="relative mt-3.5 font-mono text-2xl font-black tracking-tight text-text-main sm:text-3xl">
         {loading ? (
-          <span className="skeleton inline-block h-8 w-16 rounded" />
+          <span className="skeleton inline-block h-8 w-20 rounded-md" />
         ) : (
           value
         )}

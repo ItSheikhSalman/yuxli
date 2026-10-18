@@ -117,6 +117,17 @@ export const deleteAutoDeleteRule = store.deleteAutoDeleteRule;
 export const incrementAutoDeleteCounter = store.incrementAutoDeleteCounter;
 export const resetAutoDeleteCounter = store.resetAutoDeleteCounter;
 export const insertAutoDeleteLog = store.insertAutoDeleteLog;
-export const listAutoDeleteLog = store.listAutoDeleteLog;
 export const clearAutoDeleteLog = store.clearAutoDeleteLog;
 export const clearAutoDeleteOnUnlink = store.clearAutoDeleteOnUnlink;
+
+// ===== SaaS Multi-User & Anti-Ban =====
+export const createSaasUser = store.createSaasUser;
+export const getSaasUserByEmail = store.getSaasUserByEmail;
+export const getSaasUserById = store.getSaasUserById;
+export const listSaasUsers = store.listSaasUsers;
+export const countSaasUsers = store.countSaasUsers;
+export const verifySaasUserPassword = store.verifySaasUserPassword;
+export const insertAntiBanLog = store.insertAntiBanLog;
+export const listAntiBanLogs = store.listAntiBanLogs;
+export const getAntiBanStats = store.getAntiBanStats;
+

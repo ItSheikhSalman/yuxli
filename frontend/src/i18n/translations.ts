@@ -287,7 +287,7 @@ export const translations = {
     proxyUsername: "اسم المستخدم (اختياري)",
     proxyPassword: "كلمة المرور (اختياري)",
     proxyApplyHint:
-      "⚠️ ملاحظة: عند تعديل إعدادات البروكسي، اضغط على زر إعادة الاتصال في صفحة الاتصال لتطبيق التغييرات.",
+      "ملاحظة: عند تعديل إعدادات البروكسي، اضغط على زر إعادة الاتصال في صفحة الاتصال لتطبيق التغييرات.",
 
     // Storage & Media
     storageTitle: "إدارة البيانات والاحتفاظ بها",
@@ -1123,7 +1123,7 @@ export const translations = {
     proxyPort: "Proxy Port",
     proxyUsername: "Username (Optional)",
     proxyPassword: "Password (Optional)",
-    proxyApplyHint: "⚠️ Note: To apply proxy changes, go to Connection and reconnect WhatsApp.",
+    proxyApplyHint: "Note: To apply proxy changes, go to Connection and reconnect WhatsApp.",
 
     // Storage & Media
     storageTitle: "Data Retention & Storage Limits",

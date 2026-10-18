@@ -11,9 +11,12 @@ import {
   Radio,
   RefreshCw,
   RotateCcw,
+  Shield,
   Smartphone,
+  Sparkles,
   Square,
   Unlink,
+  Wifi,
 } from "lucide-react";
 import * as QRCode from "qrcode";
 import type React from "react";
@@ -40,7 +43,6 @@ function isAndroidCompanionApp() {
   return typeof window !== "undefined" && Boolean((window as { LevixHost?: unknown }).LevixHost);
 }
 
-/** A secondary action that belongs beside a primary action's button. */
 interface SecondaryAction {
   key: string;
   label: string;
@@ -80,10 +82,10 @@ export const ConnectionView: FC<ConnectionViewProps> = ({ status, onRefresh, onS
     isPaused || state === "disconnected" || state === "retry_exhausted"
       ? language === "ar"
         ? "استئناف الجلسة"
-        : "Resume session"
+        : "Resume Session"
       : language === "ar"
         ? "الاتصال"
-        : "Connect";
+        : "Connect Now";
 
   // Generate QR code locally in offline-first mode
   useEffect(() => {
@@ -96,10 +98,10 @@ export const ConnectionView: FC<ConnectionViewProps> = ({ status, onRefresh, onS
         const lightTheme = document.documentElement.getAttribute("data-theme") === "light";
         const dark = (
           lightTheme ? styles.getPropertyValue("--text") : styles.getPropertyValue("--bg")
-        ).trim();
+        ).trim() || "#000000";
         const light = (
           lightTheme ? styles.getPropertyValue("--panel") : styles.getPropertyValue("--text")
-        ).trim();
+        ).trim() || "#ffffff";
         toDataURL(status.qr, {
           width: 280,
           margin: 2,
@@ -158,21 +160,21 @@ export const ConnectionView: FC<ConnectionViewProps> = ({ status, onRefresh, onS
       toast(
         language === "ar"
           ? "يرجى حذف الصفر في البداية وكتابة كود الدولة (مثلاً: 2010... وليس 010...)"
-          : "Drop the leading 0 and include the country code (e.g. 2010... not 010...).",
+          : "Drop the leading 0 and include the country code (e.g. 92300... not 0300...).",
         "error",
       );
       return;
     }
     await handleAction(
       () => api.startSession({ method: "pairing", phone: cleanPhone }),
-      language === "ar" ? "جارٍ طلب رمز الربط من واتساب..." : "Requesting pairing code...",
+      language === "ar" ? "جارٍ طلب رمز الربط من واتساب..." : "Requesting 8-digit pairing code...",
     );
   };
 
   const handleStartQr = async () => {
     await handleAction(
       () => api.startSession({ method: "qr" }),
-      language === "ar" ? "جارٍ بدء الاتصال برمز QR..." : "Starting QR code connection...",
+      language === "ar" ? "جارٍ بدء الاتصال برمز QR..." : "Generating QR code...",
     );
   };
 
@@ -223,23 +225,23 @@ export const ConnectionView: FC<ConnectionViewProps> = ({ status, onRefresh, onS
     icon: <RefreshCw size={16} />,
     onSelect: () => handleAction(api.reconnectSession, t("reconnecting")),
   };
-  /** Restart only exists outside the Android companion app. */
+
   const withRestart = (actions: SecondaryAction[]) =>
     hideRestart ? actions : [...actions, restartAction];
-  /** Unlink + restart for the states that show secondary actions but no reconnect. */
   const pairedSecondary = withRestart(canUnlink ? [unlinkAction] : []);
 
-  /**
-   * The secondary actions of a row, at the end of its primary button: two or
-   * more collapse into one OverflowMenu, a lone one stays an IconButton, and
-   * none renders nothing. A 3-dots button for a single item is noise.
-   */
   const renderSecondary = (actions: SecondaryAction[]): ReactNode => {
     if (actions.length === 0) return null;
     if (actions.length === 1) {
       const only = actions[0];
       return (
-        <IconButton label={only.label} icon={only.icon} onClick={only.onSelect} disabled={acting} />
+        <IconButton
+          label={only.label}
+          icon={only.icon}
+          onClick={only.onSelect}
+          disabled={acting}
+          className="rounded-2xl"
+        />
       );
     }
     return (
@@ -260,64 +262,70 @@ export const ConnectionView: FC<ConnectionViewProps> = ({ status, onRefresh, onS
   };
 
   return (
-    <div className="flex flex-col gap-5 sm:gap-6">
-      {/* Primary Connection Hero Card */}
-      <Card className="flex flex-col gap-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-line">
-          <div className="flex items-center gap-3.5">
+    <div className="flex flex-col gap-6 animate-fade-up">
+      {/* ── Primary Connection Hero Deck ── */}
+      <Card className="relative overflow-hidden border-line/80 p-6 shadow-2xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-line/60">
+          <div className="flex items-center gap-4">
             <div
-              className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border ${
+              className={`flex size-14 shrink-0 items-center justify-center rounded-2xl border-2 transition-all duration-300 shadow-xl ${
                 isConnected
-                  ? "bg-ok/15 text-ok border-ok/30 shadow-sm shadow-ok/20"
+                  ? "bg-ok/15 text-ok border-ok/40 shadow-ok/20"
                   : isWaitingQr
-                    ? "bg-warn/15 text-warn border-warn/30 shadow-sm shadow-warn/20"
+                    ? "bg-warn/15 text-warn border-warn/40 shadow-warn/20"
                     : isStarting || isReconnecting
-                      ? "bg-brand-blue/15 text-brand-blue border-brand-blue/30 shadow-sm shadow-brand-blue/20"
-                      : "bg-info/15 text-info border-info/30 shadow-sm shadow-info/20"
+                      ? "bg-brand-indigo/15 text-brand-indigo border-brand-indigo/40 shadow-brand-indigo/20"
+                      : "bg-faint/15 text-muted border-line/80"
               }`}
             >
-              <Radio size={24} />
+              <Radio size={26} strokeWidth={2.5} className={isConnected ? "animate-pulse" : ""} />
             </div>
+
             <div>
-              <h2 className="text-lg sm:text-xl font-extrabold text-text-main">
-                {t("connection")}
-              </h2>
-              <p className="text-xs sm:text-sm text-muted mt-0.5">
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl sm:text-2xl font-black text-text-main font-display">
+                  WhatsApp Engine Link
+                </h2>
+                <span className="rounded-full bg-brand-indigo/15 border border-brand-indigo/30 px-2 py-0.5 text-[10px] font-bold text-brand-pink">
+                  Baileys Multi-Device
+                </span>
+              </div>
+              <p className="text-xs sm:text-sm text-muted mt-1 leading-relaxed">
                 {isConnected
-                  ? t("sessionActive")
+                  ? "WhatsApp session active & synchronizing in real time."
                   : isPaused
                     ? t("paused")
                     : linked
                       ? language === "ar"
-                        ? "جلسة محفوظة — يمكن استئنافها"
-                        : "Saved session — ready to resume"
-                      : t("sessionOffline")}
+                        ? "جلسة محفوظة — اضغط استئناف لإعادة الاتصال"
+                        : "Saved credentials ready — resume to connect"
+                      : "Pair your WhatsApp account to enable automation"}
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-3 self-start sm:self-auto">
             <span
-              className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold border ${
+              className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-black border transition-all ${
                 isConnected
-                  ? "bg-ok/15 text-ok border-ok/30"
+                  ? "bg-ok/15 text-ok border-ok/35 shadow-sm shadow-ok/10"
                   : isWaitingQr
-                    ? "bg-warn/15 text-warn border-warn/30"
+                    ? "bg-warn/15 text-warn border-warn/35 shadow-sm shadow-warn/10"
                     : isStarting || isReconnecting
-                      ? "bg-brand-blue/15 text-brand-blue border-brand-blue/30 animate-pulse"
-                      : "bg-brand-cyan/15 text-brand-cyan border-brand-cyan/30"
+                      ? "bg-brand-indigo/15 text-brand-indigo border-brand-indigo/35 animate-pulse"
+                      : "bg-faint/15 text-muted border-line/70"
               }`}
             >
-              <span className="pulse-dot" />
-              <span>{t(state as any, state)}</span>
+              <span className="pulse-dot size-2" />
+              <span className="uppercase tracking-wider">{t(state as any, state)}</span>
             </span>
           </div>
         </div>
 
         {/* Retry Alert */}
         {status?.retryInSeconds ? (
-          <div className="rounded-xl border border-warn/30 bg-warn/10 p-3.5 flex items-center gap-3 text-warn">
-            <AlertCircle size={20} className="shrink-0" />
+          <div className="mt-4 rounded-2xl border border-warn/35 bg-warn/10 p-4 flex items-center gap-3.5 text-warn shadow-sm">
+            <AlertCircle size={22} className="shrink-0 animate-pulse" />
             <div className="text-xs sm:text-sm">
               <span className="font-bold">
                 {language === "ar" ? "إعادة الاتصال قريباً" : "Reconnecting soon"}
@@ -332,37 +340,38 @@ export const ConnectionView: FC<ConnectionViewProps> = ({ status, onRefresh, onS
           </div>
         ) : null}
 
-        {/* Connected Info Header when Active */}
+        {/* Connected Phone Number Banner */}
         {isConnected && rawPhone && (
-          <div className="rounded-xl border border-ok/30 bg-ok/10 p-3.5 sm:p-4 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="w-10 h-10 rounded-xl bg-ok/20 text-ok flex items-center justify-center shrink-0">
-                <CheckCircle2 size={20} />
+          <div className="mt-5 rounded-2xl border border-ok/30 bg-ok/10 p-4 sm:p-5 flex items-center justify-between gap-4 shadow-sm">
+            <div className="flex items-center gap-3.5 min-w-0">
+              <div className="size-11 rounded-2xl bg-ok/20 text-ok flex items-center justify-center shrink-0 border border-ok/30">
+                <CheckCircle2 size={22} />
               </div>
               <div className="min-w-0">
-                <div className="text-xs text-muted font-medium">{t("connectedNumber")}</div>
-                <div className="text-sm sm:text-base font-mono font-bold text-text-main" dir="ltr">
+                <div className="text-[11px] font-bold text-muted uppercase tracking-wider">
+                  {t("connectedNumber")}
+                </div>
+                <div className="text-base sm:text-lg font-mono font-black text-text-main" dir="ltr">
                   +{rawPhone}
                 </div>
               </div>
             </div>
-            <StatusPill tone="ok" className="shrink-0">
-              {language === "ar" ? "متصل" : "Online"}
+            <StatusPill tone="ok" dot className="shrink-0 text-xs font-black px-3 py-1">
+              Active Sync
             </StatusPill>
           </div>
         )}
 
-        {/* Action Controls: strictly conditional based on state */}
-        <div>
-          {/* 1. When CONNECTED: Stop beside an overflow holding Reconnect, Restart and Unlink */}
+        {/* Action Controls */}
+        <div className="mt-6">
           {isConnected && (
-            <div className="flex w-full items-center gap-2.5">
+            <div className="flex w-full items-center gap-3">
               <Button
                 variant="danger"
                 icon={<Square size={16} />}
                 onClick={() => handleAction(api.stopSession, t("stop"))}
                 disabled={acting}
-                className="flex-1 sm:flex-none"
+                className="flex-1 sm:flex-none rounded-2xl"
               >
                 {t("stop")}
               </Button>
@@ -370,15 +379,14 @@ export const ConnectionView: FC<ConnectionViewProps> = ({ status, onRefresh, onS
             </div>
           )}
 
-          {/* 2. When STARTING or LINKING or WAITING FOR QR or RECONNECTING: Cancel beside Restart */}
           {(isStarting || isWaitingQr || isReconnecting) && (
-            <div className="flex w-full items-center gap-2.5">
+            <div className="flex w-full items-center gap-3">
               <Button
                 variant="danger"
                 icon={<Square size={16} />}
                 onClick={() => handleAction(api.stopSession, t("stop"))}
                 disabled={acting}
-                className="flex-1 sm:flex-none"
+                className="flex-1 sm:flex-none rounded-2xl"
               >
                 {language === "ar" ? "إلغاء المحاولة" : "Cancel Attempt"}
               </Button>
@@ -386,9 +394,8 @@ export const ConnectionView: FC<ConnectionViewProps> = ({ status, onRefresh, onS
             </div>
           )}
 
-          {/* 3a. Known session (paused / idle / disconnected): resume, never QR or pairing codes */}
           {!isConnected && !isStarting && !isWaitingQr && !isReconnecting && linked && (
-            <div className="flex flex-col gap-3 w-full max-w-xl">
+            <div className="flex flex-col gap-3.5 w-full max-w-xl">
               {isPaused && (
                 <p className="text-xs sm:text-sm text-muted leading-relaxed">
                   {isOnline
@@ -396,17 +403,17 @@ export const ConnectionView: FC<ConnectionViewProps> = ({ status, onRefresh, onS
                       ? "الجلسة محفوظة. اضغط استئناف لإعادة استخدام نفس حساب واتساب."
                       : "This WhatsApp session is saved. Resume to reconnect with the same account."
                     : language === "ar"
-                      ? "الاتصال متوقف بسبب انقطاع الإنترنت. سيُستأنف تلقائياً عند عودة الشبكة، أو اضغط استئناف."
-                      : "Paused while the device is offline. It will resume when the network returns, or tap Resume."}
+                      ? "الاتصال متوقف بسبب انقطاع الإنترنت. سيُستأنف تلقائياً عند عودة الشبكة."
+                      : "Paused while the device is offline. It will resume when the network returns."}
                 </p>
               )}
-              <div className="flex items-center gap-2.5">
+              <div className="flex items-center gap-3">
                 <Button
                   variant="primary"
                   icon={<Radio size={16} />}
                   onClick={() => handleAction(api.startSession, resumeLabel)}
                   disabled={acting}
-                  className="flex-1 sm:flex-none"
+                  className="flex-1 sm:flex-none rounded-2xl"
                 >
                   {resumeLabel}
                 </Button>
@@ -415,86 +422,78 @@ export const ConnectionView: FC<ConnectionViewProps> = ({ status, onRefresh, onS
             </div>
           )}
 
-          {/* 3b. No saved session / logged out: QR or pairing code */}
+          {/* Pairing Choices: Pairing Code vs QR */}
           {!isConnected && !isStarting && !isWaitingQr && !isReconnecting && needsPairing && (
-            <div className="flex flex-col gap-4 w-full">
+            <div className="flex flex-col gap-5 w-full">
               <SegmentedControl
                 aria-label={t("connection")}
                 value={pairingMethod}
                 onChange={setPairingMethod}
-                className="w-full sm:w-fit"
+                className="w-full sm:w-fit rounded-2xl"
                 options={[
                   {
                     value: "pairing",
-                    label: language === "ar" ? "كود الربط الرقمي (الهاتف)" : "Pairing Code (Phone)",
+                    label: language === "ar" ? "كود الربط الرقمي (الهاتف)" : "8-Digit Pairing Code",
                     icon: <Smartphone size={16} />,
                   },
                   {
                     value: "qr",
-                    label: language === "ar" ? "مسح رمز QR" : "QR Code Scan",
+                    label: language === "ar" ? "مسح رمز QR" : "QR Code Scanner",
                     icon: <QrCode size={16} />,
                   },
                 ]}
               />
 
-              {/* Method 1: Phone Pairing Form */}
               {pairingMethod === "pairing" && (
-                <form onSubmit={handleStartPairing} className="flex w-full max-w-xl flex-col gap-3">
+                <form onSubmit={handleStartPairing} className="flex w-full max-w-xl flex-col gap-3.5">
                   <div className="relative">
                     <Phone
-                      size={17}
-                      className="absolute top-1/2 -translate-y-1/2 start-3.5 text-muted pointer-events-none"
+                      size={18}
+                      className="absolute top-1/2 -translate-y-1/2 start-3.5 text-brand-indigo pointer-events-none"
                     />
                     <Input
                       type="tel"
                       value={phoneNumber}
                       onChange={(e) => setPhoneNumber(e.target.value)}
-                      placeholder={
-                        language === "ar" ? "201012345678 (مع كود الدولة)" : "e.g. 201012345678"
-                      }
+                      placeholder="e.g. 923001234567 (with country code)"
                       dir="ltr"
-                      className="ps-10"
+                      className="ps-11 rounded-2xl border-line/80 bg-panel-raised/80 font-mono text-sm"
                     />
                   </div>
-                  <div className="flex items-center gap-2.5">
+                  <div className="flex items-center gap-3">
                     <Button
                       type="submit"
                       variant="primary"
                       icon={<Key size={16} />}
                       disabled={acting}
-                      className="flex-1 whitespace-nowrap sm:flex-none"
+                      className="flex-1 whitespace-nowrap sm:flex-none rounded-2xl"
                     >
-                      {language === "ar" ? "الحصول على كود الربط" : "Get Pairing Code"}
+                      {language === "ar" ? "الحصول على كود الربط" : "Request Pairing Code"}
                     </Button>
                     {renderSecondary(pairedSecondary)}
                   </div>
                   <p className="text-xs text-muted leading-relaxed">
-                    {language === "ar"
-                      ? "💡 أدخل رقم هاتفك مسبوقاً بكود الدولة وبدون 0 في البداية (مثال: 2010... وليس 010...). سيظهر لك كود لإدخاله في واتساب فوراً."
-                      : "💡 Enter your number with country code, no leading zeros (e.g. 2010... not 010...). A code will appear to enter into WhatsApp."}
+                    Enter your WhatsApp phone number with country code (e.g. 92300... or 1415...). You will receive an 8-digit code to type into WhatsApp.
                   </p>
                 </form>
               )}
 
-              {/* Method 2: QR Scan Start */}
               {pairingMethod === "qr" && (
-                <div className="flex w-full max-w-xl flex-col gap-2">
-                  <div className="flex items-center gap-2.5">
+                <div className="flex w-full max-w-xl flex-col gap-3">
+                  <div className="flex items-center gap-3">
                     <Button
                       variant="primary"
                       icon={<QrCode size={18} />}
                       onClick={handleStartQr}
                       disabled={acting}
-                      className="flex-1 whitespace-nowrap sm:flex-none"
+                      className="flex-1 whitespace-nowrap sm:flex-none rounded-2xl"
                     >
-                      {language === "ar" ? "بدء الربط عبر رمز QR" : "Start QR Linking"}
+                      {language === "ar" ? "بدء الربط عبر رمز QR" : "Generate Pairing QR Code"}
                     </Button>
                     {renderSecondary(pairedSecondary)}
                   </div>
-                  <p className="text-xs text-muted">
-                    {language === "ar"
-                      ? "سيتم إنشاء رمز QR لمسحه من هاتف آخر أو من شاشة الحاسوب عبر كاميرا واتساب."
-                      : "Generates a QR code to be scanned using WhatsApp camera on another device or screen."}
+                  <p className="text-xs text-muted leading-relaxed">
+                    Generates a high-contrast QR code to scan with WhatsApp camera under Linked Devices.
                   </p>
                 </div>
               )}
@@ -503,53 +502,43 @@ export const ConnectionView: FC<ConnectionViewProps> = ({ status, onRefresh, onS
         </div>
       </Card>
 
-      {/* Starting / Linking Progress Feedback Card */}
+      {/* ── Starting Progress Card ── */}
       {isStarting && (
-        <Card className="flex flex-col items-center text-center">
-          <div className="w-12 h-12 rounded-2xl bg-brand-blue/15 text-brand-blue flex items-center justify-center mb-4 border border-brand-blue/30">
-            <RefreshCw size={24} className="animate-spin" />
+        <Card className="flex flex-col items-center text-center p-8">
+          <div className="size-14 rounded-2xl bg-brand-indigo/15 text-brand-indigo flex items-center justify-center mb-4 border border-brand-indigo/30 shadow-lg">
+            <RefreshCw size={26} className="animate-spin" />
           </div>
-          <h3 className="text-base sm:text-lg font-bold text-text-main mb-1.5">
-            {state === "linking"
-              ? language === "ar"
-                ? "جارٍ إتمام الربط مع الهاتف..."
-                : "Finishing link handshake..."
-              : language === "ar"
-                ? "جارٍ بدء تشغيل الجلسة..."
-                : "Initializing WhatsApp session..."}
+          <h3 className="text-lg font-black text-text-main font-display mb-1.5">
+            {state === "linking" ? "Finishing handshake..." : "Initializing WhatsApp session..."}
           </h3>
           <p className="text-xs sm:text-sm text-muted max-w-md">
-            {language === "ar"
-              ? "يتم الآن إنشاء مقبس الاتصال، ستظهر بيانات الربط خلال ثوانٍ معدودة."
-              : "Creating connection socket. Pairing details will appear in just a few seconds."}
+            Creating secure multi-device protocol socket. Pairing details will appear in seconds.
           </p>
         </Card>
       )}
 
-      {/* QR Code / Pairing Container */}
+      {/* ── Pairing Code Display Deck ── */}
       {isWaitingQr && (
-        <Card className="mx-auto flex w-full max-w-2xl flex-col items-center text-center">
+        <Card className="mx-auto flex w-full max-w-2xl flex-col items-center text-center p-6 sm:p-8">
           {status?.pairingCode ? (
-            /* 1. Pairing Code Display with Copy Button & Steps */
-            <div className="flex flex-col items-center w-full animate-in fade-in zoom-in-95 duration-300">
-              <div className="w-12 h-12 rounded-2xl bg-brand-cyan/15 text-brand-cyan flex items-center justify-center mb-4 border border-brand-cyan/30">
-                <Smartphone size={26} />
+            <div className="flex flex-col items-center w-full animate-fade-up">
+              <div className="size-14 rounded-2xl bg-brand-indigo/15 text-brand-pink flex items-center justify-center mb-4 border border-brand-indigo/30 shadow-lg">
+                <Smartphone size={28} />
               </div>
-              <h3 className="text-lg sm:text-xl font-bold text-text-main mb-1.5">
-                {language === "ar" ? "كود الربط الرقمي مع واتساب" : "WhatsApp Pairing Code"}
+              <h3 className="text-xl sm:text-2xl font-black text-text-main font-display mb-1.5">
+                WhatsApp 8-Digit Pairing Code
               </h3>
               <p className="text-xs sm:text-sm text-muted max-w-md mb-6">
-                {language === "ar"
-                  ? "أدخل هذا الكود في تطبيق واتساب على هاتفك لتأكيد الربط مباشرة."
-                  : "Enter this code into WhatsApp on your phone to complete pairing."}
+                Enter this code into WhatsApp on your phone to complete pairing instantly.
               </p>
 
-              <div className="rounded-2xl border-2 border-brand-cyan/40 bg-brand-cyan/10 p-5 sm:p-6 w-full max-w-md flex flex-col items-center gap-4 shadow-lg shadow-brand-cyan/10">
-                <div className="text-xs font-bold text-brand-cyan uppercase tracking-wider">
-                  {language === "ar" ? "كود الربط المكون من 8 خانات" : "8-Digit Pairing Code"}
-                </div>
+              {/* Glowing 8-Digit Box */}
+              <div className="rounded-3xl border-2 border-brand-indigo/40 bg-gradient-to-br from-brand-indigo/15 via-brand-purple/10 to-brand-pink/10 p-6 sm:p-8 w-full max-w-md flex flex-col items-center gap-5 shadow-2xl shadow-brand-indigo/20">
+                <span className="text-xs font-black uppercase tracking-widest text-brand-pink">
+                  Live Pairing Code
+                </span>
                 <div
-                  className="text-3xl sm:text-4xl font-mono font-extrabold tracking-widest text-brand-cyan select-all"
+                  className="text-3xl sm:text-4xl font-mono font-black tracking-widest text-text-main select-all drop-shadow"
                   dir="ltr"
                 >
                   {status.pairingCode.length === 8
@@ -560,125 +549,99 @@ export const ConnectionView: FC<ConnectionViewProps> = ({ status, onRefresh, onS
                   variant="primary"
                   icon={copiedCode ? <Check size={18} /> : <Copy size={18} />}
                   onClick={copyPairingCode}
+                  className="rounded-2xl px-6"
                 >
-                  {copiedCode
-                    ? language === "ar"
-                      ? "تم النسخ بنجاح!"
-                      : "Copied!"
-                    : language === "ar"
-                      ? "نسخ كود الربط"
-                      : "Copy Code"}
+                  {copiedCode ? "Code Copied!" : "Copy Code"}
                 </Button>
               </div>
 
-              {/* Instructions Box */}
-              <div className="mt-6 p-4 rounded-xl border border-line bg-panel-raised text-start w-full max-w-md">
-                <div className="text-xs font-bold text-text-main mb-3">
-                  {language === "ar" ? "خطوات الإدخال في واتساب:" : "Steps to enter in WhatsApp:"}
+              {/* Step-by-Step Guide */}
+              <div className="mt-6 p-5 rounded-2xl border border-line/70 bg-panel-raised/60 text-start w-full max-w-md">
+                <div className="text-xs font-black uppercase tracking-wider text-text-main mb-3 font-display">
+                  How to link on your phone:
                 </div>
-                <ol className="text-xs text-muted space-y-2 list-decimal list-inside leading-relaxed">
-                  <li>
-                    {language === "ar"
-                      ? "افتح تطبيق واتساب على هاتفك."
-                      : "Open WhatsApp on your phone."}
-                  </li>
-                  <li>
-                    {language === "ar"
-                      ? "اذهب إلى الإعدادات > الأجهزة المرتبطة > ربط جهاز."
-                      : "Go to Settings > Linked Devices > Link a Device."}
-                  </li>
-                  <li>
-                    <strong className="text-text-main">
-                      {language === "ar"
-                        ? "اضغط على «الربط باستخدام رقم الهاتف بدلاً من ذلك» أسفل الشاشة."
-                        : "Tap 'Link with phone number instead' at bottom of screen."}
-                    </strong>
-                  </li>
-                  <li>
-                    {language === "ar"
-                      ? "اكتب هذا الكود وسيتم ربط البوت مباشرة!"
-                      : "Enter the code above to connect immediately!"}
-                  </li>
+                <ol className="text-xs text-muted space-y-2.5 list-decimal list-inside leading-relaxed font-medium">
+                  <li>Open <strong>WhatsApp</strong> on your phone.</li>
+                  <li>Tap <strong>Settings → Linked Devices → Link a Device</strong>.</li>
+                  <li>Tap <strong className="text-brand-pink">«Link with phone number instead»</strong> at the bottom.</li>
+                  <li>Enter the 8-digit code shown above to connect.</li>
                 </ol>
               </div>
             </div>
           ) : qrDataUrl ? (
-            /* 2. QR Code Display with Switch to Phone Option */
-            <div className="flex flex-col items-center w-full">
-              <div className="w-12 h-12 rounded-2xl bg-brand-cyan/15 text-brand-cyan flex items-center justify-center mb-4 border border-brand-cyan/30">
-                <QrCode size={26} />
+            /* Holographic QR Scanner Frame */
+            <div className="flex flex-col items-center w-full animate-fade-up">
+              <div className="size-14 rounded-2xl bg-brand-cyan/15 text-brand-cyan flex items-center justify-center mb-4 border border-brand-cyan/30 shadow-lg">
+                <QrCode size={28} />
               </div>
-              <h3 className="text-lg font-bold text-text-main mb-1.5">{t("waiting_for_qr")}</h3>
+              <h3 className="text-xl font-black text-text-main font-display mb-1.5">
+                Scan Holographic QR Code
+              </h3>
               <p className="text-xs sm:text-sm text-muted max-w-md mb-6">
-                {language === "ar"
-                  ? "افتح واتساب على هاتفك، اذهب إلى الأجهزة المرتبطة، ثم امسح هذا الرمز للربط."
-                  : "Open WhatsApp on your phone, go to Linked Devices, and scan this code to link."}
+                Open WhatsApp → Linked Devices → Scan this code with your phone camera.
               </p>
 
-              <div className="p-3 sm:p-4 bg-panel rounded-2xl shadow-xl border border-line animate-in fade-in zoom-in-95 duration-300">
+              {/* Holographic scanner frame */}
+              <div className="relative p-4 sm:p-5 bg-panel-raised rounded-3xl shadow-2xl border border-line/80">
+                {/* Corner Crosshairs */}
+                <div className="absolute top-2 left-2 size-4 border-t-2 border-l-2 border-brand-cyan rounded-tl-md" />
+                <div className="absolute top-2 right-2 size-4 border-t-2 border-r-2 border-brand-cyan rounded-tr-md" />
+                <div className="absolute bottom-2 left-2 size-4 border-b-2 border-l-2 border-brand-cyan rounded-bl-md" />
+                <div className="absolute bottom-2 right-2 size-4 border-b-2 border-r-2 border-brand-cyan rounded-br-md" />
+
                 <img
                   src={qrDataUrl}
                   alt="WhatsApp QR Code"
-                  className="w-56 h-56 sm:w-64 sm:h-64 block rounded-lg"
+                  className="w-56 h-56 sm:w-64 sm:h-64 block rounded-2xl shadow-inner"
                 />
               </div>
 
-              {/* Helper for users on mobile who can't scan their own screen */}
-              <div className="mt-6 pt-5 border-t border-line w-full max-w-md flex flex-col items-center gap-2.5">
+              <div className="mt-6 pt-5 border-t border-line/60 w-full max-w-md flex flex-col items-center gap-2.5">
                 <p className="text-xs text-muted text-center">
-                  {language === "ar"
-                    ? "هل تستخدم التطبيق من نفس الهاتف ولا تستطيع مسح الرمز؟"
-                    : "Using the app on the same phone and can't scan?"}
+                  Using this phone directly and cannot scan your own screen?
                 </p>
                 <Button
                   variant="secondary"
                   icon={<Smartphone size={16} />}
                   onClick={handleSwitchToPhone}
                   disabled={acting}
-                  className="w-full"
+                  className="w-full rounded-2xl"
                 >
-                  {language === "ar"
-                    ? "الربط برقم الهاتف (كود الربط الرقمي) بدلاً من QR"
-                    : "Link with Phone Pairing Code Instead"}
+                  Switch to Phone Pairing Code
                 </Button>
               </div>
             </div>
           ) : (
-            /* 3. Generating / Waiting Spinner */
-            <div className="flex flex-col items-center gap-3 py-8">
-              <Spinner className="size-8" />
-              <span className="text-xs sm:text-sm font-semibold text-muted animate-pulse">
-                {language === "ar"
-                  ? "جارٍ تجهيز بيانات الربط من واتساب..."
-                  : "Preparing pairing details from WhatsApp..."}
+            <div className="flex flex-col items-center gap-3 py-10">
+              <Spinner className="size-9" />
+              <span className="text-xs sm:text-sm font-bold text-muted animate-pulse">
+                Generating secure pairing handshake...
               </span>
             </div>
           )}
         </Card>
       )}
 
-      {/* Confirm Unlink Modal */}
+      {/* Unlink Modal */}
       <Dialog
         isOpen={showUnlinkModal}
         onClose={() => setShowUnlinkModal(false)}
         title={t("unlink")}
         footer={
           <>
-            <Button variant="secondary" onClick={() => setShowUnlinkModal(false)}>
+            <Button variant="secondary" onClick={() => setShowUnlinkModal(false)} className="rounded-xl">
               {t("cancel")}
             </Button>
-            <Button variant="danger" onClick={confirmUnlink}>
+            <Button variant="danger" onClick={confirmUnlink} className="rounded-xl">
               {t("unlink")}
             </Button>
           </>
         }
       >
         <p className="text-xs sm:text-sm text-text-main leading-relaxed">
-          {language === "ar"
-            ? "هل أنت متأكد من رغبتك في إلغاء ربط جلسة واتساب الحالية؟ ستحتاج إلى مسح رمز QR جديد أو إدخال كود ربط لإعادة ربط الحساب."
-            : "Are you sure you want to unlink this WhatsApp session? You will need to scan a new QR code or enter a pairing code to reconnect."}
+          Are you sure you want to unlink this WhatsApp session? You will need to pair again to reconnect the bot.
         </p>
-        <p className="text-xs sm:text-sm text-muted leading-relaxed mt-2">
+        <p className="text-xs sm:text-sm text-muted leading-relaxed mt-2.5">
           {t("unlinkStickersWarning")}
         </p>
       </Dialog>

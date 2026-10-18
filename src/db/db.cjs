@@ -619,6 +619,33 @@ const MIGRATIONS = [
       CREATE INDEX idx_auto_delete_log_rule ON auto_delete_log (rule_id, created_at);
     `);
   },
+  // v9 — SaaS multi-user registration & Anti-Ban protection engine.
+  (database) => {
+    database.exec(`
+      CREATE TABLE IF NOT EXISTS saas_users (
+        id            TEXT PRIMARY KEY,
+        email         TEXT UNIQUE NOT NULL,
+        name          TEXT NOT NULL,
+        password_hash TEXT NOT NULL,
+        salt          TEXT NOT NULL,
+        company       TEXT,
+        role          TEXT NOT NULL DEFAULT 'owner',
+        plan          TEXT NOT NULL DEFAULT 'Enterprise Pro',
+        created_at    INTEGER NOT NULL,
+        last_login    INTEGER
+      );
+      CREATE INDEX IF NOT EXISTS idx_saas_users_email ON saas_users (email);
+
+      CREATE TABLE IF NOT EXISTS antiban_logs (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        action      TEXT NOT NULL,
+        details     TEXT,
+        risk_score  INTEGER NOT NULL DEFAULT 5,
+        created_at  INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_antiban_logs_created ON antiban_logs (created_at);
+    `);
+  },
 ];
 
 function migrate(database, migrations = MIGRATIONS) {

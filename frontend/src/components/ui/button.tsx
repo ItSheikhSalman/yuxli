@@ -6,28 +6,28 @@ export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "succ
 export type ButtonSize = "sm" | "md" | "lg";
 
 export const buttonVariants = {
-  base: "inline-flex shrink-0 items-center justify-center gap-2 font-semibold transition-all duration-150 select-none outline-none focus-visible:ring-2 focus-visible:ring-brand-blue/50 focus-visible:ring-offset-1 focus-visible:ring-offset-panel disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.97]",
+  base: "relative inline-flex shrink-0 items-center justify-center gap-2 font-bold tracking-tight transition-all duration-150 select-none outline-none focus-visible:ring-2 focus-visible:ring-brand-cyan/60 focus-visible:ring-offset-2 focus-visible:ring-offset-panel disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.97] cursor-pointer",
   variant: {
     primary:
-      "bg-gradient-to-r from-brand-blue to-brand-cyan text-white shadow-md hover:shadow-lg hover:opacity-90",
+      "bg-gradient-to-r from-brand-blue via-indigo-600 to-brand-cyan text-white shadow-md shadow-brand-blue/25 hover:shadow-lg hover:shadow-brand-blue/35 hover:brightness-110 border border-white/15",
     secondary:
-      "border border-line bg-panel-raised text-text-main hover:bg-panel-hover hover:border-line",
+      "border border-line/80 bg-panel-raised/90 backdrop-blur-md text-text-main hover:bg-panel-hover hover:border-brand-blue/30 shadow-sm",
     ghost:
-      "text-muted hover:bg-panel-hover/70 hover:text-text-main",
+      "text-muted hover:bg-panel-hover/80 hover:text-text-main",
     danger:
-      "bg-danger text-white shadow-md shadow-danger/20 hover:bg-danger/85 hover:shadow-danger/30",
+      "bg-gradient-to-r from-danger to-rose-600 text-white shadow-md shadow-danger/25 hover:shadow-lg hover:shadow-danger/35 hover:brightness-110 border border-white/10",
     success:
-      "bg-ok text-white shadow-md shadow-ok/20 hover:bg-ok/85",
+      "bg-gradient-to-r from-ok to-teal-500 text-white shadow-md shadow-ok/25 hover:shadow-lg hover:shadow-ok/35 hover:brightness-110 border border-white/10",
   },
   size: {
-    sm: "h-9 min-h-9 rounded-lg px-3 text-xs",
-    md: "h-10 min-h-10 rounded-xl px-4 text-sm",
-    lg: "h-11 min-h-11 rounded-xl px-5 text-sm",
+    sm: "h-9 min-h-9 rounded-xl px-3.5 text-xs font-semibold",
+    md: "h-10 min-h-10 rounded-xl px-4 text-sm font-bold",
+    lg: "h-11 min-h-11 rounded-2xl px-5 text-sm font-bold",
   },
   icon: {
-    sm: "size-9 min-h-9 min-w-9 rounded-lg p-0",
+    sm: "size-9 min-h-9 min-w-9 rounded-xl p-0",
     md: "size-10 min-h-10 min-w-10 rounded-xl p-0",
-    lg: "size-11 min-h-11 min-w-11 rounded-xl p-0",
+    lg: "size-11 min-h-11 min-w-11 rounded-2xl p-0",
   },
 } as const;
 
@@ -73,7 +73,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
         />
       ) : (
         icon && (
-          <span aria-hidden className="shrink-0">
+          <span aria-hidden className="shrink-0 flex items-center justify-center">
             {icon}
           </span>
         )
@@ -124,7 +124,7 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
         buttonVariants.base,
         buttonVariants.variant[variant],
         buttonVariants.icon[size],
-        pressed && "border-brand-blue/40 bg-brand-blue/15 text-brand-blue",
+        pressed && "border-brand-blue/50 bg-brand-blue/20 text-brand-cyan shadow-sm",
         className,
       )}
       {...props}
@@ -135,7 +135,7 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
           className="size-4 rounded-full border-2 border-current border-t-transparent animate-spin"
         />
       ) : (
-        <span aria-hidden className="shrink-0">
+        <span aria-hidden className="shrink-0 flex items-center justify-center">
           {glyph}
         </span>
       )}

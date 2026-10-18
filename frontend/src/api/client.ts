@@ -499,4 +499,54 @@ export const api = {
     api.post<{ success: boolean; user: any; owners: any[] }>("/permissions/owners", { identifier }),
   removeOwner: (id: string) =>
     api.delete<{ success: boolean; owners: any[] }>(`/permissions/owners/${encodeURIComponent(id)}`),
+
+  // SaaS Enterprise User & Anti-Ban Protection Suite
+  getCurrentUser: () =>
+    api.get<{
+      success: boolean;
+      user: {
+        id: string;
+        name: string;
+        email: string;
+        company: string;
+        role: string;
+        plan: string;
+      };
+    }>("/user/me"),
+  getAntiBan: () =>
+    api.get<{
+      success: boolean;
+      data: {
+        healthScore: number;
+        riskLevel: string;
+        protectionLevel: string;
+        minDelay: number;
+        maxDelay: number;
+        typingPresence: boolean;
+        warmupMode: boolean;
+        jitterEnabled: boolean;
+        rateLimitPerMin: number;
+        messagesToday: number;
+        totalProtected: number;
+        warmupDay: number;
+        features: Array<{ id: string; name: string; enabled: boolean; status: string }>;
+        logs: Array<{
+          id: number;
+          jid: string;
+          action: string;
+          delay_ms: number;
+          details: string;
+          created_at: number;
+        }>;
+      };
+    }>("/antiban"),
+  updateAntiBan: (body: {
+    protectionLevel?: string;
+    minDelay?: number;
+    maxDelay?: number;
+    typingPresence?: boolean;
+    warmupMode?: boolean;
+    jitterEnabled?: boolean;
+  }) => api.post<{ success: boolean; message: string }>("/antiban", body),
 };
+

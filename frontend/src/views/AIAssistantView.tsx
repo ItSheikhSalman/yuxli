@@ -15,6 +15,9 @@ import {
   Save,
   Sparkles,
   Volume2,
+  Paperclip,
+  Wrench,
+  CornerDownLeft,
 } from "lucide-react";
 import type React from "react";
 import { useEffect, useState } from "react";
@@ -864,7 +867,7 @@ export const AIAssistantView: React.FC = () => {
                         {m.displayName && m.displayName !== m.id
                           ? `${m.displayName} (${m.id})`
                           : m.id}
-                        {m.recommended ? " ★" : ""}
+                        {m.recommended ? " (Recommended)" : ""}
                       </option>
                     ))}
                   </optgroup>
@@ -1221,9 +1224,24 @@ export const AIAssistantView: React.FC = () => {
                   {m.kind === "text" && (
                     <p className="whitespace-pre-wrap break-words leading-relaxed">{m.text}</p>
                   )}
-                  {m.kind === "media" && <span>📎 {m.mimeType || t("convMedia")}</span>}
-                  {m.kind === "tool" && <span>⚙️ {m.name}</span>}
-                  {m.kind === "toolResult" && <span>↩️ {m.name}</span>}
+                  {m.kind === "media" && (
+                    <span className="inline-flex items-center gap-1.5">
+                      <Paperclip size={14} />
+                      {m.mimeType || t("convMedia")}
+                    </span>
+                  )}
+                  {m.kind === "tool" && (
+                    <span className="inline-flex items-center gap-1.5">
+                      <Wrench size={14} />
+                      {m.name}
+                    </span>
+                  )}
+                  {m.kind === "toolResult" && (
+                    <span className="inline-flex items-center gap-1.5">
+                      <CornerDownLeft size={14} />
+                      {m.name}
+                    </span>
+                  )}
                 </div>
               ))}
             </div>

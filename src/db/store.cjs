@@ -1829,6 +1829,113 @@ function clearAutoDeleteOnUnlink() {
   invalidateAutoDeleteRuleCache();
 }
 
+// ===================================================================
+// --- SaaS Multi-User Authentication & Anti-Ban Telemetry ---
+// ===================================================================
+
+function hashSaasPassword(plain, salt = crypto.randomBytes(16)) {
+  const hash = crypto.scryptSync(String(plain), salt, 64);
+  return { salt: salt.toString("hex"), hash: hash.toString("hex") };
+}
+
+function createSaasUser({ name, email, password, company, role = "owner", plan = "Enterprise Pro" }) {
+  const cleanEmail = String(email || "").trim().toLowerCase();
+  const cleanName = String(name || "").trim();
+  const cleanCompany = String(company || "").trim() || "My Workspace";
+
+  if (!cleanEmail || !cleanName || !password) {
+    throw new Error("Name, email and password are required");
+  }
+  if (password.length < 8) {
+    throw new Error("Password must be at least 8 characters");
+  }
+
+  const existing = q("SELECT id FROM saas_users WHERE email = ?").get(cleanEmail);
+  if (existing) {
+    throw new Error("An account with this email already exists");
+  }
+
+  const id = "usr_" + crypto.randomBytes(8).toString("hex");
+  const { salt, hash } = hashSaasPassword(password);
+  const now = Date.now();
+
+  q(`INSERT INTO saas_users (id, email, name, password_hash, salt, company, role, plan, created_at, last_login)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+    id,
+    cleanEmail,
+    cleanName,
+    hash,
+    salt,
+    cleanCompany,
+    role,
+    plan,
+    now,
+    now
+  );
+
+  return { id, email: cleanEmail, name: cleanName, company: cleanCompany, role, plan };
+}
+
+function getSaasUserByEmail(email) {
+  if (!email) return null;
+  return q("SELECT id, email, name, company, role, plan, created_at, last_login FROM saas_users WHERE email = ?").get(String(email).trim().toLowerCase()) || null;
+}
+
+function getSaasUserById(id) {
+  if (!id) return null;
+  return q("SELECT id, email, name, company, role, plan, created_at, last_login FROM saas_users WHERE id = ?").get(id) || null;
+}
+
+function listSaasUsers() {
+  return q("SELECT id, email, name, company, role, plan, created_at, last_login FROM saas_users ORDER BY created_at ASC").all();
+}
+
+function countSaasUsers() {
+  return q("SELECT COUNT(*) AS count FROM saas_users").get().count || 0;
+}
+
+function verifySaasUserPassword(email, candidate) {
+  if (!email || !candidate) return null;
+  const user = q("SELECT * FROM saas_users WHERE email = ?").get(String(email).trim().toLowerCase());
+  if (!user || !user.password_hash || !user.salt) return null;
+
+  const expected = Buffer.from(user.password_hash, "hex");
+  const actual = crypto.scryptSync(String(candidate), Buffer.from(user.salt, "hex"), expected.length);
+  if (crypto.timingSafeEqual(expected, actual)) {
+    q("UPDATE saas_users SET last_login = ? WHERE id = ?").run(Date.now(), user.id);
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      company: user.company,
+      role: user.role,
+      plan: user.plan
+    };
+  }
+  return null;
+}
+
+function insertAntiBanLog(action, details = "", riskScore = 5) {
+  q("INSERT INTO antiban_logs (action, details, risk_score, created_at) VALUES (?, ?, ?, ?)").run(
+    action,
+    String(details),
+    Number(riskScore) || 5,
+    Date.now()
+  );
+}
+
+function listAntiBanLogs(limit = 50) {
+  return q("SELECT * FROM antiban_logs ORDER BY created_at DESC LIMIT ?").all(Number(limit) || 50);
+}
+
+function getAntiBanStats() {
+  const count = q("SELECT COUNT(*) AS count FROM antiban_logs").get().count || 0;
+  return {
+    totalEvents: count,
+    recentLogs: q("SELECT * FROM antiban_logs ORDER BY created_at DESC LIMIT 10").all()
+  };
+}
+
 module.exports = {
   // Lifecycle
   initStore,
@@ -1979,4 +2086,14 @@ module.exports = {
   capAutoDeleteLog,
   clearAutoDeleteOnUnlink,
   invalidateAutoDeleteRuleCache,
+  // SaaS Multi-User & Anti-Ban
+  createSaasUser,
+  getSaasUserByEmail,
+  getSaasUserById,
+  listSaasUsers,
+  countSaasUsers,
+  verifySaasUserPassword,
+  insertAntiBanLog,
+  listAntiBanLogs,
+  getAntiBanStats,
 };

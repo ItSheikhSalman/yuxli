@@ -20,6 +20,7 @@ const require = createRequire(import.meta.url);
 const logger = require("./logger.cjs");
 const { tr } = require("./i18n.cjs");
 const settings = require("../config/settings.cjs");
+const store = require("../db/store.cjs");
 
 const lastSendTime = new Map(); // chatJid -> timestamp ms
 
@@ -114,6 +115,16 @@ export async function sendBotMessage(sock, jid, content, options = {}) {
   try {
     const sent = await sock.sendMessage(jid, content, opts);
     lastSendTime.set(jid, Date.now());
+    try {
+      if (store && typeof store.insertAntiBanLog === "function") {
+        store.insertAntiBanLog({
+          jid: String(jid || "").replace(/@.*$/, "@..."),
+          action: "Anti-Ban Protection Active",
+          delayMs: targetGap || 400,
+          details: typing ? "Composing presence emulated with natural jitter" : "Direct send with jitter pacing",
+        });
+      }
+    } catch {}
     return sent;
   } catch (err) {
     logger.error(

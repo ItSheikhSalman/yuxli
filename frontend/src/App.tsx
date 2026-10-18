@@ -14,15 +14,16 @@ import { CommandsView } from "./views/CommandsView";
 import { ConnectionView } from "./views/ConnectionView";
 import { GroupsView } from "./views/GroupsView";
 import { LogsView } from "./views/LogsView";
-// Views
 import { OverviewView } from "./views/OverviewView";
 import { SchedulesView } from "./views/SchedulesView";
 import { SettingsView } from "./views/SettingsView";
 import { StickerStudioView } from "./views/StickerStudioView";
+import { AntiBanShieldView } from "./views/AntiBanShieldView";
 
 const VALID_VIEWS: ViewTab[] = [
   "overview",
   "connection",
+  "antiban",
   "commands",
   "ai",
   "groups",
@@ -43,7 +44,6 @@ const MainLayout: React.FC = () => {
   const { toast } = useToast();
 
   const [currentView, setCurrentView] = useState<ViewTab>(viewFromHash);
-
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Realtime Socket listener
@@ -127,6 +127,7 @@ const MainLayout: React.FC = () => {
   const viewTitles: Record<ViewTab, string> = {
     overview: t("overview"),
     connection: t("connection"),
+    antiban: "Anti-Ban Shield",
     commands: t("commands"),
     ai: t("ai"),
     groups: t("groups"),
@@ -138,7 +139,12 @@ const MainLayout: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen min-h-[100dvh] flex bg-bg text-text-main bg-ambient-glow overflow-x-clip relative">
+    <div className="min-h-screen min-h-[100dvh] flex bg-bg text-text-main bg-ambient-glow cyber-grid overflow-x-clip relative">
+      {/* Ambient background light orbs */}
+      <div className="pointer-events-none fixed -top-40 -left-40 size-96 rounded-full bg-brand-indigo/15 blur-[120px]" />
+      <div className="pointer-events-none fixed top-1/3 -right-40 size-96 rounded-full bg-brand-pink/10 blur-[140px]" />
+      <div className="pointer-events-none fixed -bottom-40 left-1/3 size-96 rounded-full bg-brand-purple/10 blur-[130px]" />
+
       <Sidebar
         currentView={currentView}
         onSelectView={handleSelectView}
@@ -146,7 +152,7 @@ const MainLayout: React.FC = () => {
         onCloseMobile={() => setMobileMenuOpen(false)}
       />
 
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 relative z-10">
         <Header
           onToggleMobileMenu={() => setMobileMenuOpen((prev) => !prev)}
           title={viewTitles[currentView] || "Dashboard"}
@@ -164,6 +170,7 @@ const MainLayout: React.FC = () => {
               onStatusUpdate={(s) => setInitialStatus((prev) => ({ ...(prev || {}), ...s }))}
             />
           )}
+          {currentView === "antiban" && <AntiBanShieldView />}
           {currentView === "ai" && <AIAssistantView />}
           {currentView === "commands" && <CommandsView />}
           {currentView === "schedules" && (

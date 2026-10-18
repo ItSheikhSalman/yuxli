@@ -535,28 +535,28 @@ export const SettingsView: React.FC = () => {
                   onClick={() => { delayForm.setField("min", 0); delayForm.setField("max", 0); }}
                   className="rounded-lg border border-line bg-panel-raised/80 px-2.5 py-1 text-xs font-medium text-text-main transition hover:bg-panel-hover"
                 >
-                  ⚡ Instant (0s)
+                  Instant (0s)
                 </button>
                 <button
                   type="button"
                   onClick={() => { delayForm.setField("min", 1000); delayForm.setField("max", 2500); }}
                   className="rounded-lg border border-line bg-panel-raised/80 px-2.5 py-1 text-xs font-medium text-text-main transition hover:bg-panel-hover"
                 >
-                  🕒 Human (1-2s)
+                  Human (1-2s)
                 </button>
                 <button
                   type="button"
                   onClick={() => { delayForm.setField("min", 4000); delayForm.setField("max", 7000); }}
                   className="rounded-lg border border-line bg-panel-raised/80 px-2.5 py-1 text-xs font-medium text-text-main transition hover:bg-panel-hover"
                 >
-                  🐢 Late Reply (4-7s)
+                  Late Reply (4-7s)
                 </button>
                 <button
                   type="button"
                   onClick={() => { delayForm.setField("min", 10000); delayForm.setField("max", 15000); }}
                   className="rounded-lg border border-line bg-panel-raised/80 px-2.5 py-1 text-xs font-medium text-text-main transition hover:bg-panel-hover"
                 >
-                  ⏳ Extra Late (10-15s)
+                  Extended (10-15s)
                 </button>
               </div>
 
