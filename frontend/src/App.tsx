@@ -19,11 +19,13 @@ import { SchedulesView } from "./views/SchedulesView";
 import { SettingsView } from "./views/SettingsView";
 import { StickerStudioView } from "./views/StickerStudioView";
 import { AntiBanShieldView } from "./views/AntiBanShieldView";
+import { PlansPricingView } from "./views/PlansPricingView";
 
 const VALID_VIEWS: ViewTab[] = [
   "overview",
   "connection",
   "antiban",
+  "plans",
   "commands",
   "ai",
   "groups",
@@ -128,6 +130,7 @@ const MainLayout: React.FC = () => {
     overview: t("overview"),
     connection: t("connection"),
     antiban: "Anti-Ban Shield",
+    plans: "Plans & Pricing",
     commands: t("commands"),
     ai: t("ai"),
     groups: t("groups"),
@@ -139,7 +142,7 @@ const MainLayout: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen min-h-[100dvh] flex bg-bg text-text-main bg-ambient-glow cyber-grid overflow-x-clip relative">
+    <div className="h-screen max-h-screen flex bg-bg text-text-main bg-ambient-glow overflow-hidden relative">
       {/* Ambient background light orbs */}
       <div className="pointer-events-none fixed -top-40 -left-40 size-96 rounded-full bg-brand-indigo/15 blur-[120px]" />
       <div className="pointer-events-none fixed top-1/3 -right-40 size-96 rounded-full bg-brand-pink/10 blur-[140px]" />
@@ -152,35 +155,41 @@ const MainLayout: React.FC = () => {
         onCloseMobile={() => setMobileMenuOpen(false)}
       />
 
-      <div className="flex-1 flex flex-col min-w-0 relative z-10">
+      <div className="flex-1 flex flex-col h-full min-w-0 overflow-hidden relative z-10">
         <Header
           onToggleMobileMenu={() => setMobileMenuOpen((prev) => !prev)}
           title={viewTitles[currentView] || "Dashboard"}
           status={activeStatus}
+          onNavigate={handleSelectView}
         />
 
-        <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
-          {currentView === "overview" && (
-            <OverviewView status={activeStatus} onNavigate={handleSelectView} />
-          )}
-          {currentView === "connection" && (
-            <ConnectionView
-              status={activeStatus}
-              onRefresh={refreshStatus}
-              onStatusUpdate={(s) => setInitialStatus((prev) => ({ ...(prev || {}), ...s }))}
-            />
-          )}
-          {currentView === "antiban" && <AntiBanShieldView />}
-          {currentView === "ai" && <AIAssistantView />}
-          {currentView === "commands" && <CommandsView />}
-          {currentView === "schedules" && (
-            <SchedulesView isConnected={isConnected} onNavigate={handleSelectView} />
-          )}
-          {currentView === "groups" && <GroupsView />}
-          {currentView === "autodelete" && <AutoDeleteView />}
-          {currentView === "settings" && <SettingsView />}
-          {currentView === "stickers" && <StickerStudioView isConnected={isConnected} />}
-          {currentView === "logs" && <LogsView socket={socket} />}
+        <main className="flex-1 overflow-y-auto w-full p-4 sm:p-6 lg:p-8">
+          <div className="max-w-7xl mx-auto space-y-6">
+            {currentView === "overview" && (
+              <OverviewView status={activeStatus} onNavigate={handleSelectView} />
+            )}
+            {currentView === "connection" && (
+              <ConnectionView
+                status={activeStatus}
+                onRefresh={refreshStatus}
+                onStatusUpdate={(s) => setInitialStatus((prev) => ({ ...(prev || {}), ...s }))}
+              />
+            )}
+            {currentView === "antiban" && <AntiBanShieldView />}
+            {currentView === "plans" && (
+              <PlansPricingView onUserPlanUpdated={() => refreshStatus()} />
+            )}
+            {currentView === "ai" && <AIAssistantView />}
+            {currentView === "commands" && <CommandsView />}
+            {currentView === "schedules" && (
+              <SchedulesView isConnected={isConnected} onNavigate={handleSelectView} />
+            )}
+            {currentView === "groups" && <GroupsView />}
+            {currentView === "autodelete" && <AutoDeleteView />}
+            {currentView === "settings" && <SettingsView />}
+            {currentView === "stickers" && <StickerStudioView isConnected={isConnected} />}
+            {currentView === "logs" && <LogsView socket={socket} />}
+          </div>
         </main>
       </div>
     </div>

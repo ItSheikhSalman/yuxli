@@ -513,6 +513,29 @@ export const api = {
         plan: string;
       };
     }>("/user/me"),
+  getPlans: () =>
+    api.get<{
+      success: boolean;
+      plans: Array<{
+        id: string;
+        name: string;
+        tagline: string;
+        priceMonthly: number;
+        priceAnnual: number;
+        currency: string;
+        badge: string | null;
+        recommended?: boolean;
+        limits: {
+          numbers: string | number;
+          messagesPerDay: string | number;
+          aiTokens: string;
+          antiBanLevel: string;
+        };
+        features: string[];
+      }>;
+    }>("/billing/plans"),
+  updatePlan: (plan: string) =>
+    api.post<{ success: boolean; plan: string; message: string }>("/user/plan", { plan }),
   getAntiBan: () =>
     api.get<{
       success: boolean;
@@ -549,4 +572,5 @@ export const api = {
     jitterEnabled?: boolean;
   }) => api.post<{ success: boolean; message: string }>("/antiban", body),
 };
+
 

@@ -124,40 +124,44 @@ export function StatCard({
   label,
   value,
   icon,
+  subtitle,
   tone,
   loading,
 }: {
   label: string;
   value: ReactNode;
   icon: ReactNode;
+  subtitle?: ReactNode;
   tone?: string;
   loading?: boolean;
 }) {
   return (
-    <Card className="group relative overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:border-brand-blue/35 hover:shadow-xl">
-      {/* Background ambient light */}
-      <div className="pointer-events-none absolute -end-6 -top-6 size-24 rounded-full bg-brand-cyan/5 blur-2xl group-hover:bg-brand-cyan/10 transition-all duration-300" />
-      
+    <Card className="group relative overflow-hidden transition-all duration-200 hover:border-line/90 hover:shadow-md">
       <div className="relative flex items-start justify-between gap-2">
-        <span className="line-clamp-2 text-[11px] font-bold uppercase tracking-wider text-muted sm:text-xs">
+        <span className="line-clamp-1 text-[11px] font-bold uppercase tracking-wider text-muted">
           {label}
         </span>
         <div
           className={cn(
-            "flex size-11 shrink-0 items-center justify-center rounded-xl border transition-all duration-200 group-hover:scale-110 shadow-sm",
+            "flex size-9 shrink-0 items-center justify-center rounded-xl border border-line/60 bg-surface/50 text-text-main transition-all duration-200 group-hover:scale-105 shadow-sm",
             tone,
           )}
         >
           {icon}
         </div>
       </div>
-      <div className="relative mt-3.5 font-mono text-2xl font-black tracking-tight text-text-main sm:text-3xl">
+      <div className="relative mt-2 text-2xl sm:text-3xl font-extrabold font-sans tracking-tight text-text-main tabular-nums">
         {loading ? (
           <span className="skeleton inline-block h-8 w-20 rounded-md" />
         ) : (
           value
         )}
       </div>
+      {subtitle && (
+        <div className="mt-1 text-xs text-muted truncate font-medium">
+          {subtitle}
+        </div>
+      )}
     </Card>
   );
 }

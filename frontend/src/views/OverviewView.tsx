@@ -9,6 +9,7 @@ import {
   Clock,
   Copy,
   Cpu,
+  CreditCard,
   Folder,
   Layers,
   MessageSquare,
@@ -163,7 +164,6 @@ export const OverviewView: FC<OverviewViewProps> = ({ status, onNavigate }) => {
       tagline: "Gemini, Claude & DeepSeek models",
       desc: "Interactive intelligence with live memory, web search, custom persona, and tool invocation.",
       icon: Bot,
-      accent: "from-brand-indigo/25 via-brand-purple/20 to-transparent",
       iconTone: "border-brand-indigo/35 bg-brand-indigo/20 text-brand-indigo",
       pill: "AI Core",
     },
@@ -173,7 +173,6 @@ export const OverviewView: FC<OverviewViewProps> = ({ status, onNavigate }) => {
       tagline: `${stats?.commandCount ?? 0} commands ready`,
       desc: "Full suite of media converters, productivity tools, dictionary, search, and group admin actions.",
       icon: Terminal,
-      accent: "from-brand-pink/25 via-brand-purple/20 to-transparent",
       iconTone: "border-brand-pink/35 bg-brand-pink/20 text-brand-pink",
       pill: "Productivity",
     },
@@ -183,7 +182,6 @@ export const OverviewView: FC<OverviewViewProps> = ({ status, onNavigate }) => {
       tagline: "Shield & Moderation",
       desc: "Automated anti-link filter, warning strike systems, welcome banners, and anti-spam protocols.",
       icon: Shield,
-      accent: "from-emerald-500/25 via-teal-500/15 to-transparent",
       iconTone: "border-emerald-500/35 bg-emerald-500/20 text-emerald-400",
       pill: "Security",
     },
@@ -193,9 +191,17 @@ export const OverviewView: FC<OverviewViewProps> = ({ status, onNavigate }) => {
       tagline: "Behavioral humanization active",
       desc: "Composing presence simulation, jitter delay pacing, and automated warm-up ramp protecting linked numbers.",
       icon: ShieldCheck,
-      accent: "from-emerald-500/25 via-teal-500/15 to-transparent",
       iconTone: "border-emerald-500/35 bg-emerald-500/20 text-emerald-400",
       pill: "Protection",
+    },
+    {
+      id: "plans" as ViewTab,
+      title: "Plans & Subscriptions",
+      tagline: "Enterprise Tiers & Upgrades",
+      desc: "Flexible subscription tiers, anti-ban SLAs, billing cycle toggles, and feature comparison matrix.",
+      icon: CreditCard,
+      iconTone: "border-brand-indigo/35 bg-brand-indigo/20 text-brand-indigo",
+      pill: "Billing",
     },
     {
       id: "schedules" as ViewTab,
@@ -203,7 +209,6 @@ export const OverviewView: FC<OverviewViewProps> = ({ status, onNavigate }) => {
       tagline: "Cron Timers & Alerts",
       desc: "Schedule automated messages, daily prayer times, recurring reminders, and community broadcasts.",
       icon: Calendar,
-      accent: "from-cyan-500/25 via-blue-500/15 to-transparent",
       iconTone: "border-cyan-500/35 bg-cyan-500/20 text-cyan-400",
       pill: "Automation",
     },
@@ -213,7 +218,6 @@ export const OverviewView: FC<OverviewViewProps> = ({ status, onNavigate }) => {
       tagline: "Media Lab",
       desc: "Instant image and video conversion into animated WhatsApp stickers with custom creator watermarks.",
       icon: Sticker,
-      accent: "from-amber-500/25 via-rose-500/15 to-transparent",
       iconTone: "border-amber-500/35 bg-amber-500/20 text-amber-400",
       pill: "Creative",
     },
@@ -223,7 +227,6 @@ export const OverviewView: FC<OverviewViewProps> = ({ status, onNavigate }) => {
       tagline: "Ephemeral Messages",
       desc: "Automated chat cleaners to preserve privacy and free up device storage on your WhatsApp account.",
       icon: MessageSquareX,
-      accent: "from-rose-500/25 via-purple-500/15 to-transparent",
       iconTone: "border-rose-500/35 bg-rose-500/20 text-rose-400",
       pill: "Privacy",
     },
@@ -354,31 +357,28 @@ export const OverviewView: FC<OverviewViewProps> = ({ status, onNavigate }) => {
         {statsCards.map((card) => (
           <Card
             key={card.label}
-            className="group relative overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:border-brand-indigo/40 hover:shadow-xl"
+            className="group relative overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:border-line hover:shadow-lg bg-panel-solid/90"
           >
-            {/* Ambient light streak */}
-            <div className="pointer-events-none absolute -end-6 -top-6 size-24 rounded-full bg-brand-indigo/5 blur-2xl group-hover:bg-brand-indigo/15 transition-all" />
-
-            <div className="relative flex items-start justify-between gap-2">
-              <span className="line-clamp-2 text-xs font-black uppercase tracking-wider text-muted font-display">
+            <div className="relative flex items-center justify-between gap-2">
+              <span className="line-clamp-1 text-xs font-bold uppercase tracking-wider text-muted font-sans">
                 {card.label}
               </span>
               <div
-                className={`flex size-11 shrink-0 items-center justify-center rounded-2xl border transition-all duration-200 group-hover:scale-110 shadow-sm ${card.tone}`}
+                className={`flex size-9 shrink-0 items-center justify-center rounded-xl border transition-all duration-200 ${card.tone}`}
               >
                 {card.icon}
               </div>
             </div>
 
-            <div className="relative mt-4 flex items-baseline justify-between">
-              <div className="font-mono text-3xl font-black tracking-tight text-text-main sm:text-4xl">
+            <div className="relative mt-3 flex items-baseline justify-between">
+              <div className="font-sans font-extrabold text-2xl sm:text-3xl tabular-nums tracking-tight text-text-main">
                 {loading ? (
-                  <span className="skeleton inline-block h-9 w-20 rounded-lg" />
+                  <span className="skeleton inline-block h-8 w-16 rounded-lg" />
                 ) : (
                   card.value
                 )}
               </div>
-              <span className="rounded-full bg-panel-raised/80 px-2 py-0.5 text-[10px] font-bold text-faint border border-line/60">
+              <span className="rounded-full bg-panel-raised/90 px-2 py-0.5 text-[10px] font-bold text-faint border border-line/70">
                 {card.badge}
               </span>
             </div>
@@ -386,21 +386,21 @@ export const OverviewView: FC<OverviewViewProps> = ({ status, onNavigate }) => {
         ))}
       </div>
 
-      {/* ── Smart Features Launch Deck (6 Cyber Cards) ── */}
+      {/* ── Smart Features Launch Deck (Autonomous Modules) ── */}
       <div>
         <div className="mb-4 flex items-center justify-between">
           <div>
             <h3 className="text-lg font-black tracking-tight text-text-main font-display">
               Autonomous Core Capabilities
             </h3>
-            <p className="text-xs text-muted">Direct control over intelligence, automation, and messaging</p>
+            <p className="text-xs text-muted">Direct control over intelligence, automation, security, and billing</p>
           </div>
           <span className="text-xs font-mono text-brand-pink font-bold">
-            6 Modules Active
+            {featureCards.length} Modules Active
           </span>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {featureCards.map((card) => {
             const Icon = card.icon;
             return (
@@ -408,25 +408,25 @@ export const OverviewView: FC<OverviewViewProps> = ({ status, onNavigate }) => {
                 key={card.id}
                 type="button"
                 onClick={() => onNavigate(card.id)}
-                className={`group relative flex flex-col justify-between rounded-3xl border border-line/80 bg-gradient-to-br ${card.accent} p-5 text-start transition-all duration-300 hover:border-brand-indigo/40 hover:-translate-y-1.5 hover:shadow-2xl card-shadow outline-none cursor-pointer`}
+                className="group relative flex flex-col justify-between rounded-2xl border border-line/80 bg-panel-solid/90 hover:bg-panel-hover/50 p-5 text-start transition-all duration-200 hover:border-brand-indigo/40 hover:-translate-y-1 hover:shadow-xl outline-none cursor-pointer backdrop-blur-md"
               >
                 <div>
                   <div className="flex items-center justify-between">
                     <div
-                      className={`flex size-12 shrink-0 items-center justify-center rounded-2xl border transition-all duration-300 group-hover:scale-110 shadow-md ${card.iconTone}`}
+                      className={`flex size-10 shrink-0 items-center justify-center rounded-xl border transition-all duration-200 group-hover:scale-105 shadow-sm ${card.iconTone}`}
                     >
-                      <Icon size={22} strokeWidth={2.2} />
+                      <Icon size={20} strokeWidth={2.2} />
                     </div>
-                    <span className="rounded-full border border-line/80 bg-panel-raised/80 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-muted group-hover:text-text-main transition-colors">
+                    <span className="rounded-full border border-line/80 bg-panel-raised/90 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-muted group-hover:text-text-main transition-colors">
                       {card.pill}
                     </span>
                   </div>
 
                   <div className="mt-4">
-                    <h4 className="text-base font-black text-text-main font-display">
+                    <h4 className="text-sm font-extrabold text-text-main font-sans">
                       {card.title}
                     </h4>
-                    <div className="text-[11px] font-bold text-brand-indigo mt-0.5">
+                    <div className="text-[11px] font-semibold text-brand-indigo mt-0.5">
                       {card.tagline}
                     </div>
                     <p className="mt-2 text-xs leading-relaxed text-muted line-clamp-2">
@@ -438,7 +438,7 @@ export const OverviewView: FC<OverviewViewProps> = ({ status, onNavigate }) => {
                 <div className="mt-5 flex items-center justify-between border-t border-line/60 pt-3 text-xs font-bold text-muted group-hover:text-brand-pink transition-colors">
                   <span>Open Module</span>
                   <ChevronRight
-                    size={16}
+                    size={15}
                     className="transition-transform duration-200 group-hover:translate-x-1 rtl:-scale-x-100"
                   />
                 </div>

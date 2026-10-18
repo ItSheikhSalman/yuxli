@@ -1894,6 +1894,12 @@ function countSaasUsers() {
   return q("SELECT COUNT(*) AS count FROM saas_users").get().count || 0;
 }
 
+function updateSaasUserPlan(id, plan) {
+  if (!id || !plan) return false;
+  q("UPDATE saas_users SET plan = ? WHERE id = ?").run(String(plan), String(id));
+  return true;
+}
+
 function verifySaasUserPassword(email, candidate) {
   if (!email || !candidate) return null;
   const user = q("SELECT * FROM saas_users WHERE email = ?").get(String(email).trim().toLowerCase());
@@ -2092,6 +2098,7 @@ module.exports = {
   getSaasUserById,
   listSaasUsers,
   countSaasUsers,
+  updateSaasUserPlan,
   verifySaasUserPassword,
   insertAntiBanLog,
   listAntiBanLogs,

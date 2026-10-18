@@ -44,6 +44,7 @@ import {
   saveGroupSettings,
   listAntiBanLogs,
   getAntiBanStats,
+  updateSaasUserPlan,
 } from "../utils/storage.esm.js";
 import normalizeJid, { isLidJid } from "../utils/normalizeJid.esm.js";
 import { fileToBuffer, MultipartError, readMultipartForm } from "../utils/multipart.esm.js";
@@ -233,6 +234,102 @@ router.get("/user/me", (req, res) => {
     plan: "Enterprise SLA",
   };
   res.json({ success: true, user });
+});
+
+router.post("/user/plan", (req, res) => {
+  try {
+    const { plan } = req.body || {};
+    if (!plan) return res.status(400).json({ success: false, error: "Plan identifier is required" });
+
+    if (req.session?.saasUser) {
+      req.session.saasUser.plan = plan;
+      if (typeof updateSaasUserPlan === "function") {
+        updateSaasUserPlan(req.session.saasUser.id, plan);
+      }
+    }
+    res.json({ success: true, plan, message: `Subscription plan successfully upgraded to ${plan}` });
+  } catch (err) {
+    fail(res, err, "Failed to update plan");
+  }
+});
+
+router.get("/billing/plans", (req, res) => {
+  res.json({
+    success: true,
+    plans: [
+      {
+        id: "starter",
+        name: "Starter Developer",
+        tagline: "For individual builders and test numbers",
+        priceMonthly: 19,
+        priceAnnual: 15,
+        currency: "USD",
+        badge: null,
+        limits: {
+          numbers: 1,
+          messagesPerDay: 2500,
+          aiTokens: "500k",
+          antiBanLevel: "Standard",
+        },
+        features: [
+          "1 Linked WhatsApp Device",
+          "2,500 Outbound Messages / Day",
+          "Basic Auto-Reply & 80+ Commands Catalog",
+          "Standard Rate-Limiting Engine",
+          "Community Support & Auto-Updates",
+        ],
+      },
+      {
+        id: "pro",
+        name: "Business Pro",
+        tagline: "High-growth brands and active groups",
+        priceMonthly: 49,
+        priceAnnual: 39,
+        currency: "USD",
+        badge: "MOST POPULAR",
+        recommended: true,
+        limits: {
+          numbers: 5,
+          messagesPerDay: 50000,
+          aiTokens: "Unlimited",
+          antiBanLevel: "Advanced Jitter + Presence",
+        },
+        features: [
+          "5 Linked WhatsApp Numbers",
+          "50,000 Messages / Day High-Volume",
+          "Anti-Ban Shield v4.2 (Human Presence Simulation & Jitter)",
+          "Multi-Key AI Providers (Gemini 2.5, DeepSeek R1, Claude, OpenAI)",
+          "Group Guardian (Anti-Link, Strike System & Auto-Clean)",
+          "Automated Schedules, Sticky Reminders & Sticker Studio Lab",
+          "Priority WebSocket Telemetry & 24/7 Queue Dispatch",
+        ],
+      },
+      {
+        id: "enterprise",
+        name: "Enterprise SLA",
+        tagline: "Corporate scale with zero-ban guarantee",
+        priceMonthly: 149,
+        priceAnnual: 119,
+        currency: "USD",
+        badge: "ZERO-BAN SLA",
+        limits: {
+          numbers: "Unlimited",
+          messagesPerDay: "Unlimited",
+          aiTokens: "Custom Endpoints",
+          antiBanLevel: "Maximum Shield + Dedicated Proxy",
+        },
+        features: [
+          "Unlimited WhatsApp Multi-Device Instances",
+          "Unlimited Messages & Zero Bandwidth Caps",
+          "Maximum Shield Engine with Zero-Ban SLA Guarantee",
+          "Dedicated IP Proxy Tunneling & Device Signature Rotation",
+          "Multi-Tenant SaaS Workspaces with Role-Based Access Control",
+          "Custom AI System Prompts & Dedicated Memory Datastore",
+          "99.99% Guaranteed Uptime SLA & 1-on-1 Dedicated Engineer",
+        ],
+      },
+    ],
+  });
 });
 
 router.get("/antiban", (req, res) => {

@@ -126,6 +126,7 @@ export const getSaasUserByEmail = store.getSaasUserByEmail;
 export const getSaasUserById = store.getSaasUserById;
 export const listSaasUsers = store.listSaasUsers;
 export const countSaasUsers = store.countSaasUsers;
+export const updateSaasUserPlan = store.updateSaasUserPlan;
 export const verifySaasUserPassword = store.verifySaasUserPassword;
 export const insertAntiBanLog = store.insertAntiBanLog;
 export const listAntiBanLogs = store.listAntiBanLogs;

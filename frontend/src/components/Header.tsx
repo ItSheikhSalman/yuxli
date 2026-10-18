@@ -1,8 +1,7 @@
-// file: frontend/src/components/Header.tsx
-
 import {
   Building2,
   ChevronDown,
+  CreditCard,
   Globe,
   LogOut,
   Menu as MenuIcon,
@@ -15,6 +14,7 @@ import {
 } from "lucide-react";
 import { type FC, useEffect, useState } from "react";
 import { api } from "../api/client";
+import type { ViewTab } from "./Sidebar";
 import { useI18n } from "../context/I18nContext";
 import type { SessionStatus } from "../types";
 import { IconButton, Menu, MenuItem, MenuLabel } from "./ui";
@@ -23,6 +23,7 @@ interface HeaderProps {
   onToggleMobileMenu: () => void;
   title: string;
   status: SessionStatus | null;
+  onNavigate?: (view: ViewTab) => void;
 }
 
 interface UserProfile {
@@ -48,7 +49,7 @@ const LANGUAGES = [
   { id: "en", label: "English", code: "EN" },
 ] as const;
 
-export const Header: FC<HeaderProps> = ({ onToggleMobileMenu, title, status }) => {
+export const Header: FC<HeaderProps> = ({ onToggleMobileMenu, title, status, onNavigate }) => {
   const { language, setLanguage, t } = useI18n();
   const [user, setUser] = useState<UserProfile>(() => {
     return (window as any).__USER__ || {
@@ -105,7 +106,7 @@ export const Header: FC<HeaderProps> = ({ onToggleMobileMenu, title, status }) =
 
   return (
     <header
-      className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-line/70 bg-panel/85 px-4 sm:px-6 backdrop-blur-2xl transition-all"
+      className="sticky top-0 z-30 shrink-0 flex h-16 items-center justify-between border-b border-line/70 bg-panel/85 px-4 sm:px-6 backdrop-blur-2xl transition-all"
       style={{
         boxShadow: "0 4px 24px -2px rgba(0, 0, 0, 0.35), inset 0 1px 0 0 rgba(255, 255, 255, 0.08)",
       }}
@@ -127,10 +128,22 @@ export const Header: FC<HeaderProps> = ({ onToggleMobileMenu, title, status }) =
           >
             {title}
           </h1>
-          <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-brand-indigo/15 text-brand-pink border border-brand-indigo/30">
-            <Sparkles size={11} className="animate-pulse" />
-            Enterprise Node
-          </span>
+          {onNavigate ? (
+            <button
+              type="button"
+              onClick={() => onNavigate("plans")}
+              className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-brand-indigo/15 hover:bg-brand-indigo/25 text-brand-pink border border-brand-indigo/30 transition-all cursor-pointer"
+              title="Click to view subscription tiers"
+            >
+              <Sparkles size={11} className="animate-pulse" />
+              <span>{user.plan || "Enterprise Node"}</span>
+            </button>
+          ) : (
+            <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-brand-indigo/15 text-brand-pink border border-brand-indigo/30">
+              <Sparkles size={11} className="animate-pulse" />
+              Enterprise Node
+            </span>
+          )}
         </div>
       </div>
 
@@ -245,14 +258,20 @@ export const Header: FC<HeaderProps> = ({ onToggleMobileMenu, title, status }) =
           <div className="px-3 py-2 border-b border-line/70">
             <div className="text-xs font-bold text-text-main">{user.name}</div>
             <div className="text-[11px] text-text-muted truncate">{user.email}</div>
-            <div className="mt-1.5 flex items-center gap-1.5">
+            <div className="mt-1.5 flex items-center justify-between gap-1.5">
               <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-400 border border-emerald-500/20">
                 <ShieldCheck size={11} />
                 {user.plan || "PRO TIER"}
               </span>
-              <span className="text-[10px] font-medium text-text-muted">
-                {user.role || "Owner"}
-              </span>
+              {onNavigate && (
+                <button
+                  type="button"
+                  onClick={() => onNavigate("plans")}
+                  className="text-[10px] font-black text-brand-indigo hover:text-brand-pink transition-colors cursor-pointer"
+                >
+                  Manage &rarr;
+                </button>
+              )}
             </div>
           </div>
 
@@ -261,6 +280,13 @@ export const Header: FC<HeaderProps> = ({ onToggleMobileMenu, title, status }) =
             <Building2 size={14} className="me-2 text-brand-indigo" />
             <span className="truncate">{user.company || "Main Workspace"}</span>
           </MenuItem>
+
+          {onNavigate && (
+            <MenuItem onSelect={() => onNavigate("plans")}>
+              <CreditCard size={14} className="me-2 text-brand-pink" />
+              <span className="font-semibold text-text-main">Subscription & Billing</span>
+            </MenuItem>
+          )}
 
           <div className="border-t border-line/60 my-1" />
 

@@ -6,6 +6,7 @@ import {
   Calendar,
   ChevronRight,
   Cpu,
+  CreditCard,
   FileText,
   LayoutGrid,
   LogOut,
@@ -30,6 +31,7 @@ export type ViewTab =
   | "overview"
   | "connection"
   | "antiban"
+  | "plans"
   | "commands"
   | "ai"
   | "groups"
@@ -79,6 +81,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: Shield,
       badge: "PRO",
     },
+    {
+      id: "plans",
+      label: "Plans & Pricing",
+      icon: CreditCard,
+      badge: "UPGRADE",
+    },
     { labelCategory: t("control") },
     { id: "commands", label: t("commands"), icon: Terminal },
     { id: "ai", label: t("ai"), icon: Bot },
@@ -104,15 +112,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       <aside
         className={cn(
-          "fixed start-0 top-0 bottom-0 z-50 flex w-72 flex-col border-e border-line/70 transition-transform duration-300 ease-out md:static md:z-auto",
-          "shadow-[8px_0_40px_rgba(0,0,0,0.5)] backdrop-blur-2xl",
+          "fixed start-0 top-0 bottom-0 z-50 flex w-72 flex-col border-e border-line/70 transition-transform duration-300 ease-out md:static md:h-full md:shrink-0 md:z-auto",
+          "shadow-[8px_0_40px_rgba(0,0,0,0.5)] backdrop-blur-2xl overflow-hidden",
           isOpenMobile ? "translate-x-0" : "max-md:-translate-x-full rtl:max-md:translate-x-full",
         )}
         style={{ background: "var(--grad-sidebar)" }}
         aria-label="Main Navigation"
       >
         {/* ── Brand Lockup Deck ── */}
-        <div className="relative border-b border-line/70 px-5 py-5 overflow-hidden">
+        <div className="relative shrink-0 border-b border-line/70 px-5 py-5 overflow-hidden">
           {/* Ambient light streak */}
           <div className="pointer-events-none absolute -start-10 -top-10 size-32 rounded-full bg-brand-indigo/15 blur-2xl" />
 
@@ -239,7 +247,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </nav>
 
         {/* ── System Telemetry Mini-Gauge ── */}
-        <div className="mx-3.5 mb-3 rounded-2xl border border-line/60 bg-panel-raised/50 p-3.5 backdrop-blur-xl">
+        <div className="shrink-0 mx-3.5 mb-3 rounded-2xl border border-line/60 bg-panel-raised/50 p-3.5 backdrop-blur-xl">
           <div className="flex items-center justify-between text-[11px] font-bold text-faint">
             <span className="flex items-center gap-1.5">
               <Cpu size={13} className="text-brand-indigo" />
@@ -257,7 +265,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* ── Footer Actions ── */}
-        <div className="border-t border-line/70 px-3.5 py-3 space-y-1">
+        <div className="shrink-0 border-t border-line/70 px-3.5 py-3 space-y-1">
           {isInApp && (
             <button
               type="button"
@@ -281,7 +289,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* ── Creator Signature ── */}
-        <div className="border-t border-line/50 px-5 py-3">
+        <div className="shrink-0 border-t border-line/50 px-5 py-3">
           <div className="flex items-center justify-between text-[10px] text-faint/70 font-mono">
             <span>Yuxli Bot</span>
             <a
