@@ -372,7 +372,7 @@ export const OverviewView: FC<OverviewViewProps> = ({ status, onNavigate }) => {
             <div className="mt-3 space-y-2 text-xs">
               <div className="flex items-center justify-between text-muted">
                 <span>Node.js Runtime</span>
-                <span className="font-mono text-text-main">{stats?.nodeVersion || process.version || "v20.x"}</span>
+                <span className="font-mono text-text-main">{stats?.nodeVersion || "v20.x"}</span>
               </div>
               <div className="flex items-center justify-between text-muted">
                 <span>Memory RSS</span>
