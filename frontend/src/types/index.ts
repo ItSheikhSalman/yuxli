@@ -46,12 +46,33 @@ export interface SessionStatus {
 
 export interface DashboardStats {
   totalGroups: number;
-  totalUsers: number;
+  totalUsers?: number;
   commandCount: number;
   uptime: number;
   dataDir: string;
-  activeSchedules: number;
-  version: string;
+  activeSchedules?: number;
+  totalSchedules?: number;
+  version?: string;
+  connection?: SessionStatus;
+  totalWarnings?: number;
+  totalTodos?: number;
+  totalNotes?: number;
+  totalDebts?: number;
+  totalSettledDebts?: number;
+  isConnected?: boolean;
+  botNumber?: string | null;
+  botName?: string | null;
+  prefix?: string;
+  aiConfigured?: boolean;
+  memory?: {
+    rss: number;
+    heapTotal: number;
+    heapUsed: number;
+    external?: number;
+    arrayBuffers?: number;
+  };
+  nodeVersion?: string;
+  database?: boolean;
 }
 
 export interface SettingItem {

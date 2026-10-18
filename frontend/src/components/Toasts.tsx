@@ -26,7 +26,7 @@ function ToastItem({ item, onRemove }: { item: Toast; onRemove: (id: string) => 
 
   const dismiss = useCallback(() => {
     setLeaving(true);
-    timerRef.current = setTimeout(() => onRemove(item.id), 220);
+    timerRef.current = setTimeout(() => onRemove(item.id), 180);
   }, [item.id, onRemove]);
 
   useEffect(() => {
@@ -39,61 +39,44 @@ function ToastItem({ item, onRemove }: { item: Toast; onRemove: (id: string) => 
 
   const borderCls =
     item.type === "success"
-      ? "border-ok/40"
+      ? "border-emerald-500/30"
       : item.type === "error"
-        ? "border-danger/40"
+        ? "border-rose-500/30"
         : item.type === "warning"
-          ? "border-warn/40"
+          ? "border-amber-500/30"
           : "border-line";
-
-  const accentCls =
-    item.type === "success"
-      ? "from-ok"
-      : item.type === "error"
-        ? "from-danger"
-        : item.type === "warning"
-          ? "from-warn"
-          : "from-brand-blue";
-
-  const dur = item.duration ?? 4000;
 
   return (
     <div
       role="alert"
       className={`
-        pointer-events-auto relative overflow-hidden flex items-center gap-3
-        rounded-2xl border bg-panel-raised/95 px-4 py-3
-        text-sm text-text-main shadow-2xl backdrop-blur-xl
+        pointer-events-auto relative overflow-hidden flex items-center gap-2.5
+        rounded-xl border bg-panel-raised px-3.5 py-2.5
+        text-xs sm:text-sm text-text-main shadow-lg
         ${borderCls}
         ${leaving ? "animate-toast-out" : "animate-toast-in"}
       `}
     >
       {/* Icon */}
       <span className="shrink-0">
-        {item.type === "success" && <CheckCircle2 size={18} className="text-ok" />}
-        {item.type === "error"   && <XCircle      size={18} className="text-danger" />}
-        {item.type === "warning" && <AlertTriangle size={18} className="text-warn" />}
-        {item.type === "info"    && <Info          size={18} className="text-info" />}
-        {!item.type              && <Info          size={18} className="text-muted" />}
+        {item.type === "success" && <CheckCircle2 size={16} className="text-emerald-400" />}
+        {item.type === "error"   && <XCircle      size={16} className="text-rose-400" />}
+        {item.type === "warning" && <AlertTriangle size={16} className="text-amber-400" />}
+        {item.type === "info"    && <Info          size={16} className="text-blue-400" />}
+        {!item.type              && <Info          size={16} className="text-muted" />}
       </span>
 
       {/* Message */}
-      <span className="flex-1 font-medium leading-snug">{item.message}</span>
+      <span className="flex-1 font-medium leading-normal">{item.message}</span>
 
       {/* Dismiss */}
       <IconButton
         variant="ghost"
         size="sm"
         label={t("dismiss")}
-        icon={<X size={14} />}
+        icon={<X size={13} />}
         onClick={dismiss}
-        className="shrink-0 size-7 min-w-7 min-h-7 rounded-lg opacity-60 hover:opacity-100"
-      />
-
-      {/* Progress bar */}
-      <div
-        className={`toast-progress bg-gradient-to-r ${accentCls} to-transparent opacity-60`}
-        style={{ "--duration": `${dur}ms` } as React.CSSProperties}
+        className="shrink-0 size-6 min-w-6 min-h-6 rounded opacity-60 hover:opacity-100"
       />
     </div>
   );
@@ -109,7 +92,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const toast = useCallback(
     (message: string, type: Toast["type"] = "info", duration = 4000) => {
       const id = Math.random().toString(36).slice(2, 9);
-      setToasts((prev) => [...prev.slice(-4), { id, message, type, duration }]); // max 5 at once
+      setToasts((prev) => [...prev.slice(-4), { id, message, type, duration }]);
     },
     [],
   );
@@ -118,7 +101,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     <ToastContext.Provider value={{ toast }}>
       {children}
       <div
-        className="fixed bottom-5 end-5 z-[9999] flex flex-col gap-2.5 w-full max-w-[360px] px-4 pointer-events-none"
+        className="fixed bottom-4 end-4 z-[9999] flex flex-col gap-2 w-full max-w-[340px] px-3 pointer-events-none"
         aria-live="polite"
         aria-label="Notifications"
       >

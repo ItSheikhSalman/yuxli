@@ -27,7 +27,7 @@ export function SegmentedControl<T extends string>({
     <div
       role="tablist"
       aria-label={ariaLabel}
-      className={cn("inline-flex rounded-xl border border-line bg-panel-raised p-1", className)}
+      className={cn("inline-flex items-center rounded-lg border border-line bg-panel-raised/60 p-0.5", className)}
     >
       {options.map((option) => {
         const selected = option.value === value;
@@ -39,9 +39,11 @@ export function SegmentedControl<T extends string>({
             aria-selected={selected}
             onClick={() => onChange(option.value)}
             className={cn(
-              "inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-semibold transition-colors",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue/50",
-              selected ? "bg-brand-blue text-white" : "text-muted hover:text-text-main",
+              "inline-flex h-7 items-center justify-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-all duration-120 cursor-pointer",
+              "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500",
+              selected
+                ? "bg-panel text-text-main shadow-xs border border-line font-semibold"
+                : "text-muted hover:text-text-main border border-transparent",
             )}
           >
             {option.icon}
@@ -53,7 +55,7 @@ export function SegmentedControl<T extends string>({
   );
 }
 
-/** Separate pills for a scrolling tab strip (Sticker Studio). */
+/** Separate pills for a scrolling tab strip (Sticker Studio, Settings). */
 export function Tabs<T extends string>({
   value,
   onChange,
@@ -62,7 +64,7 @@ export function Tabs<T extends string>({
   className,
 }: TabBarProps<T>) {
   return (
-    <div role="tablist" aria-label={ariaLabel} className={cn("flex items-center gap-2", className)}>
+    <div role="tablist" aria-label={ariaLabel} className={cn("flex items-center gap-1.5 overflow-x-auto no-scrollbar", className)}>
       {options.map((option) => {
         const selected = option.value === value;
         return (
@@ -73,11 +75,11 @@ export function Tabs<T extends string>({
             aria-selected={selected}
             onClick={() => onChange(option.value)}
             className={cn(
-              "inline-flex min-h-10 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-4 text-sm font-bold transition-colors",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue/50",
+              "inline-flex h-8 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 text-xs font-medium transition-colors duration-120 cursor-pointer",
+              "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500",
               selected
-                ? "bg-brand-blue text-white shadow-md shadow-brand-blue/25"
-                : "text-muted hover:bg-panel-hover hover:text-text-main",
+                ? "bg-indigo-600 text-white shadow-xs font-semibold"
+                : "border border-line/70 bg-panel text-muted hover:bg-panel-hover hover:text-text-main",
             )}
           >
             {option.icon}

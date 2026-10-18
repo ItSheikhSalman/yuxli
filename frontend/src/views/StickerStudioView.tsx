@@ -167,7 +167,7 @@ export const StickerStudioView: React.FC<StickerStudioViewProps> = ({ isConnecte
       />
 
       {encoderMissing && (
-        <div className="rounded-2xl border border-warn/30 bg-warn/10 p-4 flex items-center gap-3">
+        <div className="rounded-xl border border-warn/25 bg-warn/5 p-4 flex items-center gap-3">
           <AlertTriangle size={20} className="text-warn shrink-0" />
           <span className="text-sm text-warn font-medium">{t("stickerErr_ENCODER_MISSING")}</span>
         </div>

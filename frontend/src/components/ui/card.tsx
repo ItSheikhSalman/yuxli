@@ -7,17 +7,17 @@ export interface CardProps extends ComponentPropsWithoutRef<"div"> {
   padded?: boolean;
   /** Adds a subtle hover lift effect */
   hoverable?: boolean;
-  /** Adds a colored gradient top border */
+  /** Subtle accent border indicator */
   accent?: "blue" | "cyan" | "purple" | "green" | "amber" | "danger";
 }
 
 const ACCENT_CLASSES = {
-  blue:   "border-t-2 border-t-brand-blue shadow-[0_-4px_16px_rgba(37,99,235,0.25)]",
-  cyan:   "border-t-2 border-t-brand-cyan shadow-[0_-4px_16px_rgba(6,182,212,0.25)]",
-  purple: "border-t-2 border-t-brand-purple shadow-[0_-4px_16px_rgba(168,85,247,0.25)]",
-  green:  "border-t-2 border-t-ok shadow-[0_-4px_16px_rgba(16,185,129,0.25)]",
-  amber:  "border-t-2 border-t-warn shadow-[0_-4px_16px_rgba(245,158,11,0.25)]",
-  danger: "border-t-2 border-t-danger shadow-[0_-4px_16px_rgba(239,68,68,0.25)]",
+  blue:   "border-t-2 border-t-indigo-500",
+  cyan:   "border-t-2 border-t-sky-500",
+  purple: "border-t-2 border-t-indigo-500",
+  green:  "border-t-2 border-t-emerald-500",
+  amber:  "border-t-2 border-t-amber-500",
+  danger: "border-t-2 border-t-rose-500",
 } as const;
 
 export const Card = forwardRef<HTMLDivElement, CardProps>(function Card(
@@ -28,10 +28,10 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(function Card(
     <div
       ref={ref}
       className={cn(
-        "relative rounded-2xl border border-line/80 bg-panel/90 backdrop-blur-xl card-shadow",
-        "transition-all duration-200",
-        padded && "p-4 sm:p-5 md:p-6",
-        hoverable && "hover:border-brand-blue/35 hover:-translate-y-1 hover:shadow-xl hover:shadow-black/40 cursor-pointer",
+        "relative rounded-xl border border-line bg-panel card-shadow",
+        "transition-colors duration-150",
+        padded && "p-4 sm:p-5",
+        hoverable && "hover:border-line/80 hover:bg-panel-hover/50 cursor-pointer",
         accent && ACCENT_CLASSES[accent],
         className,
       )}
@@ -65,12 +65,12 @@ export function CardHeader({
     >
       <div className="flex min-w-0 items-center gap-3">
         {icon && (
-          <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-cyan/15 to-brand-blue/15 text-brand-cyan border border-brand-cyan/25 shadow-sm">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-panel-raised border border-line text-brand-accent">
             {icon}
           </div>
         )}
         <div className="min-w-0">
-          <h2 className="truncate text-base font-extrabold tracking-tight text-text-main md:text-lg">
+          <h2 className="truncate text-sm sm:text-base font-semibold tracking-tight text-text-main">
             {title}
           </h2>
           {description && <p className="mt-0.5 text-xs text-muted leading-relaxed">{description}</p>}
@@ -92,7 +92,7 @@ export function PageHeader({
   className?: string;
 }) {
   return (
-    <Card className={className}>
+    <Card className={cn("border border-line bg-panel p-4 sm:p-5", className)}>
       <CardHeader {...props} />
     </Card>
   );
@@ -112,7 +112,7 @@ export function Section({
   className?: string;
 }) {
   return (
-    <section className={cn("flex flex-col gap-3.5", className)}>
+    <section className={cn("flex flex-col gap-3", className)}>
       {title && <CardHeader title={title} description={description} actions={actions} />}
       {children}
     </section>
@@ -136,29 +136,29 @@ export function StatCard({
   loading?: boolean;
 }) {
   return (
-    <Card className="group relative overflow-hidden transition-all duration-200 hover:border-line/90 hover:shadow-md">
-      <div className="relative flex items-start justify-between gap-2">
-        <span className="line-clamp-1 text-[11px] font-bold uppercase tracking-wider text-muted">
+    <Card className="relative overflow-hidden transition-all duration-150 border border-line bg-panel hover:border-line/80 p-4 sm:p-5">
+      <div className="flex items-start justify-between gap-2">
+        <span className="line-clamp-1 text-[11px] font-medium uppercase tracking-wider text-muted">
           {label}
         </span>
         <div
           className={cn(
-            "flex size-9 shrink-0 items-center justify-center rounded-xl border border-line/60 bg-surface/50 text-text-main transition-all duration-200 group-hover:scale-105 shadow-sm",
+            "flex size-8 shrink-0 items-center justify-center rounded-lg border border-line bg-panel-raised text-muted",
             tone,
           )}
         >
           {icon}
         </div>
       </div>
-      <div className="relative mt-2 text-2xl sm:text-3xl font-extrabold font-sans tracking-tight text-text-main tabular-nums">
+      <div className="mt-3 text-2xl sm:text-3xl font-semibold font-mono tracking-tight text-text-main tabular-nums">
         {loading ? (
-          <span className="skeleton inline-block h-8 w-20 rounded-md" />
+          <span className="skeleton inline-block h-8 w-20 rounded" />
         ) : (
           value
         )}
       </div>
       {subtitle && (
-        <div className="mt-1 text-xs text-muted truncate font-medium">
+        <div className="mt-1 text-xs text-muted truncate">
           {subtitle}
         </div>
       )}

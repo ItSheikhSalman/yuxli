@@ -1,9 +1,9 @@
 // file: frontend/src/components/Sidebar.tsx
 
 import {
-  Activity,
   Bot,
   Calendar,
+  ChevronDown,
   ChevronRight,
   Cpu,
   CreditCard,
@@ -13,6 +13,7 @@ import {
   MessageSquareX,
   PanelLeftClose,
   Radio,
+  Search,
   Settings,
   Shield,
   Sparkles,
@@ -46,6 +47,7 @@ interface SidebarProps {
   onSelectView: (view: ViewTab) => void;
   isOpenMobile: boolean;
   onCloseMobile: () => void;
+  onOpenCommandPalette?: () => void;
 }
 
 type NavItem =
@@ -57,54 +59,50 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onSelectView,
   isOpenMobile,
   onCloseMobile,
+  onOpenCommandPalette,
 }) => {
   const { t } = useI18n();
 
   const isInApp = typeof (window as any).LevixHost?.closePanel === "function";
 
   const brand = (window as any).__BRAND__ || {
-    name: "Yuxli",
-    tagline: "Autonomous WhatsApp AI",
+    name: "YUXLI",
+    tagline: "Enterprise WhatsApp AI Platform",
     version: "4.6",
     developer: "Sheikh Salman",
-    studio: "Yuxli Technologies",
-    developerSite: "https://github.com/ItSheikhSalman",
-    studioSite: "https://github.com/ItSheikhSalman/yuxli",
   };
 
   const navItems: NavItem[] = [
+    { labelCategory: "Operations" },
     { id: "overview", label: t("overview"), icon: LayoutGrid },
     { id: "connection", label: t("connection"), icon: Radio },
-    {
-      id: "antiban",
-      label: "Anti-Ban Shield",
-      icon: Shield,
-      badge: "PRO",
-    },
-    {
-      id: "plans",
-      label: "Plans & Pricing",
-      icon: CreditCard,
-      badge: "UPGRADE",
-    },
-    { labelCategory: t("control") },
-    { id: "commands", label: t("commands"), icon: Terminal },
-    { id: "ai", label: t("ai"), icon: Bot },
-    { id: "groups", label: t("groups"), icon: Users },
-    { id: "autodelete", label: t("autoDelete"), icon: MessageSquareX },
-    { id: "schedules", label: t("schedules"), icon: Calendar },
-    { id: "stickers", label: t("stickers"), icon: Sticker },
-    { labelCategory: t("settings") },
-    { id: "settings", label: t("settings"), icon: Settings },
     { id: "logs", label: t("logs"), icon: FileText },
+
+    { labelCategory: "Intelligence" },
+    { id: "ai", label: t("ai"), icon: Bot },
+    { id: "antiban", label: "Anti-Ban Shield", icon: Shield, badge: "PRO" },
+    { id: "plans", label: "Plans & Pricing", icon: CreditCard },
+
+    { labelCategory: "Automation" },
+    { id: "commands", label: t("commands"), icon: Terminal },
+    { id: "schedules", label: t("schedules"), icon: Calendar },
+    { id: "autodelete", label: t("autoDelete"), icon: MessageSquareX },
+
+    { labelCategory: "Community & Media" },
+    { id: "groups", label: t("groups"), icon: Users },
+    { id: "stickers", label: t("stickers"), icon: Sticker },
+
+    { labelCategory: "Platform" },
+    { id: "settings", label: t("settings"), icon: Settings },
   ];
 
   return (
     <>
+      {/* Mobile Backdrop */}
       {isOpenMobile && (
         <button
           type="button"
-          className="fixed inset-0 z-40 cursor-default border-0 bg-black/80 p-0 backdrop-blur-md md:hidden transition-opacity"
+          className="fixed inset-0 z-40 cursor-default border-0 bg-black/60 backdrop-blur-xs md:hidden transition-opacity"
           onClick={onCloseMobile}
           aria-label={t("closeNavigation")}
         />
@@ -112,38 +110,29 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       <aside
         className={cn(
-          "fixed start-0 top-0 bottom-0 z-50 flex w-72 flex-col border-e border-line/70 transition-transform duration-300 ease-out md:static md:h-full md:shrink-0 md:z-auto",
-          "shadow-[8px_0_40px_rgba(0,0,0,0.5)] backdrop-blur-2xl overflow-hidden",
+          "fixed start-0 top-0 bottom-0 z-50 flex w-64 flex-col border-e border-line bg-panel transition-transform duration-200 ease-out md:static md:h-full md:shrink-0 md:z-auto",
           isOpenMobile ? "translate-x-0" : "max-md:-translate-x-full rtl:max-md:translate-x-full",
         )}
-        style={{ background: "var(--grad-sidebar)" }}
         aria-label="Main Navigation"
       >
-        {/* ── Brand Lockup Deck ── */}
-        <div className="relative shrink-0 border-b border-line/70 px-5 py-5 overflow-hidden">
-          {/* Ambient light streak */}
-          <div className="pointer-events-none absolute -start-10 -top-10 size-32 rounded-full bg-brand-indigo/15 blur-2xl" />
-
-          <div className="relative flex items-center justify-between">
-            <div className="flex min-w-0 items-center gap-3.5">
-              <div
-                className="relative flex size-11 shrink-0 items-center justify-center rounded-2xl text-white shadow-lg animate-brand-pulse"
-                style={{ background: "var(--grad-primary)" }}
-              >
-                <Zap size={22} strokeWidth={2.5} className="drop-shadow-sm" />
-                <span className="absolute -bottom-1 -end-1 size-3 rounded-full bg-ok border-2 border-panel-solid" />
+        {/* Workspace & Brand Header */}
+        <div className="shrink-0 border-b border-line px-4 py-3.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-white font-bold text-sm shadow-xs">
+                Y
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5">
-                  <span className="truncate text-base font-extrabold tracking-tight text-text-main font-display">
+                  <span className="truncate text-sm font-semibold tracking-tight text-text-main">
                     {brand.name}
                   </span>
-                  <span className="rounded-full bg-brand-indigo/20 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-brand-pink border border-brand-indigo/30">
-                    AI PRO
+                  <span className="rounded px-1.5 py-0.2 text-[10px] font-mono font-medium bg-panel-raised border border-line text-muted">
+                    v{brand.version}
                   </span>
                 </div>
-                <div className="mt-0.5 truncate text-[11px] font-medium text-faint">
-                  {brand.tagline}
+                <div className="truncate text-[11px] text-muted">
+                  Production Workspace
                 </div>
               </div>
             </div>
@@ -151,25 +140,41 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <IconButton
               className="md:hidden"
               label={t("closeNavigation")}
-              icon={<X size={17} />}
+              icon={<X size={16} />}
               onClick={onCloseMobile}
               variant="ghost"
               size="sm"
             />
           </div>
+
+          {/* Quick Command Search Trigger */}
+          {onOpenCommandPalette && (
+            <button
+              type="button"
+              onClick={onOpenCommandPalette}
+              className="mt-3 w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg border border-line bg-panel-raised text-xs text-muted hover:text-text-main hover:border-line/80 transition-colors cursor-pointer"
+            >
+              <span className="flex items-center gap-2 truncate">
+                <Search size={14} className="text-faint" />
+                <span className="truncate">Search or jump to...</span>
+              </span>
+              <kbd className="hidden sm:inline-block font-mono text-[10px] text-faint px-1 rounded bg-panel border border-line">
+                ⌘K
+              </kbd>
+            </button>
+          )}
         </div>
 
-        {/* ── Navigation Tree ── */}
-        <nav className="flex-1 overflow-y-auto no-scrollbar px-3.5 py-4 space-y-1">
+        {/* Navigation Item Tree */}
+        <nav className="flex-1 overflow-y-auto no-scrollbar px-2 py-3 space-y-0.5">
           {navItems.map((item, idx) => {
             if ("labelCategory" in item) {
               return (
                 <div
                   key={`cat-${item.labelCategory}-${idx}`}
-                  className="flex items-center gap-2 px-3 pt-5 pb-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-faint/80 select-none"
+                  className="px-2.5 pt-4 pb-1 text-[10px] font-semibold uppercase tracking-wider text-faint select-none"
                 >
-                  <span>{item.labelCategory}</span>
-                  <span className="h-[1px] flex-1 bg-line/40" />
+                  {item.labelCategory}
                 </div>
               );
             }
@@ -187,92 +192,69 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   onCloseMobile();
                 }}
                 className={cn(
-                  "group relative flex w-full items-center gap-3 rounded-2xl px-3.5 py-3 text-sm font-bold transition-all duration-200 outline-none cursor-pointer",
+                  "group relative flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium transition-colors outline-none cursor-pointer",
                   isActive
-                    ? "nav-active-pill text-white font-extrabold shadow-md"
-                    : "text-muted hover:bg-panel-hover/80 hover:text-text-main hover:translate-x-1",
+                    ? "bg-indigo-600/10 text-indigo-400 font-semibold"
+                    : "text-muted hover:bg-panel-hover hover:text-text-main",
                 )}
-                style={
-                  isActive
-                    ? {
-                        background:
-                          "linear-gradient(135deg, rgba(99,102,241,0.28) 0%, rgba(168,85,247,0.2) 50%, rgba(236,72,153,0.14) 100%)",
-                        border: "1px solid rgba(168,85,247,0.35)",
-                      }
-                    : undefined
-                }
                 aria-current={isActive ? "page" : undefined}
               >
-                {/* Active Neon Bar */}
+                {/* Active vertical bar */}
                 {isActive && (
                   <span
-                    className="absolute start-0 top-1/2 -translate-y-1/2 w-[3.5px] h-[60%] rounded-e-full"
-                    style={{ background: "var(--grad-primary)", boxShadow: "0 0 12px #a855f7" }}
+                    className="absolute start-0 top-1.5 bottom-1.5 w-0.5 rounded-full bg-indigo-500"
                     aria-hidden
                   />
                 )}
 
-                {/* Icon Container */}
                 <span
                   className={cn(
-                    "flex size-8 shrink-0 items-center justify-center rounded-xl transition-all duration-200",
-                    isActive
-                      ? "bg-brand-indigo/25 text-white shadow-sm shadow-brand-indigo/40"
-                      : "bg-panel-raised/60 text-faint group-hover:text-text-main group-hover:bg-panel-raised",
+                    "flex size-5 shrink-0 items-center justify-center transition-colors",
+                    isActive ? "text-indigo-400" : "text-faint group-hover:text-muted",
                   )}
                 >
-                  <Icon size={18} strokeWidth={isActive ? 2.5 : 2} />
+                  <Icon size={16} strokeWidth={isActive ? 2.2 : 1.8} />
                 </span>
 
-                <span className="flex-1 truncate text-start font-medium">{item.label}</span>
+                <span className="flex-1 truncate text-start">{item.label}</span>
 
-                {/* Badge if present */}
                 {"badge" in item && item.badge !== undefined && (
-                  <span className="rounded-full bg-brand-indigo/25 px-2 py-0.5 text-[10px] font-mono font-bold text-brand-pink border border-brand-indigo/30">
+                  <span className="rounded px-1.5 py-0.2 text-[9px] font-mono font-semibold bg-indigo-500/15 text-indigo-400 border border-indigo-500/20">
                     {item.badge}
                   </span>
-                )}
-
-                {/* Hover indicator */}
-                {!isActive && (
-                  <ChevronRight
-                    size={15}
-                    className="text-faint/0 transition-all duration-200 group-hover:text-faint/70 group-hover:translate-x-0.5 rtl:-scale-x-100 shrink-0"
-                    aria-hidden
-                  />
                 )}
               </button>
             );
           })}
         </nav>
 
-        {/* ── System Telemetry Mini-Gauge ── */}
-        <div className="shrink-0 mx-3.5 mb-3 rounded-2xl border border-line/60 bg-panel-raised/50 p-3.5 backdrop-blur-xl">
-          <div className="flex items-center justify-between text-[11px] font-bold text-faint">
+        {/* System Core Mini-Badge */}
+        <div className="shrink-0 mx-2 mb-2 rounded-lg border border-line bg-panel-raised p-2.5">
+          <div className="flex items-center justify-between text-[11px] font-medium text-muted">
             <span className="flex items-center gap-1.5">
-              <Cpu size={13} className="text-brand-indigo" />
+              <Cpu size={13} className="text-indigo-400" />
               Engine Core
             </span>
-            <span className="flex items-center gap-1 text-ok font-mono text-[10px]">
-              <span className="size-1.5 rounded-full bg-ok animate-ping" />
+            <span className="flex items-center gap-1 text-emerald-400 font-mono text-[10px]">
+              <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
               Active
             </span>
           </div>
-          <div className="mt-2 flex items-center justify-between text-[10px] text-muted">
-            <span>Node v{brand.version || "4.6"}</span>
-            <span className="font-mono">Baileys WA</span>
+          <div className="mt-1 flex items-center justify-between text-[10px] text-faint font-mono">
+            <span>Baileys WA</span>
+            <span>Node v{brand.version}</span>
           </div>
         </div>
 
-        {/* ── Footer Actions ── */}
-        <div className="shrink-0 border-t border-line/70 px-3.5 py-3 space-y-1">
+        {/* Footer Actions */}
+        <div className="shrink-0 border-t border-line p-2 space-y-1">
           {isInApp && (
             <button
               type="button"
               onClick={() => (window as any).LevixHost.closePanel()}
-              className="flex w-full items-center gap-3 rounded-2xl px-3.5 py-2.5 text-xs font-bold text-muted transition-all hover:bg-panel-hover/80 hover:text-text-main"
+              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-medium text-muted transition-colors hover:bg-panel-hover hover:text-text-main cursor-pointer"
             >
-              <PanelLeftClose size={17} strokeWidth={2} />
+              <PanelLeftClose size={15} />
               <span className="truncate">{t("backToApp")}</span>
             </button>
           )}
@@ -280,27 +262,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <form action="/logout" method="POST" className="m-0">
             <button
               type="submit"
-              className="flex w-full items-center gap-3 rounded-2xl px-3.5 py-2.5 text-xs font-bold text-muted transition-all hover:bg-danger/15 hover:text-danger hover:border-danger/20 border border-transparent"
+              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-medium text-muted transition-colors hover:bg-rose-500/10 hover:text-rose-400 cursor-pointer"
             >
-              <LogOut size={17} strokeWidth={2} className="rtl:-scale-x-100" />
+              <LogOut size={15} className="rtl:-scale-x-100" />
               <span className="truncate">{t("logout")}</span>
             </button>
           </form>
-        </div>
-
-        {/* ── Creator Signature ── */}
-        <div className="shrink-0 border-t border-line/50 px-5 py-3">
-          <div className="flex items-center justify-between text-[10px] text-faint/70 font-mono">
-            <span>Yuxli Bot</span>
-            <a
-              href={brand.developerSite || "#"}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:text-brand-pink transition-colors truncate max-w-[140px]"
-            >
-              {brand.developer}
-            </a>
-          </div>
         </div>
       </aside>
     </>

@@ -6,28 +6,28 @@ export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "succ
 export type ButtonSize = "sm" | "md" | "lg";
 
 export const buttonVariants = {
-  base: "relative inline-flex shrink-0 items-center justify-center gap-2 font-bold tracking-tight transition-all duration-150 select-none outline-none focus-visible:ring-2 focus-visible:ring-brand-cyan/60 focus-visible:ring-offset-2 focus-visible:ring-offset-panel disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.97] cursor-pointer",
+  base: "relative inline-flex shrink-0 items-center justify-center gap-2 font-medium text-sm tracking-normal transition-all duration-120 select-none outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-1 focus-visible:ring-offset-panel disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.98] cursor-pointer rounded-lg",
   variant: {
     primary:
-      "bg-gradient-to-r from-brand-blue via-indigo-600 to-brand-cyan text-white shadow-md shadow-brand-blue/25 hover:shadow-lg hover:shadow-brand-blue/35 hover:brightness-110 border border-white/15",
+      "bg-indigo-600 hover:bg-indigo-500 text-white shadow-xs border border-indigo-500/30",
     secondary:
-      "border border-line/80 bg-panel-raised/90 backdrop-blur-md text-text-main hover:bg-panel-hover hover:border-brand-blue/30 shadow-sm",
+      "border border-line bg-panel-raised text-text-main hover:bg-panel-hover hover:border-line/80 shadow-xs",
     ghost:
-      "text-muted hover:bg-panel-hover/80 hover:text-text-main",
+      "text-muted hover:bg-panel-hover hover:text-text-main border border-transparent",
     danger:
-      "bg-gradient-to-r from-danger to-rose-600 text-white shadow-md shadow-danger/25 hover:shadow-lg hover:shadow-danger/35 hover:brightness-110 border border-white/10",
+      "bg-rose-600 hover:bg-rose-500 text-white shadow-xs border border-rose-500/30",
     success:
-      "bg-gradient-to-r from-ok to-teal-500 text-white shadow-md shadow-ok/25 hover:shadow-lg hover:shadow-ok/35 hover:brightness-110 border border-white/10",
+      "bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs border border-emerald-500/30",
   },
   size: {
-    sm: "h-9 min-h-9 rounded-xl px-3.5 text-xs font-semibold",
-    md: "h-10 min-h-10 rounded-xl px-4 text-sm font-bold",
-    lg: "h-11 min-h-11 rounded-2xl px-5 text-sm font-bold",
+    sm: "h-8 min-h-8 px-2.5 text-xs font-medium rounded-md",
+    md: "h-9 min-h-9 px-3.5 text-xs sm:text-sm font-medium rounded-lg",
+    lg: "h-10 min-h-10 px-4 text-sm font-medium rounded-lg",
   },
   icon: {
-    sm: "size-9 min-h-9 min-w-9 rounded-xl p-0",
-    md: "size-10 min-h-10 min-w-10 rounded-xl p-0",
-    lg: "size-11 min-h-11 min-w-11 rounded-2xl p-0",
+    sm: "size-8 min-h-8 min-w-8 p-0 rounded-md",
+    md: "size-9 min-h-9 min-w-9 p-0 rounded-lg",
+    lg: "size-10 min-h-10 min-w-10 p-0 rounded-lg",
   },
 } as const;
 
@@ -69,7 +69,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       {loading ? (
         <span
           aria-hidden
-          className="size-4 shrink-0 rounded-full border-2 border-current border-t-transparent animate-spin"
+          className="size-3.5 shrink-0 rounded-full border-2 border-current border-t-transparent animate-spin"
         />
       ) : (
         icon && (
@@ -124,7 +124,7 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
         buttonVariants.base,
         buttonVariants.variant[variant],
         buttonVariants.icon[size],
-        pressed && "border-brand-blue/50 bg-brand-blue/20 text-brand-cyan shadow-sm",
+        pressed && "border-indigo-500/40 bg-indigo-500/10 text-indigo-400",
         className,
       )}
       {...props}
@@ -132,7 +132,7 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
       {loading ? (
         <span
           aria-hidden
-          className="size-4 rounded-full border-2 border-current border-t-transparent animate-spin"
+          className="size-3.5 rounded-full border-2 border-current border-t-transparent animate-spin"
         />
       ) : (
         <span aria-hidden className="shrink-0 flex items-center justify-center">

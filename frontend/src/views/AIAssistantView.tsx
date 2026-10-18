@@ -687,7 +687,7 @@ export const AIAssistantView: React.FC = () => {
         {selectedPreset.quickModels && selectedPreset.quickModels.length > 0 && (
           <div className="flex flex-col gap-1.5 pt-1">
             <span className="text-xs font-semibold text-text-main flex items-center gap-1.5">
-              <Sparkles size={13} className="text-brand-cyan" />
+              <Sparkles size={13} className="text-indigo-400" />
               Popular Models for {selectedPreset.name.split("—")[0].split("(")[0].trim()}:
             </span>
             <div className="flex flex-wrap gap-1.5">
@@ -701,15 +701,15 @@ export const AIAssistantView: React.FC = () => {
                     onClick={() => providerForm.setField("model", qm.id)}
                     className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-medium border transition-all cursor-pointer ${
                       isSelected
-                        ? "bg-brand-blue/20 border-brand-cyan text-brand-cyan shadow-sm"
-                        : "bg-panel-raised border-line text-muted hover:text-text-main hover:border-line-hover"
+                        ? "bg-indigo-500/15 border-indigo-500/40 text-indigo-400 shadow-xs"
+                        : "bg-panel-raised border-line text-muted hover:text-text-main hover:border-line/80"
                     }`}
                   >
                     <span>{qm.name}</span>
                     {qm.tag && (
                       <span
                         className={`text-[10px] px-1 py-0.2 rounded font-sans uppercase font-bold ${
-                          isSelected ? "bg-brand-cyan/20 text-brand-cyan" : "bg-panel text-muted"
+                          isSelected ? "bg-indigo-500/20 text-indigo-400" : "bg-panel text-muted"
                         }`}
                       >
                         {qm.tag}
@@ -928,7 +928,7 @@ export const AIAssistantView: React.FC = () => {
                 <span className="inline-flex items-center gap-2">
                   <Eye
                     size={17}
-                    className={visionLocked ? "shrink-0 text-muted" : "shrink-0 text-brand-cyan"}
+                    className={visionLocked ? "shrink-0 text-muted" : "shrink-0 text-indigo-400"}
                   />
                   {t("aiVision")}
                 </span>
@@ -954,7 +954,7 @@ export const AIAssistantView: React.FC = () => {
                 <span className="inline-flex items-center gap-2">
                   <Mic
                     size={17}
-                    className={sttLocked ? "shrink-0 text-muted" : "shrink-0 text-brand-purple"}
+                    className={sttLocked ? "shrink-0 text-muted" : "shrink-0 text-blue-400"}
                   />
                   {t("aiSttEnabled")}
                 </span>

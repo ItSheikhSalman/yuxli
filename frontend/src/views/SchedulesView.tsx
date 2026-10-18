@@ -575,7 +575,7 @@ export const SchedulesView: React.FC<SchedulesViewProps> = ({
         (personName(item.targetLabel) && item.targetLabel !== "Group" ? item.targetLabel : null) ||
         t("groupFallback");
       return (
-        <span className="inline-flex items-center gap-1.5 text-brand-cyan min-w-0">
+        <span className="inline-flex items-center gap-1.5 text-brand min-w-0">
           {showIcon && <Users size={14} className="shrink-0" />}
           <span className={`${titleClass} truncate`}>{label}</span>
         </span>
@@ -603,30 +603,30 @@ export const SchedulesView: React.FC<SchedulesViewProps> = ({
     <div className="flex flex-col gap-5 sm:gap-6">
       {/* Offline Alert Banner */}
       {!isConnected && (
-        <div className="rounded-2xl border border-warn/30 bg-warn/10 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="rounded-xl border border-warn/20 bg-warn/5 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3.5">
-            <div className="w-10 h-10 rounded-xl bg-warn/20 text-warn flex items-center justify-center shrink-0">
-              <AlertCircle size={22} />
+            <div className="w-9 h-9 rounded-lg bg-warn/15 text-warn flex items-center justify-center shrink-0">
+              <AlertCircle size={20} />
             </div>
             <div>
-              <h3 className="text-sm sm:text-base font-bold text-warn">
+              <h3 className="text-sm font-semibold text-warn">
                 {language === "ar" ? "واتساب غير متصل حالياً" : "WhatsApp is Disconnected"}
               </h3>
-              <p className="text-xs sm:text-sm text-text-main/80 mt-0.5">
+              <p className="text-xs text-text-muted mt-0.5">
                 {language === "ar"
                   ? "يلزم وجود اتصال نشط بواتساب لجدولة الرسائل وإرسالها واختيار جهات الاتصال."
                   : "An active WhatsApp connection is required to schedule messages, fetch chats, and deliver automated jobs."}
               </p>
             </div>
           </div>
-          <Button variant="primary" className="shrink-0" onClick={() => onNavigate?.("connection")}>
+          <Button variant="primary" size="sm" className="shrink-0" onClick={() => onNavigate?.("connection")}>
             {language === "ar" ? "الذهاب للاتصال" : "Go to Connection"}
           </Button>
         </div>
       )}
 
       <PageHeader
-        icon={<Calendar size={24} />}
+        icon={<Calendar size={22} />}
         title={
           <span className="inline-flex flex-wrap items-center gap-2">
             {t("schedules")}
@@ -638,7 +638,7 @@ export const SchedulesView: React.FC<SchedulesViewProps> = ({
         description={
           <>
             {t("timezoneLabel")}:{" "}
-            <code className="rounded border border-line bg-bg-soft px-1.5 py-0.5 font-mono font-semibold text-brand-cyan">
+            <code className="rounded border border-line bg-panel-raised px-1.5 py-0.5 font-mono font-medium text-brand text-xs">
               {timezone}
             </code>{" "}
             · {t("headerSubtitle")}
@@ -713,7 +713,7 @@ export const SchedulesView: React.FC<SchedulesViewProps> = ({
                     </bdi>
                   </td>
                   <td className="px-5 py-4 max-w-xs text-text-main truncate text-xs sm:text-sm">
-                    {s.media && <Paperclip size={12} className="inline me-1 text-brand-cyan" />}
+                    {s.media && <Paperclip size={12} className="inline me-1 text-brand" />}
                     {s.message || (s.media?.fileName ? s.media.fileName : "—")}
                   </td>
                   <td className="px-5 py-4 text-xs text-muted">
@@ -815,15 +815,15 @@ export const SchedulesView: React.FC<SchedulesViewProps> = ({
             </div>
 
             {selectedRecipient ? (
-              <div className="flex items-center justify-between p-3 rounded-xl border border-brand-blue/40 bg-brand-blue/10">
+              <div className="flex items-center justify-between p-3 rounded-lg border border-brand/25 bg-brand/5">
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-8 h-8 rounded-lg bg-brand-blue/20 text-brand-cyan flex items-center justify-center shrink-0">
+                  <div className="w-8 h-8 rounded-lg bg-brand/10 text-brand flex items-center justify-center shrink-0">
                     {selectedRecipient.type === "group" ? <Users size={16} /> : <User size={16} />}
                   </div>
                   <div className="min-w-0">
                     {renderContactLines(
                       selectedRecipient,
-                      "text-xs sm:text-sm font-bold text-text-main",
+                      "text-xs sm:text-sm font-semibold text-text-main",
                       false,
                     )}
                   </div>
@@ -1058,8 +1058,8 @@ export const SchedulesView: React.FC<SchedulesViewProps> = ({
             </span>
             <div className="flex flex-wrap items-center gap-2">
               {scheduleMediaHost || scheduleMedia ? (
-                <span className="inline-flex max-w-full items-center gap-2 rounded-xl border border-brand-blue/40 bg-brand-blue/10 ps-3 pe-1 text-xs text-text-main sm:text-sm">
-                  <Paperclip size={14} className="shrink-0 text-brand-cyan" />
+                <span className="inline-flex max-w-full items-center gap-2 rounded-lg border border-brand/25 bg-brand/5 ps-3 pe-1 text-xs text-text-main sm:text-sm">
+                  <Paperclip size={14} className="shrink-0 text-brand" />
                   <span className="max-w-[220px] truncate">
                     {scheduleMediaHost?.name ?? scheduleMedia?.name}
                   </span>
@@ -1074,7 +1074,7 @@ export const SchedulesView: React.FC<SchedulesViewProps> = ({
                 <Button
                   variant="secondary"
                   size="sm"
-                  icon={<Paperclip size={14} className="text-brand-cyan" />}
+                  icon={<Paperclip size={14} className="text-brand" />}
                   onClick={() =>
                     canHostUploadForm() ? void pickHostMedia() : mediaInputRef.current?.click()
                   }
@@ -1180,7 +1180,7 @@ export const SchedulesView: React.FC<SchedulesViewProps> = ({
             {detailSchedule.media && (
               <DetailRow label={t("detailMedia")}>
                 <span className="inline-flex items-center gap-1.5 min-w-0">
-                  <Paperclip size={13} className="text-brand-cyan shrink-0" />
+                  <Paperclip size={13} className="text-brand shrink-0" />
                   <span className="truncate">
                     {mediaKindLabel(t, detailSchedule.media.kind)}
                     {detailSchedule.media.fileName ? ` · ${detailSchedule.media.fileName}` : ""}

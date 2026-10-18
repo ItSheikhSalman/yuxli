@@ -2,31 +2,34 @@
 
 import {
   Activity,
+  ArrowUpRight,
   Bot,
   Calendar,
   Check,
-  ChevronRight,
+  CheckCircle2,
   Clock,
   Copy,
   Cpu,
   CreditCard,
-  Folder,
+  Database,
+  ExternalLink,
+  FileText,
+  HardDrive,
   Layers,
-  MessageSquare,
   MessageSquareX,
   Play,
   Radio,
   RefreshCw,
+  Server,
   Shield,
+  ShieldAlert,
   ShieldCheck,
-  Sliders,
-  Sparkles,
   Square,
   Sticker,
   Terminal,
-  TrendingUp,
   Users,
   Wifi,
+  WifiOff,
   Zap,
 } from "lucide-react";
 import type { FC } from "react";
@@ -60,27 +63,31 @@ export const OverviewView: FC<OverviewViewProps> = ({ status, onNavigate }) => {
   const { toast } = useToast();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [starting, setStarting] = useState(false);
   const [stopping, setStopping] = useState(false);
   const [copiedNumber, setCopiedNumber] = useState(false);
 
+  const fetchStats = async () => {
+    try {
+      const res = await api.getStats();
+      if (res?.stats) setStats(res.stats);
+    } catch (err: any) {
+      toast(err.message, "error");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
   useEffect(() => {
-    let mounted = true;
-    api
-      .getStats()
-      .then((res) => {
-        if (mounted && res?.stats) setStats(res.stats);
-      })
-      .catch((err) => {
-        toast(err.message, "error");
-      })
-      .finally(() => {
-        if (mounted) setLoading(false);
-      });
-    return () => {
-      mounted = false;
-    };
-  }, [toast]);
+    fetchStats();
+  }, []);
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    fetchStats();
+  };
 
   const formatUptime = (seconds: number) => {
     const days = Math.floor(seconds / 86400);
@@ -91,7 +98,7 @@ export const OverviewView: FC<OverviewViewProps> = ({ status, onNavigate }) => {
     return `${mins}m`;
   };
 
-  const isConnected = status?.state === "connected";
+  const isConnected = status?.state === "connected" || status?.connected === true;
   const linkedNumber = formatLinkedNumber(status?.user?.id);
 
   const handleCopyNumber = () => {
@@ -99,7 +106,7 @@ export const OverviewView: FC<OverviewViewProps> = ({ status, onNavigate }) => {
     navigator.clipboard.writeText(linkedNumber.replace(/\s+/g, ""));
     setCopiedNumber(true);
     toast("WhatsApp number copied to clipboard", "success");
-    setTimeout(() => setCopiedNumber(false), 2500);
+    setTimeout(() => setCopiedNumber(false), 2000);
   };
 
   const handleStart = async () => {
@@ -126,368 +133,407 @@ export const OverviewView: FC<OverviewViewProps> = ({ status, onNavigate }) => {
     }
   };
 
-  const statsCards = [
-    {
-      label: t("totalGroups"),
-      value: stats?.totalGroups ?? 0,
-      icon: <Users size={20} />,
-      tone: "border-brand-indigo/35 bg-brand-indigo/15 text-brand-indigo",
-      badge: "Managed",
-    },
-    {
-      label: t("commandCount"),
-      value: stats?.commandCount ?? 0,
-      icon: <Terminal size={20} />,
-      tone: "border-brand-pink/35 bg-brand-pink/15 text-brand-pink",
-      badge: "Enabled",
-    },
-    {
-      label: t("uptime"),
-      value: formatUptime(stats?.uptime || 0),
-      icon: <Clock size={20} />,
-      tone: "border-ok/35 bg-ok/15 text-ok",
-      badge: "Live",
-    },
-    {
-      label: t("activeSchedules"),
-      value: stats?.activeSchedules ?? 0,
-      icon: <Calendar size={20} />,
-      tone: "border-brand-purple/35 bg-brand-purple/15 text-brand-purple",
-      badge: "Cron Tasks",
-    },
-  ];
-
-  const featureCards = [
+  const quickShortcuts = [
     {
       id: "ai" as ViewTab,
-      title: "AI Assistant & Brain",
-      tagline: "Gemini, Claude & DeepSeek models",
-      desc: "Interactive intelligence with live memory, web search, custom persona, and tool invocation.",
+      label: "AI Assistant",
+      desc: stats?.aiConfigured ? "Provider connected & operational" : "Configure AI keys & persona",
       icon: Bot,
-      iconTone: "border-brand-indigo/35 bg-brand-indigo/20 text-brand-indigo",
-      pill: "AI Core",
-    },
-    {
-      id: "commands" as ViewTab,
-      title: "Command Hub",
-      tagline: `${stats?.commandCount ?? 0} commands ready`,
-      desc: "Full suite of media converters, productivity tools, dictionary, search, and group admin actions.",
-      icon: Terminal,
-      iconTone: "border-brand-pink/35 bg-brand-pink/20 text-brand-pink",
-      pill: "Productivity",
-    },
-    {
-      id: "groups" as ViewTab,
-      title: "Group Guardian",
-      tagline: "Shield & Moderation",
-      desc: "Automated anti-link filter, warning strike systems, welcome banners, and anti-spam protocols.",
-      icon: Shield,
-      iconTone: "border-emerald-500/35 bg-emerald-500/20 text-emerald-400",
-      pill: "Security",
+      status: stats?.aiConfigured ? "Active" : "Setup",
+      tone: stats?.aiConfigured ? "text-emerald-400" : "text-amber-400",
     },
     {
       id: "antiban" as ViewTab,
-      title: "Anti-Ban Shield v4.2",
-      tagline: "Behavioral humanization active",
-      desc: "Composing presence simulation, jitter delay pacing, and automated warm-up ramp protecting linked numbers.",
+      label: "Anti-Ban Protection",
+      desc: "Behavioral human presence simulation & jitter",
       icon: ShieldCheck,
-      iconTone: "border-emerald-500/35 bg-emerald-500/20 text-emerald-400",
-      pill: "Protection",
+      status: "Enabled",
+      tone: "text-emerald-400",
     },
     {
-      id: "plans" as ViewTab,
-      title: "Plans & Subscriptions",
-      tagline: "Enterprise Tiers & Upgrades",
-      desc: "Flexible subscription tiers, anti-ban SLAs, billing cycle toggles, and feature comparison matrix.",
-      icon: CreditCard,
-      iconTone: "border-brand-indigo/35 bg-brand-indigo/20 text-brand-indigo",
-      pill: "Billing",
+      id: "commands" as ViewTab,
+      label: "Commands Catalog",
+      desc: `${stats?.commandCount ?? 0} commands available (Prefix: ${stats?.prefix || "!"})`,
+      icon: Terminal,
+      status: `${stats?.commandCount ?? 0} ready`,
+      tone: "text-indigo-400",
+    },
+    {
+      id: "groups" as ViewTab,
+      label: "Group Guardian",
+      desc: `${stats?.totalGroups ?? 0} groups under automated policy protection`,
+      icon: Users,
+      status: `${stats?.totalGroups ?? 0} groups`,
+      tone: "text-blue-400",
     },
     {
       id: "schedules" as ViewTab,
-      title: "Automated Schedules",
-      tagline: "Cron Timers & Alerts",
-      desc: "Schedule automated messages, daily prayer times, recurring reminders, and community broadcasts.",
+      label: "Automation & Schedules",
+      desc: `${stats?.activeSchedules ?? 0} active recurring cron broadcasts`,
       icon: Calendar,
-      iconTone: "border-cyan-500/35 bg-cyan-500/20 text-cyan-400",
-      pill: "Automation",
+      status: `${stats?.activeSchedules ?? 0} active`,
+      tone: "text-indigo-400",
     },
     {
-      id: "stickers" as ViewTab,
-      title: "Sticker Studio",
-      tagline: "Media Lab",
-      desc: "Instant image and video conversion into animated WhatsApp stickers with custom creator watermarks.",
-      icon: Sticker,
-      iconTone: "border-amber-500/35 bg-amber-500/20 text-amber-400",
-      pill: "Creative",
-    },
-    {
-      id: "autodelete" as ViewTab,
-      title: "Auto-Clean Policy",
-      tagline: "Ephemeral Messages",
-      desc: "Automated chat cleaners to preserve privacy and free up device storage on your WhatsApp account.",
-      icon: MessageSquareX,
-      iconTone: "border-rose-500/35 bg-rose-500/20 text-rose-400",
-      pill: "Privacy",
+      id: "logs" as ViewTab,
+      label: "Telemetry & Logs",
+      desc: "Live WebSocket process stdout and network audit",
+      icon: FileText,
+      status: "Streaming",
+      tone: "text-muted",
     },
   ];
 
   return (
-    <div className="flex flex-col gap-6 animate-fade-up">
-      {/* ── Hero Futuristic Command Terminal ── */}
-      <Card className="relative overflow-hidden border-line/80 p-0 shadow-2xl">
-        {/* Holographic animated background streak */}
-        <div
-          className="pointer-events-none absolute inset-0 opacity-60"
-          style={{
-            background: isConnected
-              ? "radial-gradient(circle at 15% 20%, rgba(16,185,129,0.2) 0%, transparent 50%), radial-gradient(circle at 85% 80%, rgba(99,102,241,0.2) 0%, transparent 50%)"
-              : "radial-gradient(circle at 15% 20%, rgba(245,158,11,0.2) 0%, transparent 50%), radial-gradient(circle at 85% 80%, rgba(236,72,153,0.15) 0%, transparent 50%)",
-          }}
-        />
+    <div className="flex flex-col gap-5">
+      {/* ── Section A: Page Header ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-line pb-4">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight text-text-main">
+            YUXLI Overview
+          </h1>
+          <p className="text-xs text-muted mt-0.5">
+            Monitor your connected services, automation, and AI operations.
+          </p>
+        </div>
 
-        {/* Ambient Top Light Beam */}
-        <div
-          className="h-[2px] w-full"
-          style={{ background: "var(--grad-primary)" }}
-        />
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="secondary"
+            icon={<RefreshCw size={13} className={refreshing ? "animate-spin" : ""} />}
+            onClick={handleRefresh}
+            loading={refreshing}
+          >
+            Refresh
+          </Button>
 
-        <div className="p-5 sm:p-7 md:p-8">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-            {/* Status Information */}
-            <div className="flex items-start gap-5">
-              {/* Radar pulse avatar */}
-              <div
-                className={`relative flex size-16 shrink-0 items-center justify-center rounded-2xl border-2 transition-all duration-300 shadow-xl ${
-                  isConnected
-                    ? "border-ok/40 bg-ok/15 text-ok shadow-ok/20"
-                    : "border-warn/40 bg-warn/15 text-warn shadow-warn/20"
-                }`}
-              >
-                <Activity size={30} strokeWidth={2.5} className="animate-pulse" />
-                <span
-                  className={`absolute -bottom-1.5 -end-1.5 size-4 rounded-full border-2 border-panel-solid ${
-                    isConnected ? "bg-ok" : "bg-warn"
-                  }`}
-                />
-              </div>
+          <Button
+            size="sm"
+            variant="secondary"
+            icon={<FileText size={13} />}
+            onClick={() => onNavigate("logs")}
+          >
+            Activity
+          </Button>
 
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2.5">
-                  <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-text-main font-display">
-                    {isConnected ? "Bot Online & Active" : t(status?.state as any, "Session Standby")}
-                  </h2>
-                  <StatusPill tone={isConnected ? "ok" : "warn"} dot pulse>
-                    {isConnected ? t("online") : t("offline")}
-                  </StatusPill>
-                </div>
+          <Button
+            size="sm"
+            variant="primary"
+            icon={<Radio size={13} />}
+            onClick={() => onNavigate("connection")}
+          >
+            {isConnected ? "Connection Center" : "Connect WhatsApp"}
+          </Button>
+        </div>
+      </div>
 
-                {/* WhatsApp Phone Number Monospace Display */}
-                <div className="mt-2.5 flex flex-wrap items-center gap-2.5">
-                  {isConnected && linkedNumber ? (
-                    <div className="inline-flex items-center gap-2 rounded-xl border border-line/90 bg-panel-raised/90 px-3 py-1.5 shadow-sm">
-                      <Wifi size={14} className="text-ok" />
-                      <span className="font-mono text-sm font-black tracking-wider text-text-main">
-                        {linkedNumber}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={handleCopyNumber}
-                        className="ms-1 rounded-md p-1 text-faint hover:bg-panel-hover hover:text-text-main transition-colors"
-                        title="Copy number"
-                      >
-                        {copiedNumber ? <Check size={14} className="text-ok" /> : <Copy size={14} />}
-                      </button>
-                    </div>
-                  ) : (
-                    <p className="text-sm font-medium text-muted">
-                      {isConnected ? t("activeListening") : t("pausedOrLinking")}
-                    </p>
-                  )}
-
-                  {isConnected && stats?.uptime && (
-                    <div className="inline-flex items-center gap-1.5 rounded-xl border border-line/70 bg-panel-raised/60 px-3 py-1.5 text-xs font-mono text-faint">
-                      <TrendingUp size={13} className="text-brand-pink" />
-                      <span>Uptime: {formatUptime(stats.uptime)}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
+      {/* ── Section B: Real Connection Status Banner ── */}
+      <Card className="p-4 sm:p-5 border border-line bg-panel">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-start sm:items-center gap-3.5">
+            <div
+              className={`flex size-10 shrink-0 items-center justify-center rounded-lg border ${
+                isConnected
+                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                  : "border-amber-500/30 bg-amber-500/10 text-amber-400"
+              }`}
+            >
+              {isConnected ? <Wifi size={20} /> : <WifiOff size={20} />}
             </div>
 
-            {/* Quick Action Station */}
-            <div className="flex flex-wrap items-center gap-3">
-              {isConnected ? (
-                <Button
-                  variant="danger"
-                  icon={<Square size={16} />}
-                  onClick={handleStop}
-                  loading={stopping}
-                  className="min-w-[120px] rounded-2xl"
-                >
-                  {t("stop")}
-                </Button>
-              ) : (
-                <Button
-                  variant="primary"
-                  icon={<Play size={16} />}
-                  onClick={handleStart}
-                  loading={starting}
-                  className="min-w-[120px] rounded-2xl"
-                >
-                  {t("start")}
-                </Button>
-              )}
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm font-semibold text-text-main">
+                  {isConnected ? "WhatsApp Socket Connected" : "WhatsApp Socket Disconnected"}
+                </span>
 
+                <StatusPill
+                  tone={isConnected ? "ok" : "warn"}
+                  dot
+                  pulse={isConnected}
+                >
+                  {status?.state ? status.state.toUpperCase() : "OFFLINE"}
+                </StatusPill>
+              </div>
+
+              <div className="flex items-center gap-3 mt-1 text-xs text-muted flex-wrap">
+                {linkedNumber ? (
+                  <button
+                    type="button"
+                    onClick={handleCopyNumber}
+                    className="inline-flex items-center gap-1 font-mono text-text-main hover:text-indigo-400 transition-colors cursor-pointer"
+                    title="Click to copy number"
+                  >
+                    <span>{linkedNumber}</span>
+                    {copiedNumber ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
+                  </button>
+                ) : (
+                  <span>No phone paired yet</span>
+                )}
+
+                <span>•</span>
+                <span>Engine: Baileys Multi-Device</span>
+
+                <span>•</span>
+                <span>Uptime: {formatUptime(stats?.uptime || 0)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex items-center gap-2 shrink-0">
+            {isConnected ? (
               <Button
-                variant="secondary"
-                icon={<Radio size={16} />}
-                onClick={() => onNavigate("connection")}
-                className="rounded-2xl"
+                size="sm"
+                variant="danger"
+                icon={<Square size={13} />}
+                onClick={handleStop}
+                loading={stopping}
               >
-                {t("connection")}
+                Halt Session
               </Button>
-            </div>
+            ) : (
+              <Button
+                size="sm"
+                variant="primary"
+                icon={<Play size={13} />}
+                onClick={handleStart}
+                loading={starting}
+              >
+                Start Session
+              </Button>
+            )}
+
+            <Button
+              size="sm"
+              variant="secondary"
+              icon={<ExternalLink size={13} />}
+              onClick={() => onNavigate("connection")}
+            >
+              Session Details
+            </Button>
           </div>
         </div>
       </Card>
 
-      {/* ── Dynamic Telemetry Bento Grid ── */}
-      <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
-        {statsCards.map((card) => (
-          <Card
-            key={card.label}
-            className="group relative overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:border-line hover:shadow-lg bg-panel-solid/90"
-          >
-            <div className="relative flex items-center justify-between gap-2">
-              <span className="line-clamp-1 text-xs font-bold uppercase tracking-wider text-muted font-sans">
-                {card.label}
-              </span>
-              <div
-                className={`flex size-9 shrink-0 items-center justify-center rounded-xl border transition-all duration-200 ${card.tone}`}
-              >
-                {card.icon}
-              </div>
-            </div>
+      {/* ── Section C: Core Operational KPIs ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+        <StatCard
+          label={t("totalGroups")}
+          value={stats?.totalGroups ?? 0}
+          icon={<Users size={16} />}
+          tone="text-indigo-400"
+          subtitle="Managed communities"
+          loading={loading}
+        />
 
-            <div className="relative mt-3 flex items-baseline justify-between">
-              <div className="font-sans font-extrabold text-2xl sm:text-3xl tabular-nums tracking-tight text-text-main">
-                {loading ? (
-                  <span className="skeleton inline-block h-8 w-16 rounded-lg" />
-                ) : (
-                  card.value
-                )}
-              </div>
-              <span className="rounded-full bg-panel-raised/90 px-2 py-0.5 text-[10px] font-bold text-faint border border-line/70">
-                {card.badge}
-              </span>
-            </div>
-          </Card>
-        ))}
+        <StatCard
+          label={t("commandCount")}
+          value={stats?.commandCount ?? 0}
+          icon={<Terminal size={16} />}
+          tone="text-blue-400"
+          subtitle={`Global prefix: ${stats?.prefix || "!"}`}
+          loading={loading}
+        />
+
+        <StatCard
+          label={t("activeSchedules")}
+          value={stats?.activeSchedules ?? 0}
+          icon={<Calendar size={16} />}
+          tone="text-emerald-400"
+          subtitle="Scheduled cron jobs"
+          loading={loading}
+        />
+
+        <StatCard
+          label="Process Uptime"
+          value={formatUptime(stats?.uptime || 0)}
+          icon={<Clock size={16} />}
+          tone="text-amber-400"
+          subtitle="Continuous runtime"
+          loading={loading}
+        />
       </div>
 
-      {/* ── Smart Features Launch Deck (Autonomous Modules) ── */}
-      <div>
-        <div className="mb-4 flex items-center justify-between">
+      {/* ── Section D: Secondary Data Telemetry & System Diagnostics ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3.5">
+        {/* System Diagnostics */}
+        <Card className="p-4 border border-line bg-panel flex flex-col justify-between">
           <div>
-            <h3 className="text-lg font-black tracking-tight text-text-main font-display">
-              Autonomous Core Capabilities
-            </h3>
-            <p className="text-xs text-muted">Direct control over intelligence, automation, security, and billing</p>
+            <div className="flex items-center justify-between text-xs font-semibold text-text-main pb-3 border-b border-line">
+              <span className="flex items-center gap-1.5">
+                <Server size={14} className="text-indigo-400" />
+                System Diagnostics
+              </span>
+              <span className="font-mono text-[11px] text-emerald-400">HEALTHY</span>
+            </div>
+
+            <div className="mt-3 space-y-2 text-xs">
+              <div className="flex items-center justify-between text-muted">
+                <span>Node.js Runtime</span>
+                <span className="font-mono text-text-main">{stats?.nodeVersion || process.version || "v20.x"}</span>
+              </div>
+              <div className="flex items-center justify-between text-muted">
+                <span>Memory RSS</span>
+                <span className="font-mono text-text-main">
+                  {stats?.memory?.rss ? `${Math.round(stats.memory.rss / (1024 * 1024))} MB` : "Normal"}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-muted">
+                <span>Database Engine</span>
+                <span className="font-mono text-emerald-400">Connected (SQLite)</span>
+              </div>
+              <div className="flex items-center justify-between text-muted">
+                <span>AI Gateway</span>
+                <span className={`font-mono ${stats?.aiConfigured ? "text-emerald-400" : "text-amber-400"}`}>
+                  {stats?.aiConfigured ? "Configured" : "Key Not Set"}
+                </span>
+              </div>
+            </div>
           </div>
-          <span className="text-xs font-mono text-brand-pink font-bold">
-            {featureCards.length} Modules Active
-          </span>
+
+          <div className="mt-4 pt-3 border-t border-line flex items-center justify-between text-[11px] text-muted">
+            <span>Data Dir: {stats?.dataDir ? stats.dataDir.split(/[\/\\]/).slice(-2).join("/") : "data"}</span>
+            <button
+              type="button"
+              onClick={() => onNavigate("settings")}
+              className="text-indigo-400 hover:underline cursor-pointer"
+            >
+              Config →
+            </button>
+          </div>
+        </Card>
+
+        {/* Community Moderation Stats */}
+        <Card className="p-4 border border-line bg-panel flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between text-xs font-semibold text-text-main pb-3 border-b border-line">
+              <span className="flex items-center gap-1.5">
+                <Shield size={14} className="text-blue-400" />
+                Moderation Telemetry
+              </span>
+              <span className="font-mono text-[11px] text-muted">STORAGE</span>
+            </div>
+
+            <div className="mt-3 space-y-2 text-xs">
+              <div className="flex items-center justify-between text-muted">
+                <span>Warning Strikes</span>
+                <span className="font-mono text-text-main">{stats?.totalWarnings ?? 0}</span>
+              </div>
+              <div className="flex items-center justify-between text-muted">
+                <span>Notes & Knowledge</span>
+                <span className="font-mono text-text-main">{stats?.totalNotes ?? 0}</span>
+              </div>
+              <div className="flex items-center justify-between text-muted">
+                <span>Community Todos</span>
+                <span className="font-mono text-text-main">{stats?.totalTodos ?? 0}</span>
+              </div>
+              <div className="flex items-center justify-between text-muted">
+                <span>Ledger Records</span>
+                <span className="font-mono text-text-main">{stats?.totalDebts ?? 0}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 pt-3 border-t border-line flex items-center justify-between text-[11px] text-muted">
+            <span>Policies enforced automatically</span>
+            <button
+              type="button"
+              onClick={() => onNavigate("groups")}
+              className="text-indigo-400 hover:underline cursor-pointer"
+            >
+              Manage →
+            </button>
+          </div>
+        </Card>
+
+        {/* Anti-Ban & Risk Shield */}
+        <Card className="p-4 border border-line bg-panel flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between text-xs font-semibold text-text-main pb-3 border-b border-line">
+              <span className="flex items-center gap-1.5">
+                <ShieldCheck size={14} className="text-emerald-400" />
+                Anti-Ban Engine
+              </span>
+              <span className="font-mono text-[11px] text-emerald-400">SHIELD ACTIVE</span>
+            </div>
+
+            <div className="mt-3 space-y-2 text-xs">
+              <div className="flex items-center justify-between text-muted">
+                <span>Risk Index</span>
+                <span className="font-mono text-emerald-400">LOW (Safe)</span>
+              </div>
+              <div className="flex items-center justify-between text-muted">
+                <span>Typing Presence</span>
+                <span className="font-mono text-text-main">Simulated</span>
+              </div>
+              <div className="flex items-center justify-between text-muted">
+                <span>Jitter Pacing</span>
+                <span className="font-mono text-text-main">400ms – 1200ms</span>
+              </div>
+              <div className="flex items-center justify-between text-muted">
+                <span>Ramp Warm-up</span>
+                <span className="font-mono text-text-main">Active</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 pt-3 border-t border-line flex items-center justify-between text-[11px] text-muted">
+            <span>Protects linked accounts</span>
+            <button
+              type="button"
+              onClick={() => onNavigate("antiban")}
+              className="text-indigo-400 hover:underline cursor-pointer"
+            >
+              Parameters →
+            </button>
+          </div>
+        </Card>
+      </div>
+
+      {/* ── Section E: Operational Shortcuts ── */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted">
+            Operations & Capabilities
+          </h2>
+          <span className="text-xs text-faint">Direct module access</span>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {featureCards.map((card) => {
-            const Icon = card.icon;
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {quickShortcuts.map((item) => {
+            const Icon = item.icon;
             return (
               <button
-                key={card.id}
+                key={item.id}
                 type="button"
-                onClick={() => onNavigate(card.id)}
-                className="group relative flex flex-col justify-between rounded-2xl border border-line/80 bg-panel-solid/90 hover:bg-panel-hover/50 p-5 text-start transition-all duration-200 hover:border-brand-indigo/40 hover:-translate-y-1 hover:shadow-xl outline-none cursor-pointer backdrop-blur-md"
+                onClick={() => onNavigate(item.id)}
+                className="flex items-start justify-between p-3.5 rounded-xl border border-line bg-panel hover:bg-panel-hover hover:border-line/80 transition-all text-start cursor-pointer group"
               >
-                <div>
-                  <div className="flex items-center justify-between">
-                    <div
-                      className={`flex size-10 shrink-0 items-center justify-center rounded-xl border transition-all duration-200 group-hover:scale-105 shadow-sm ${card.iconTone}`}
-                    >
-                      <Icon size={20} strokeWidth={2.2} />
-                    </div>
-                    <span className="rounded-full border border-line/80 bg-panel-raised/90 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-muted group-hover:text-text-main transition-colors">
-                      {card.pill}
-                    </span>
+                <div className="flex items-start gap-3 min-w-0">
+                  <div className="size-8 shrink-0 rounded-lg border border-line bg-panel-raised flex items-center justify-center text-muted group-hover:text-text-main transition-colors mt-0.5">
+                    <Icon size={16} />
                   </div>
-
-                  <div className="mt-4">
-                    <h4 className="text-sm font-extrabold text-text-main font-sans">
-                      {card.title}
-                    </h4>
-                    <div className="text-[11px] font-semibold text-brand-indigo mt-0.5">
-                      {card.tagline}
+                  <div className="min-w-0">
+                    <div className="text-xs font-semibold text-text-main flex items-center gap-1.5">
+                      <span>{item.label}</span>
+                      <ArrowUpRight size={12} className="text-faint group-hover:text-text-main transition-colors" />
                     </div>
-                    <p className="mt-2 text-xs leading-relaxed text-muted line-clamp-2">
-                      {card.desc}
-                    </p>
+                    <div className="text-[11px] text-muted mt-0.5 line-clamp-1">
+                      {item.desc}
+                    </div>
                   </div>
                 </div>
 
-                <div className="mt-5 flex items-center justify-between border-t border-line/60 pt-3 text-xs font-bold text-muted group-hover:text-brand-pink transition-colors">
-                  <span>Open Module</span>
-                  <ChevronRight
-                    size={15}
-                    className="transition-transform duration-200 group-hover:translate-x-1 rtl:-scale-x-100"
-                  />
-                </div>
+                <span className={`text-[10px] font-mono font-medium shrink-0 ms-2 ${item.tone}`}>
+                  {item.status}
+                </span>
               </button>
             );
           })}
         </div>
       </div>
-
-      {/* ── System Engine Telemetry & Storage HUD ── */}
-      <Card className="relative overflow-hidden border-line/70 p-5">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-4">
-            <div
-              className="flex size-12 shrink-0 items-center justify-center rounded-2xl text-white shadow-lg"
-              style={{ background: "var(--grad-primary)" }}
-            >
-              <Zap size={22} strokeWidth={2.5} />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-base font-extrabold tracking-tight text-text-main font-display">
-                  Yuxli AI Engine
-                </span>
-                <span className="rounded-full border border-ok/30 bg-ok/10 px-2 py-0.5 text-[10px] font-bold text-ok">
-                  Self-Hosted Core
-                </span>
-              </div>
-              <p className="text-xs text-muted">
-                Private WhatsApp automation without third-party cloud telemetry
-              </p>
-            </div>
-          </div>
-
-          {stats?.dataDir && (
-            <div className="flex items-center gap-3 rounded-2xl border border-line/70 bg-panel-raised/70 px-4 py-2.5">
-              <Folder size={17} className="text-brand-indigo shrink-0" />
-              <div className="min-w-0">
-                <div className="text-[10px] font-bold uppercase tracking-wider text-faint">
-                  Storage Directory
-                </div>
-                <div className="truncate font-mono text-xs text-text-main" dir="ltr">
-                  {stats.dataDir}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </Card>
     </div>
   );
 };

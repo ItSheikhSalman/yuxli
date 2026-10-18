@@ -573,35 +573,48 @@ export const SettingsView: React.FC = () => {
 
           <Card className="flex flex-col gap-4">
             <CardHeader
-              icon={<Palette size={20} className="text-brand-cyan" />}
+              icon={<Palette size={20} className="text-brand" />}
               title="Theme & Visual Appearance"
-              description="Customize your bot dashboard look and feel with professional palettes"
+              description="Select your preferred workspace theme and visual contrast palette"
             />
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               {[
-                { id: "navy", label: "Deep Navy", bg: "#060d19", border: "#176bfa", dot: "#21cef3" },
-                { id: "emerald", label: "Emerald Matrix", bg: "#03130e", border: "#059669", dot: "#10b981" },
-                { id: "violet", label: "Royal Violet", bg: "#090514", border: "#7c3aed", dot: "#c084fc" },
-                { id: "midnight", label: "OLED Midnight", bg: "#000000", border: "#27272a", dot: "#06b6d4" },
-                { id: "light", label: "Modern Light", bg: "#f8fafc", border: "#cbd5e1", dot: "#176bfa" },
-              ].map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => selectTheme(item.id)}
-                  className={`flex flex-col items-center gap-2 rounded-xl border p-3 text-center transition-all duration-200 hover:scale-[1.03] ${
-                    currentTheme === item.id || (item.id === "navy" && currentTheme === "dark")
-                      ? "border-brand-blue ring-2 ring-brand-blue/30 shadow-lg"
-                      : "border-line hover:border-line-soft bg-panel-raised/50"
-                  }`}
-                  style={{ backgroundColor: item.bg }}
-                >
-                  <div className="h-5 w-5 rounded-full border border-white/20 shadow-sm" style={{ backgroundColor: item.dot }} />
-                  <span className={`text-xs font-semibold ${item.id === "light" ? "text-slate-800" : "text-white"}`}>
-                    {item.label}
-                  </span>
-                </button>
-              ))}
+                { id: "dark", label: "Dark Enterprise", desc: "Default balanced dark interface", bg: "#090b10", border: "#222735", dot: "#6366f1" },
+                { id: "midnight", label: "OLED Midnight", desc: "Deep contrast for dark environments", bg: "#030407", border: "#1c212f", dot: "#818cf8" },
+                { id: "light", label: "Studio Light", desc: "Crisp, daylight optimized palette", bg: "#f8fafc", border: "#e2e8f0", dot: "#4f46e5" },
+              ].map((item) => {
+                const isSelected = currentTheme === item.id || (item.id === "dark" && (currentTheme === "navy" || !currentTheme));
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => selectTheme(item.id)}
+                    className={`flex items-center gap-3.5 rounded-xl border p-3.5 text-start transition-all duration-150 ${
+                      isSelected
+                        ? "border-brand ring-2 ring-brand/20 bg-brand/5 shadow-xs"
+                        : "border-line hover:border-line-soft bg-panel-raised/40 hover:bg-panel-raised"
+                    }`}
+                  >
+                    <div
+                      className="h-8 w-8 rounded-lg border border-line flex items-center justify-center shrink-0 shadow-xs"
+                      style={{ backgroundColor: item.bg }}
+                    >
+                      <div className="h-3.5 w-3.5 rounded-full" style={{ backgroundColor: item.dot }} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-xs font-semibold text-text-main flex items-center justify-between">
+                        <span>{item.label}</span>
+                        {isSelected && (
+                          <Badge tone="info" className="text-[10px] py-0 px-1.5">
+                            Active
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-muted truncate mt-0.5">{item.desc}</p>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </Card>
 

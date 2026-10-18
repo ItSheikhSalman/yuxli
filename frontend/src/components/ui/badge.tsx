@@ -5,12 +5,12 @@ import { cn } from "../../utils/cn";
 export type BadgeTone = "ok" | "warn" | "danger" | "info" | "neutral" | "purple";
 
 const TONE: Record<BadgeTone, string> = {
-  ok:      "border-ok/30 bg-ok/10 text-ok",
-  warn:    "border-warn/30 bg-warn/10 text-warn",
-  danger:  "border-danger/30 bg-danger/10 text-danger",
-  info:    "border-info/30 bg-info/10 text-info",
+  ok:      "border-emerald-500/25 bg-emerald-500/10 text-emerald-400",
+  warn:    "border-amber-500/25 bg-amber-500/10 text-amber-400",
+  danger:  "border-rose-500/25 bg-rose-500/10 text-rose-400",
+  info:    "border-blue-500/25 bg-blue-500/10 text-blue-400",
   neutral: "border-line bg-panel-raised text-muted",
-  purple:  "border-brand-purple/30 bg-brand-purple/10 text-brand-purple",
+  purple:  "border-indigo-500/25 bg-indigo-500/10 text-indigo-400",
 };
 
 export interface BadgeProps extends ComponentPropsWithoutRef<"span"> {
@@ -21,7 +21,7 @@ export function Badge({ tone = "neutral", className, children, ...props }: Badge
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold tracking-wide",
+        "inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[11px] font-medium tracking-normal",
         TONE[tone],
         className,
       )}
@@ -41,20 +41,20 @@ export function StatusPill({
   return (
     <Badge {...props}>
       {dot && (
-        <span className={cn("size-[7px] shrink-0 rounded-full bg-current", pulse && "pulse-dot")} />
+        <span className={cn("size-1.5 shrink-0 rounded-full bg-current", pulse && "pulse-dot")} />
       )}
       {children}
     </Badge>
   );
 }
 
-/** A small numeric count badge (e.g. unread count) */
+/** A small numeric count badge */
 export function CountBadge({ count, className }: { count: number; className?: string }) {
   if (count <= 0) return null;
   return (
     <span
       className={cn(
-        "inline-flex min-w-[18px] items-center justify-center rounded-full bg-brand-blue px-1 py-0.5 text-[10px] font-bold text-white leading-none",
+        "inline-flex min-w-[18px] items-center justify-center rounded-full bg-indigo-600 px-1.5 py-0.5 text-[10px] font-mono font-medium text-white leading-none",
         className,
       )}
     >

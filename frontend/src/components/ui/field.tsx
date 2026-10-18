@@ -3,14 +3,14 @@ import { type ComponentPropsWithoutRef, forwardRef, type ReactNode, useId } from
 import { cn } from "../../utils/cn";
 
 export const inputClass =
-  "w-full min-h-10 rounded-xl border border-line bg-panel-raised px-3 text-sm text-text-main placeholder:text-faint focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue/50 disabled:cursor-not-allowed disabled:opacity-50";
+  "w-full min-h-9 rounded-lg border border-line bg-panel-raised px-3 py-1.5 text-xs sm:text-sm text-text-main placeholder:text-faint focus:outline-none focus:border-indigo-500/80 focus:ring-1 focus:ring-indigo-500/50 disabled:cursor-not-allowed disabled:opacity-50 transition-colors duration-150";
 
 /** Alias kept for call sites that still pass a class instead of the Input primitive. */
 export const fieldClass = inputClass;
 
 export function FieldLabel({ children, htmlFor }: { children: ReactNode; htmlFor?: string }) {
   return (
-    <label htmlFor={htmlFor} className="mb-1 block text-xs font-bold text-text-main">
+    <label htmlFor={htmlFor} className="mb-1 block text-xs font-medium text-text-main">
       {children}
     </label>
   );
@@ -32,13 +32,13 @@ export function Field({
   className?: string;
 }) {
   return (
-    <div className={cn("flex flex-col gap-1.5", className)}>
+    <div className={cn("flex flex-col gap-1", className)}>
       {label && <FieldLabel htmlFor={htmlFor}>{label}</FieldLabel>}
       {children}
       {error ? (
-        <p className="text-xs text-danger">{error}</p>
+        <p className="text-xs text-rose-500">{error}</p>
       ) : (
-        description && <p className="text-xs text-muted">{description}</p>
+        description && <p className="text-xs text-muted leading-relaxed">{description}</p>
       )}
     </div>
   );
@@ -56,7 +56,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, ComponentPropsWithoutRef
     return (
       <textarea
         ref={ref}
-        className={cn(inputClass, "h-auto min-h-24 resize-y py-3 leading-relaxed", className)}
+        className={cn(inputClass, "h-auto min-h-20 resize-y py-2.5 leading-relaxed", className)}
         {...props}
       />
     );
@@ -65,7 +65,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, ComponentPropsWithoutRef
 
 export const Select = forwardRef<HTMLSelectElement, ComponentPropsWithoutRef<"select">>(
   function Select({ className, ...props }, ref) {
-    return <select ref={ref} className={cn(inputClass, "pe-8", className)} {...props} />;
+    return <select ref={ref} className={cn(inputClass, "pe-8 cursor-pointer", className)} {...props} />;
   },
 );
 
@@ -81,17 +81,17 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(function Che
   const autoId = useId();
   const inputId = id ?? autoId;
   return (
-    <label htmlFor={inputId} className="flex min-h-10 cursor-pointer items-center gap-2.5">
+    <label htmlFor={inputId} className="flex min-h-8 cursor-pointer items-center gap-2">
       <input
         ref={ref}
         id={inputId}
         type="checkbox"
-        className={cn("size-4 shrink-0 accent-brand-blue", className)}
+        className={cn("size-4 shrink-0 rounded border-line bg-panel-raised text-indigo-600 focus:ring-indigo-500/40", className)}
         {...props}
       />
       {(label || description) && (
         <span className="min-w-0">
-          {label && <span className="block text-sm text-text-main">{label}</span>}
+          {label && <span className="block text-xs sm:text-sm font-medium text-text-main">{label}</span>}
           {description && <span className="block text-xs text-muted">{description}</span>}
         </span>
       )}
@@ -127,24 +127,24 @@ export function RadioGroup<T extends string>({
       role="radiogroup"
       aria-label={label}
       className={cn(
-        "flex gap-1",
+        "flex gap-1.5",
         orientation === "horizontal" ? "flex-row flex-wrap" : "flex-col",
         className,
       )}
     >
-      {label && <p className="mb-1 w-full text-xs font-bold text-text-main">{label}</p>}
+      {label && <p className="mb-1 w-full text-xs font-medium text-text-main">{label}</p>}
       {options.map((option) => (
-        <label key={option.value} className="flex min-h-10 cursor-pointer items-center gap-2.5">
+        <label key={option.value} className="flex min-h-8 cursor-pointer items-center gap-2">
           <input
             type="radio"
             name={name}
             value={option.value}
             checked={value === option.value}
             onChange={() => onChange(option.value)}
-            className="size-4 shrink-0 accent-brand-blue"
+            className="size-4 shrink-0 text-indigo-600 border-line bg-panel-raised focus:ring-indigo-500/40"
           />
           <span className="min-w-0">
-            <span className="block text-sm text-text-main">{option.label}</span>
+            <span className="block text-xs sm:text-sm font-medium text-text-main">{option.label}</span>
             {option.description && (
               <span className="block text-xs text-muted">{option.description}</span>
             )}
@@ -173,7 +173,7 @@ export const Toggle = forwardRef<HTMLButtonElement, ToggleProps>(function Toggle
   return (
     <div
       className={cn(
-        labelled ? "flex items-center justify-between gap-4" : "inline-flex",
+        labelled ? "flex items-center justify-between gap-3" : "inline-flex",
         className,
       )}
     >
@@ -182,12 +182,12 @@ export const Toggle = forwardRef<HTMLButtonElement, ToggleProps>(function Toggle
           {label && (
             <label
               htmlFor={toggleId}
-              className="block cursor-pointer text-sm font-semibold text-text-main"
+              className="block cursor-pointer text-xs sm:text-sm font-medium text-text-main"
             >
               {label}
             </label>
           )}
-          {description && <p className="mt-0.5 text-xs text-muted">{description}</p>}
+          {description && <p className="mt-0.5 text-xs text-muted leading-relaxed">{description}</p>}
         </div>
       )}
       <button
@@ -200,17 +200,17 @@ export const Toggle = forwardRef<HTMLButtonElement, ToggleProps>(function Toggle
         disabled={disabled}
         onClick={() => onChange(!checked)}
         className={cn(
-          "relative inline-flex h-10 w-16 shrink-0 items-center rounded-full border transition-colors",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue/50",
+          "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors duration-150 cursor-pointer",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40",
           "disabled:cursor-not-allowed disabled:opacity-50",
-          checked ? "border-brand-blue bg-brand-blue" : "border-line bg-panel-hover",
+          checked ? "border-indigo-600 bg-indigo-600" : "border-line bg-panel-hover",
         )}
       >
         <span
           aria-hidden
           className={cn(
-            "pointer-events-none absolute top-1 size-7 rounded-full bg-white shadow transition-[inset-inline-start] duration-200",
-            checked ? "start-8" : "start-1",
+            "pointer-events-none absolute top-0.5 size-3.5 rounded-full bg-white shadow-xs transition-[inset-inline-start] duration-150",
+            checked ? "start-[18px]" : "start-0.5",
           )}
         />
       </button>

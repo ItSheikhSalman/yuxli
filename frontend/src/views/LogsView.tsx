@@ -153,7 +153,7 @@ export const LogsView: React.FC<LogsViewProps> = ({ socket }) => {
             <IconButton
               label={t("autoScroll")}
               pressed={autoScroll}
-              icon={<ArrowDown size={18} className={autoScroll ? "animate-bounce" : ""} />}
+              icon={<ArrowDown size={18} className={autoScroll ? "text-brand" : "text-muted"} />}
               onClick={() => setAutoScroll((on) => !on)}
             />
             <IconButton
@@ -171,7 +171,7 @@ export const LogsView: React.FC<LogsViewProps> = ({ socket }) => {
 
       <Card
         padded={false}
-        className="h-[65vh] overflow-y-auto bg-bg p-4 font-mono text-xs leading-relaxed text-muted shadow-2xl md:p-5"
+        className="h-[65vh] overflow-y-auto bg-panel-solid border border-line p-4 font-mono text-xs leading-relaxed text-muted md:p-5"
         dir="ltr"
       >
         {source === "bot" ? (

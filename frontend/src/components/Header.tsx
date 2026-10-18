@@ -1,13 +1,15 @@
+// file: frontend/src/components/Header.tsx
+
 import {
-  Building2,
   ChevronDown,
-  CreditCard,
   Globe,
   LogOut,
   Menu as MenuIcon,
-  Palette,
+  Moon,
+  Search,
   ShieldCheck,
   Sparkles,
+  Sun,
   User,
   Wifi,
   WifiOff,
@@ -24,6 +26,7 @@ interface HeaderProps {
   title: string;
   status: SessionStatus | null;
   onNavigate?: (view: ViewTab) => void;
+  onOpenCommandPalette?: () => void;
 }
 
 interface UserProfile {
@@ -35,26 +38,23 @@ interface UserProfile {
   plan: string;
 }
 
-const THEMES = [
-  { id: "aurora",    label: "Aurora Hologram", color: "from-indigo-500 via-purple-500 to-pink-500" },
-  { id: "cyberpunk", label: "Neo Tokyo",       color: "from-cyan-400 via-fuchsia-500 to-pink-500" },
-  { id: "emerald",   label: "Quantum Matrix",  color: "from-emerald-500 to-teal-400" },
-  { id: "solar",     label: "Solar Flare",     color: "from-amber-500 via-orange-500 to-red-500" },
-  { id: "obsidian",  label: "Pure Obsidian",   color: "from-zinc-900 to-zinc-400" },
-  { id: "light",     label: "Luxe Light",      color: "from-sky-400 to-indigo-500" },
-] as const;
-
 const LANGUAGES = [
-  { id: "ar", label: "العربية", code: "AR" },
   { id: "en", label: "English", code: "EN" },
+  { id: "ar", label: "العربية", code: "AR" },
 ] as const;
 
-export const Header: FC<HeaderProps> = ({ onToggleMobileMenu, title, status, onNavigate }) => {
+export const Header: FC<HeaderProps> = ({
+  onToggleMobileMenu,
+  title,
+  status,
+  onNavigate,
+  onOpenCommandPalette,
+}) => {
   const { language, setLanguage, t } = useI18n();
   const [user, setUser] = useState<UserProfile>(() => {
     return (window as any).__USER__ || {
       name: "Enterprise Admin",
-      email: "admin@workspace.local",
+      email: "admin@yuxli.internal",
       company: "Production Org",
       role: "Owner",
       plan: "Enterprise Pro",
@@ -63,7 +63,8 @@ export const Header: FC<HeaderProps> = ({ onToggleMobileMenu, title, status, onN
 
   useEffect(() => {
     let mounted = true;
-    api.getCurrentUser()
+    api
+      .getCurrentUser()
       .then((res) => {
         if (mounted && res?.user) {
           setUser(res.user);
@@ -81,11 +82,12 @@ export const Header: FC<HeaderProps> = ({ onToggleMobileMenu, title, status, onN
       document.documentElement.setAttribute("data-theme", saved);
       return saved;
     }
-    const current = document.documentElement.getAttribute("data-theme") || "aurora";
-    return current === "dark" || current === "navy" ? "aurora" : current;
+    const current = document.documentElement.getAttribute("data-theme") || "dark";
+    return current;
   });
 
-  const applyTheme = (nextTheme: string) => {
+  const toggleTheme = () => {
+    const nextTheme = theme === "light" ? "dark" : "light";
     setTheme(nextTheme);
     document.documentElement.setAttribute("data-theme", nextTheme);
     localStorage.setItem("yuxli_theme", nextTheme);
@@ -97,207 +99,153 @@ export const Header: FC<HeaderProps> = ({ onToggleMobileMenu, title, status, onN
     ? `+${status.user.id.split("@")[0].split(":")[0].replace(/\D/g, "")}`
     : null;
 
-  const initials = (user.name || "EA")
-    .split(" ")
-    .map((w) => w[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-
   return (
-    <header
-      className="sticky top-0 z-30 shrink-0 flex h-16 items-center justify-between border-b border-line/70 bg-panel/85 px-4 sm:px-6 backdrop-blur-2xl transition-all"
-      style={{
-        boxShadow: "0 4px 24px -2px rgba(0, 0, 0, 0.35), inset 0 1px 0 0 rgba(255, 255, 255, 0.08)",
-      }}
-    >
-      {/* Left side: Navigation Toggle & Breadcrumb */}
+    <header className="sticky top-0 z-30 shrink-0 flex h-13 items-center justify-between border-b border-line bg-panel px-4 sm:px-6">
+      {/* Left: Mobile Menu & Contextual Title / Breadcrumb */}
       <div className="flex min-w-0 items-center gap-3">
         <IconButton
           id="mobile-menu-btn"
           className="md:hidden"
           label={t("openNavigation")}
-          icon={<MenuIcon size={19} />}
+          icon={<MenuIcon size={18} />}
           onClick={onToggleMobileMenu}
           variant="ghost"
+          size="sm"
         />
-        <div className="flex items-center gap-2.5 min-w-0">
-          <h1
-            className="truncate text-base sm:text-lg font-black tracking-tight text-text-main font-display"
-            title={title}
-          >
+
+        <div className="flex items-center gap-2 min-w-0 text-xs">
+          <span className="hidden sm:inline-block text-muted font-medium">YUXLI</span>
+          <span className="hidden sm:inline-block text-faint">/</span>
+          <h1 className="truncate font-semibold text-text-main text-xs sm:text-sm">
             {title}
           </h1>
-          {onNavigate ? (
+
+          {onNavigate && user.plan && (
             <button
               type="button"
               onClick={() => onNavigate("plans")}
-              className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-brand-indigo/15 hover:bg-brand-indigo/25 text-brand-pink border border-brand-indigo/30 transition-all cursor-pointer"
-              title="Click to view subscription tiers"
+              className="hidden lg:inline-flex items-center gap-1 ms-1 px-2 py-0.5 rounded text-[10px] font-medium bg-panel-raised border border-line text-muted hover:text-text-main hover:border-line/80 transition-colors cursor-pointer"
             >
-              <Sparkles size={11} className="animate-pulse" />
-              <span>{user.plan || "Enterprise Node"}</span>
+              <span>{user.plan}</span>
             </button>
-          ) : (
-            <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-brand-indigo/15 text-brand-pink border border-brand-indigo/30">
-              <Sparkles size={11} className="animate-pulse" />
-              Enterprise Node
-            </span>
           )}
         </div>
       </div>
 
-      {/* Right side: Connection Telemetry, Language, Theme, & SaaS User Profile */}
-      <div className="flex items-center gap-2 sm:gap-3">
-        {/* Status pill with live radar ping */}
+      {/* Right: Actions, Telemetry, Controls */}
+      <div className="flex items-center gap-2 sm:gap-2.5">
+        {/* Command Palette Button */}
+        {onOpenCommandPalette && (
+          <button
+            type="button"
+            onClick={onOpenCommandPalette}
+            className="hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-lg border border-line bg-panel-raised text-xs text-muted hover:text-text-main hover:border-line/80 transition-colors cursor-pointer"
+          >
+            <Search size={13} className="text-faint" />
+            <span className="text-[11px]">Command Menu</span>
+            <kbd className="font-mono text-[9px] text-faint px-1 rounded bg-panel border border-line">
+              ⌘K
+            </kbd>
+          </button>
+        )}
+
+        {/* Live Status Telemetry Pill */}
         {status && (
           <div
-            className={`flex items-center gap-2 rounded-2xl border px-3 py-1.5 text-xs font-bold transition-all shadow-sm ${
+            className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium ${
               isConnected
-                ? "border-ok/35 bg-ok/10 text-ok shadow-ok/10"
-                : "border-warn/35 bg-warn/10 text-warn shadow-warn/10"
+                ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-400"
+                : "border-amber-500/25 bg-amber-500/10 text-amber-400"
             }`}
           >
-            {isConnected ? (
-              <>
-                <Wifi size={14} className="shrink-0" />
-                <span className="font-mono tracking-tight font-black">{linkedNum ?? t("connected")}</span>
-                <span className="pulse-dot size-2" />
-              </>
-            ) : (
-              <>
-                <WifiOff size={14} className="shrink-0" />
-                <span className="font-medium">{t(status.state as any, "Offline")}</span>
-                <span className="size-2 rounded-full bg-warn/80 animate-ping" />
-              </>
-            )}
+            <span className={`size-1.5 rounded-full ${isConnected ? "bg-emerald-400 pulse-dot" : "bg-amber-400"}`} />
+            <span className="font-mono text-[11px]">
+              {isConnected ? linkedNum || "Online" : status.state || "Offline"}
+            </span>
           </div>
         )}
 
-        {/* Language selector */}
+        {/* Theme Switcher Toggle */}
+        <IconButton
+          variant="ghost"
+          size="sm"
+          label={theme === "light" ? "Switch to Dark Theme" : "Switch to Light Theme"}
+          icon={theme === "light" ? <Moon size={15} /> : <Sun size={15} />}
+          onClick={toggleTheme}
+          className="text-muted hover:text-text-main"
+        />
+
+        {/* Language Switcher */}
         <Menu
-          label={t("chooseLanguage")}
+          label="Select Language"
           trigger={
             <IconButton
-              id="btn-header-lang"
-              label={t("chooseLanguage")}
-              icon={<Globe size={18} className="text-brand-pink" />}
               variant="ghost"
-              className="rounded-xl border border-line/50 hover:bg-panel-hover"
+              size="sm"
+              label="Language"
+              icon={<Globe size={15} />}
+              className="text-muted hover:text-text-main"
             />
           }
         >
-          <MenuLabel>{t("chooseLanguage")}</MenuLabel>
+          <MenuLabel>Language</MenuLabel>
           {LANGUAGES.map((lang) => (
             <MenuItem
               key={lang.id}
               checked={language === lang.id}
-              onSelect={() => setLanguage(lang.id as any)}
+              onSelect={() => setLanguage(lang.id as "ar" | "en")}
             >
-              <span className="me-2 text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-surface border border-line">
-                {lang.code}
-              </span>
               {lang.label}
             </MenuItem>
           ))}
         </Menu>
 
-        {/* Theme palette picker */}
+        {/* User Workspace Profile Menu */}
         <Menu
-          label="Theme Suite"
-          trigger={
-            <IconButton
-              id="btn-header-theme"
-              label="Theme Suite"
-              icon={<Palette size={18} className="text-brand-indigo" />}
-              variant="ghost"
-              className="rounded-xl border border-line/50 hover:bg-panel-hover"
-            />
-          }
-        >
-          <MenuLabel>Theme Suite</MenuLabel>
-          {THEMES.map((th) => (
-            <MenuItem
-              key={th.id}
-              checked={theme === th.id || (th.id === "aurora" && (theme === "navy" || theme === "dark"))}
-              onSelect={() => applyTheme(th.id)}
-            >
-              <span
-                className={`me-2.5 inline-block size-3.5 rounded-full bg-gradient-to-tr ${th.color} shadow-sm border border-white/20`}
-                aria-hidden
-              />
-              {th.label}
-            </MenuItem>
-          ))}
-        </Menu>
-
-        {/* ── Enterprise SaaS User Profile & Workspace Dropdown ── */}
-        <Menu
-          label="Account & Workspace"
+          label="User Account"
           trigger={
             <button
               type="button"
-              className="flex items-center gap-2 rounded-xl border border-line/60 bg-surface/60 px-2.5 py-1.5 hover:bg-panel-hover hover:border-line transition-all cursor-pointer text-left focus:outline-none"
-              aria-label="User Workspace Menu"
+              className="flex items-center gap-1.5 rounded-lg border border-line bg-panel-raised px-2 py-1 text-xs font-medium text-text-main hover:bg-panel-hover transition-colors cursor-pointer"
             >
-              <div className="flex size-7 items-center justify-center rounded-lg bg-gradient-to-tr from-brand-indigo to-brand-pink text-[11px] font-bold text-white shadow-sm font-mono">
-                {initials}
+              <div className="flex size-5 items-center justify-center rounded-full bg-indigo-600 text-white text-[10px] font-bold">
+                {user.name.charAt(0).toUpperCase()}
               </div>
-              <div className="hidden lg:block leading-tight">
-                <div className="text-xs font-bold text-text-main truncate max-w-[110px]">
-                  {user.company || "Enterprise"}
-                </div>
-                <div className="text-[10px] text-text-muted truncate max-w-[110px]">
-                  {user.name}
-                </div>
-              </div>
-              <ChevronDown size={14} className="text-text-muted hidden sm:block" />
+              <span className="hidden md:inline-block max-w-[100px] truncate">{user.name}</span>
+              <ChevronDown size={13} className="text-muted" />
             </button>
           }
         >
-          <div className="px-3 py-2 border-b border-line/70">
-            <div className="text-xs font-bold text-text-main">{user.name}</div>
-            <div className="text-[11px] text-text-muted truncate">{user.email}</div>
-            <div className="mt-1.5 flex items-center justify-between gap-1.5">
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-400 border border-emerald-500/20">
-                <ShieldCheck size={11} />
-                {user.plan || "PRO TIER"}
-              </span>
-              {onNavigate && (
-                <button
-                  type="button"
-                  onClick={() => onNavigate("plans")}
-                  className="text-[10px] font-black text-brand-indigo hover:text-brand-pink transition-colors cursor-pointer"
-                >
-                  Manage &rarr;
-                </button>
-              )}
-            </div>
-          </div>
-
-          <MenuLabel>Active Workspace</MenuLabel>
-          <MenuItem disabled>
-            <Building2 size={14} className="me-2 text-brand-indigo" />
-            <span className="truncate">{user.company || "Main Workspace"}</span>
-          </MenuItem>
+          <MenuLabel>
+            <div className="font-semibold text-text-main">{user.name}</div>
+            <div className="text-[10px] text-muted font-normal truncate">{user.email}</div>
+          </MenuLabel>
 
           {onNavigate && (
-            <MenuItem onSelect={() => onNavigate("plans")}>
-              <CreditCard size={14} className="me-2 text-brand-pink" />
-              <span className="font-semibold text-text-main">Subscription & Billing</span>
-            </MenuItem>
+            <>
+              <MenuItem onSelect={() => onNavigate("plans")}>
+                Plans & Subscriptions
+              </MenuItem>
+              <MenuItem onSelect={() => onNavigate("settings")}>
+                {t("settings")}
+              </MenuItem>
+            </>
           )}
 
-          <div className="border-t border-line/60 my-1" />
-
-          <MenuItem onSelect={() => { window.location.href = "/logout"; }}>
-            <LogOut size={14} className="me-2 text-warn" />
-            <span className="text-warn font-semibold">Sign Out</span>
+          <MenuItem
+            danger
+            onSelect={() => {
+              const form = document.createElement("form");
+              form.method = "POST";
+              form.action = "/logout";
+              document.body.appendChild(form);
+              form.submit();
+            }}
+          >
+            {t("logout")}
           </MenuItem>
         </Menu>
       </div>
     </header>
   );
 };
-
-export default Header;

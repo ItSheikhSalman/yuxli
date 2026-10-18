@@ -2,6 +2,7 @@
 import type React from "react";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "./api/client";
+import { CommandPalette } from "./components/CommandPalette";
 import { Header } from "./components/Header";
 import { Sidebar, type ViewTab } from "./components/Sidebar";
 import { ToastProvider, useToast } from "./components/Toasts";
@@ -47,6 +48,7 @@ const MainLayout: React.FC = () => {
 
   const [currentView, setCurrentView] = useState<ViewTab>(viewFromHash);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
 
   // Realtime Socket listener
   const {
@@ -94,7 +96,7 @@ const MainLayout: React.FC = () => {
 
   const isConnected = activeStatus?.connected === true || activeStatus?.state === "connected";
 
-  // Auto-poll in transitional states (starting, linking, waiting_for_qr without QR, reconnecting)
+  // Auto-poll in transitional states
   useEffect(() => {
     const state = activeStatus?.state;
     const isTransitional =
@@ -126,6 +128,35 @@ const MainLayout: React.FC = () => {
     return () => window.removeEventListener("hashchange", handleHashChange);
   }, []);
 
+  // Global keyboard shortcut for Command Palette (Cmd+K / Ctrl+K)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setCommandPaletteOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  const [currentTheme, setCurrentTheme] = useState(() => {
+    return (
+      localStorage.getItem("yuxli_theme") ||
+      localStorage.getItem("levix_theme") ||
+      document.documentElement.getAttribute("data-theme") ||
+      "dark"
+    );
+  });
+
+  const toggleTheme = () => {
+    const nextTheme = currentTheme === "light" ? "dark" : "light";
+    setCurrentTheme(nextTheme);
+    document.documentElement.setAttribute("data-theme", nextTheme);
+    localStorage.setItem("yuxli_theme", nextTheme);
+    localStorage.setItem("levix_theme", nextTheme);
+  };
+
   const viewTitles: Record<ViewTab, string> = {
     overview: t("overview"),
     connection: t("connection"),
@@ -142,29 +173,26 @@ const MainLayout: React.FC = () => {
   };
 
   return (
-    <div className="h-screen max-h-screen flex bg-bg text-text-main bg-ambient-glow overflow-hidden relative">
-      {/* Ambient background light orbs */}
-      <div className="pointer-events-none fixed -top-40 -left-40 size-96 rounded-full bg-brand-indigo/15 blur-[120px]" />
-      <div className="pointer-events-none fixed top-1/3 -right-40 size-96 rounded-full bg-brand-pink/10 blur-[140px]" />
-      <div className="pointer-events-none fixed -bottom-40 left-1/3 size-96 rounded-full bg-brand-purple/10 blur-[130px]" />
-
+    <div className="h-screen max-h-screen flex bg-bg text-text-main overflow-hidden relative">
       <Sidebar
         currentView={currentView}
         onSelectView={handleSelectView}
         isOpenMobile={mobileMenuOpen}
         onCloseMobile={() => setMobileMenuOpen(false)}
+        onOpenCommandPalette={() => setCommandPaletteOpen(true)}
       />
 
-      <div className="flex-1 flex flex-col h-full min-w-0 overflow-hidden relative z-10">
+      <div className="flex-1 flex flex-col h-full min-w-0 overflow-hidden relative">
         <Header
           onToggleMobileMenu={() => setMobileMenuOpen((prev) => !prev)}
           title={viewTitles[currentView] || "Dashboard"}
           status={activeStatus}
           onNavigate={handleSelectView}
+          onOpenCommandPalette={() => setCommandPaletteOpen(true)}
         />
 
-        <main className="flex-1 overflow-y-auto w-full p-4 sm:p-6 lg:p-8">
-          <div className="max-w-7xl mx-auto space-y-6">
+        <main className="flex-1 overflow-y-auto w-full p-4 sm:p-6 lg:p-7">
+          <div className="max-w-7xl mx-auto space-y-5">
             {currentView === "overview" && (
               <OverviewView status={activeStatus} onNavigate={handleSelectView} />
             )}
@@ -192,6 +220,14 @@ const MainLayout: React.FC = () => {
           </div>
         </main>
       </div>
+
+      <CommandPalette
+        isOpen={commandPaletteOpen}
+        onClose={() => setCommandPaletteOpen(false)}
+        onNavigate={handleSelectView}
+        onToggleTheme={toggleTheme}
+        currentTheme={currentTheme}
+      />
     </div>
   );
 };
