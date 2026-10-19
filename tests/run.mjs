@@ -9,7 +9,8 @@
 // minutes, and `npm test` has to stay something you run constantly.
 
 import { spawn } from "node:child_process";
-import { readdirSync } from "node:fs";
+import { mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -31,6 +32,7 @@ let totalChecks = 0;
 let totalFailed = 0;
 
 for (const file of files) {
+  const dataDirectory = mkdtempSync(join(tmpdir(), "yuxli-regression-"));
   console.log(`\n${"─".repeat(64)}\n▸ ${file}`);
 
   const { code, output } = await new Promise((resolve) => {
@@ -38,7 +40,7 @@ for (const file of files) {
       stdio: ["ignore", "pipe", "pipe"],
       // A stray real data directory would be a bug in the test, not something
       // to inherit quietly.
-      env: { ...process.env, LEVIX_DATA_DIR: "" },
+      env: { ...process.env, LEVIX_DATA_DIR: dataDirectory },
     });
     let output = "";
     child.stdout.on("data", (chunk) => {
@@ -52,6 +54,8 @@ for (const file of files) {
     child.on("close", (code) => resolve({ code, output }));
   });
 
+  rmSync(dataDirectory, { recursive: true, force: true });
+
   const tally = /^CHECKS (\d+) (\d+)$/m.exec(output);
   const checks = tally ? Number(tally[1]) : 0;
   const failed = tally ? Number(tally[2]) : 0;
@@ -61,7 +65,7 @@ for (const file of files) {
 
   // A file that exits non-zero without printing a tally crashed — count that
   // as a failure rather than a silent zero.
-  const crashed = !tally && code !== 0;
+  const crashed = code !== 0 && failed === 0;
   results.push({ file, checks, failed, crashed, code });
 }
 

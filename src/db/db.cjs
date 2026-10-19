@@ -646,6 +646,139 @@ const MIGRATIONS = [
       CREATE INDEX IF NOT EXISTS idx_antiban_logs_created ON antiban_logs (created_at);
     `);
   },
+  // v10 — Multi-Tenancy Architecture: Workspaces, Subscriptions, Usage Counters & Scoping
+  (database) => {
+    database.exec(`
+      CREATE TABLE IF NOT EXISTS workspaces (
+        id            TEXT PRIMARY KEY,
+        name          TEXT NOT NULL,
+        slug          TEXT UNIQUE NOT NULL,
+        owner_id      TEXT NOT NULL,
+        created_at    INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_workspaces_owner ON workspaces (owner_id);
+
+      CREATE TABLE IF NOT EXISTS workspace_members (
+        id            TEXT PRIMARY KEY,
+        workspace_id  TEXT NOT NULL,
+        user_id       TEXT NOT NULL,
+        role          TEXT NOT NULL DEFAULT 'member',
+        created_at    INTEGER NOT NULL,
+        UNIQUE(workspace_id, user_id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_workspace_members_user ON workspace_members (user_id);
+
+      CREATE TABLE IF NOT EXISTS subscriptions (
+        id                       TEXT PRIMARY KEY,
+        workspace_id             TEXT NOT NULL UNIQUE,
+        plan                     TEXT NOT NULL DEFAULT 'free',
+        status                   TEXT NOT NULL DEFAULT 'active',
+        provider                 TEXT NOT NULL DEFAULT 'sandbox',
+        provider_customer_id     TEXT,
+        provider_subscription_id TEXT,
+        current_period_start     INTEGER NOT NULL,
+        current_period_end       INTEGER NOT NULL,
+        cancel_at_period_end     INTEGER NOT NULL DEFAULT 0,
+        created_at               INTEGER NOT NULL,
+        updated_at               INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_subscriptions_workspace ON subscriptions (workspace_id);
+
+      CREATE TABLE IF NOT EXISTS usage_counters (
+        id                  TEXT PRIMARY KEY,
+        workspace_id        TEXT NOT NULL,
+        period              TEXT NOT NULL,
+        messages_count      INTEGER NOT NULL DEFAULT 0,
+        ai_queries_count    INTEGER NOT NULL DEFAULT 0,
+        ai_tokens_count     INTEGER NOT NULL DEFAULT 0,
+        schedules_count     INTEGER NOT NULL DEFAULT 0,
+        updated_at          INTEGER NOT NULL,
+        UNIQUE(workspace_id, period)
+      );
+      CREATE INDEX IF NOT EXISTS idx_usage_counters_ws_period ON usage_counters (workspace_id, period);
+
+      CREATE TABLE IF NOT EXISTS billing_events (
+        id          TEXT PRIMARY KEY,
+        provider    TEXT NOT NULL,
+        event_id    TEXT UNIQUE NOT NULL,
+        event_type  TEXT NOT NULL,
+        payload     TEXT NOT NULL,
+        processed_at INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_billing_events_event ON billing_events (event_id);
+
+      CREATE TABLE IF NOT EXISTS whatsapp_connections (
+        id           TEXT PRIMARY KEY,
+        workspace_id TEXT NOT NULL,
+        name         TEXT NOT NULL,
+        phone_number TEXT,
+        status       TEXT DEFAULT 'idle',
+        is_default   INTEGER DEFAULT 0,
+        created_at   INTEGER NOT NULL,
+        updated_at   INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_whatsapp_conn_ws ON whatsapp_connections (workspace_id);
+
+      CREATE TABLE IF NOT EXISTS ai_reservations (
+        id              TEXT PRIMARY KEY,
+        workspace_id    TEXT NOT NULL,
+        period          TEXT NOT NULL,
+        tokens_reserved INTEGER DEFAULT 0,
+        status          TEXT DEFAULT 'pending',
+        created_at      INTEGER NOT NULL,
+        updated_at      INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_ai_reservations_ws_period ON ai_reservations (workspace_id, period);
+    `);
+
+    const addColumnIfMissing = (tableName, columnName, columnDef) => {
+      try {
+        const columns = database
+          .prepare(`PRAGMA table_info(${tableName})`)
+          .all()
+          .map((c) => c.name);
+        if (!columns.includes(columnName)) {
+          database.exec(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${columnDef}`);
+        }
+      } catch {}
+    };
+
+    addColumnIfMissing("schedules", "workspace_id", "TEXT DEFAULT 'ws_default'");
+    addColumnIfMissing("todos", "workspace_id", "TEXT DEFAULT 'ws_default'");
+    addColumnIfMissing("notes", "workspace_id", "TEXT DEFAULT 'ws_default'");
+    addColumnIfMissing("debts", "workspace_id", "TEXT DEFAULT 'ws_default'");
+    addColumnIfMissing("warnings", "workspace_id", "TEXT DEFAULT 'ws_default'");
+    addColumnIfMissing("group_settings", "workspace_id", "TEXT DEFAULT 'ws_default'");
+    addColumnIfMissing("ai_history", "workspace_id", "TEXT DEFAULT 'ws_default'");
+    addColumnIfMissing("antiban_logs", "workspace_id", "TEXT DEFAULT 'ws_default'");
+
+    const now = Date.now();
+    const periodEnd = now + 365 * 24 * 60 * 60 * 1000;
+    try {
+      const existingUser = database.prepare("SELECT id FROM saas_users ORDER BY created_at ASC LIMIT 1").get();
+      const ownerId = existingUser ? existingUser.id : "usr_admin";
+      database
+        .prepare("INSERT OR IGNORE INTO workspaces (id, name, slug, owner_id, created_at) VALUES (?, ?, ?, ?, ?)")
+        .run("ws_default", "Default Workspace", "default-workspace", ownerId, now);
+
+      database
+        .prepare("INSERT OR IGNORE INTO subscriptions (id, workspace_id, plan, status, provider, current_period_start, current_period_end, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
+        .run("sub_default", "ws_default", "free", "active", "sandbox", now, periodEnd, now, now);
+
+      database
+        .prepare("INSERT OR IGNORE INTO workspace_members (id, workspace_id, user_id, role, created_at) VALUES (?, ?, ?, ?, ?)")
+        .run("mem_default", "ws_default", ownerId, "owner", now);
+
+      database
+        .prepare("INSERT OR IGNORE INTO whatsapp_connections (id, workspace_id, name, is_default, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)")
+        .run("conn_default", "ws_default", "Primary WhatsApp", 1, now, now);
+    } catch {}
+  },
+  require("../services/intelligence/migration.cjs"),
+  require("../services/intelligence/adaptiveMigration.cjs"),
+  require("../services/intelligence/searchMigration.cjs"),
+  require("../services/intelligence/lifecycleMigration.cjs"),
+  require("../services/intelligence/legacyIsolationMigration.cjs"),
 ];
 
 function migrate(database, migrations = MIGRATIONS) {
@@ -679,6 +812,35 @@ function migrate(database, migrations = MIGRATIONS) {
 }
 
 migrate(db);
+
+// Ensure multi-connection and reservation tables exist on active database
+db.exec(`
+  CREATE TABLE IF NOT EXISTS whatsapp_connections (
+    id           TEXT PRIMARY KEY,
+    workspace_id TEXT NOT NULL,
+    name         TEXT NOT NULL,
+    phone_number TEXT,
+    status       TEXT DEFAULT 'idle',
+    is_default   INTEGER DEFAULT 0,
+    created_at   INTEGER NOT NULL,
+    updated_at   INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_whatsapp_conn_ws ON whatsapp_connections (workspace_id);
+
+  CREATE TABLE IF NOT EXISTS ai_reservations (
+    id              TEXT PRIMARY KEY,
+    workspace_id    TEXT NOT NULL,
+    period          TEXT NOT NULL,
+    tokens_reserved INTEGER DEFAULT 0,
+    status          TEXT DEFAULT 'pending',
+    created_at      INTEGER NOT NULL,
+    updated_at      INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_ai_reservations_ws_period ON ai_reservations (workspace_id, period);
+
+  INSERT OR IGNORE INTO whatsapp_connections (id, workspace_id, name, is_default, created_at, updated_at)
+  VALUES ('conn_default', 'ws_default', 'Primary WhatsApp', 1, ${Date.now()}, ${Date.now()});
+`);
 
 // ===================================================================
 // --- Helpers shared by the store ---
@@ -732,6 +894,12 @@ function sweepExpired() {
     ).run();
   } catch (err) {
     logger.error({ err }, "[DB] auto-delete log sweep failed");
+  }
+  try {
+    const intelligence = require("../services/intelligence/repository.cjs");
+    for (const workspace of q("SELECT id FROM workspaces").all()) intelligence.sweep(workspace.id);
+  } catch (err) {
+    logger.error({ err }, "[DB] adaptive retention sweep failed");
   }
 }
 

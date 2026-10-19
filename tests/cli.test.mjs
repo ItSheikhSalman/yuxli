@@ -10,6 +10,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import { equal, finish, ok, ROOT, require, section, useTempDataDir } from "./harness.mjs";
 
 const dataDir = useTempDataDir("levix-cli");
@@ -26,7 +27,9 @@ function levix(args, { data = dataDir, probe = false } = {}) {
     },
   );
   result.modules =
-    probeOut && existsSync(probeOut) ? readFileSync(probeOut, "utf8").split("\n") : [];
+    probeOut && existsSync(probeOut)
+      ? readFileSync(probeOut, "utf8").split("\n").map((p) => p.replace(/\\/g, "/"))
+      : [];
   return result;
 }
 
@@ -224,7 +227,7 @@ section("an unsupported Node version fails with a sentence, not a stack");
       "-e",
       `
       Object.defineProperty(process.versions, "node", { value: "20.11.0", configurable: true });
-      import(${JSON.stringify(CLI)});
+      import(${JSON.stringify(pathToFileURL(CLI).href)});
       `,
     ],
     { encoding: "utf8", env: { ...process.env, LEVIX_DATA_DIR: dataDir } },

@@ -12,7 +12,7 @@
 //   node tests/fixtures/reconnect-liveness.mjs --data <dir>
 
 import { EventEmitter } from "node:events";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const ROOT = fileURLToPath(new URL("../..", import.meta.url));
 
@@ -23,7 +23,7 @@ if (index === -1 || !process.argv[index + 1]) {
 }
 process.env.LEVIX_DATA_DIR = process.argv[index + 1];
 
-const { WhatsAppSession } = await import(`${ROOT}src/core/session.js`);
+const { WhatsAppSession } = await import(pathToFileURL(`${ROOT}/src/core/session.js`).href);
 
 let created = 0;
 const session = new WhatsAppSession({

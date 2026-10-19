@@ -11,6 +11,7 @@
 
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import { equal, finish, ok, require, ROOT, section, useTempDataDir } from "./harness.mjs";
 
 useTempDataDir("levix-help-i18n");
@@ -189,7 +190,7 @@ section("the dashboard gets both languages");
 
 {
   const { loadCommands, getCommandCatalog } = await import(
-    join(ROOT, "src/handlers/command.handler.js")
+    pathToFileURL(join(ROOT, "src/handlers/command.handler.js")).href
   );
   await loadCommands();
   const kick = getCommandCatalog().find((c) => c.name === "kick");

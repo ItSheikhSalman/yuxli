@@ -115,17 +115,22 @@ app.use((req, res, next) => {
 // so src/index.js mounts `dashboardJson` in front of it and this parser skips
 // those paths.
 const jsonBody = express.json({ limit: "100kb" });
+const urlencodedBody = express.urlencoded({ extended: false, limit: "100kb" });
 const dashboardJson = express.json({ limit: "2mb" });
 
 app.use((req, res, next) => {
-  if (req.path.startsWith("/dashboard/api/")) return next();
-  return jsonBody(req, res, next);
+  if (req.path.startsWith("/dashboard/api/") || req.path === "/api/billing/webhook") return next();
+  jsonBody(req, res, (err) => {
+    if (err) return next(err);
+    urlencodedBody(req, res, next);
+  });
 });
 
 // SameSite=lax closes the classic CSRF; this is a cheap check on top of it for
 // anything that changes state.
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 app.use((req, res, next) => {
+  if (req.path === "/api/billing/webhook") return next();
   if (SAFE_METHODS.has(req.method)) return next();
   if (isAllowedMutationRequest(req)) return next();
   return res.status(403).json({ error: "Cross-origin request rejected" });
@@ -181,6 +186,23 @@ app.use((req, res, next) => {
 app.get(["/healthz", "/health", "/ping"], (req, res) => {
   res.status(200).json({ status: "ok", bot: "Yuxli", uptime: Math.floor(process.uptime()), timestamp: Date.now() });
 });
+
+// --- Stripe Webhook (Unauthenticated, HMAC-verified) ----------------------
+app.post(
+  "/api/billing/webhook",
+  express.raw({ type: "application/json", limit: "1mb" }),
+  async (req, res) => {
+    try {
+      const signature = req.headers["stripe-signature"];
+      const billing = require("./src/services/billing/index.cjs");
+      const outcome = await billing.handleIncomingWebhook(req.body, signature);
+      res.status(outcome.status).json(outcome.body);
+    } catch (err) {
+      logger.error({ err }, "[Billing] Webhook handler error");
+      res.status(500).json({ error: "Internal webhook processing error" });
+    }
+  }
+);
 
 // Levix is intentionally one process and one operator, so a small expiring
 // in-memory store is enough. Unlike express-session's development MemoryStore,
@@ -241,58 +263,87 @@ function isLocalRequest(req) {
 }
 
 function renderSetup(req, res, error, status = 200) {
-  const requireCode = process.env.REQUIRE_SETUP_CODE === "true";
+  const disableCode = process.env.DISABLE_SETUP_CODE === "true";
+  const needsCode = !disableCode && !isLocalRequest(req);
   res.status(status).render("setup", {
     error,
-    needsCode: requireCode && !isLocalRequest(req),
+    needsCode,
     setupCode: secrets.getSetupCode(),
     minLength: secrets.MIN_PASSWORD_LENGTH,
   });
 }
 
 app.get("/setup", noStore, (req, res) => {
-  if (isPanelSessionValid(req.session)) return res.redirect("/");
-  return res.redirect(303, "/signup");
+  if (secrets.hasDashboardPassword() && store.countSaasUsers() > 0) {
+    if (isPanelSessionValid(req.session)) return res.redirect("/");
+    return res.redirect("/login");
+  }
+  renderSetup(req, res, null);
 });
 
 app.post("/setup", (req, res, next) => {
+  if (secrets.hasDashboardPassword() && store.countSaasUsers() > 0) {
+    if (isPanelSessionValid(req.session)) return res.redirect("/");
+    return res.redirect("/login");
+  }
+
   const peer = clientAddress(req);
   const retryAfter = blockedFor(peer);
   if (retryAfter) {
     res.set("Retry-After", String(retryAfter));
-    return res.status(429).render("signup", {
-      error: "Too many attempts. Try again later.",
-      minLength: secrets.MIN_PASSWORD_LENGTH,
-    });
+    return renderSetup(req, res, "Too many attempts. Try again later.", 429);
   }
 
-  const { name, email, password, confirm, company } = req.body || {};
-  if (confirm && password !== confirm) {
-    return res.status(400).render("signup", {
-      error: "The two passwords don't match.",
-      minLength: secrets.MIN_PASSWORD_LENGTH,
-    });
+  const { name, email, password, confirm, company, code } = req.body || {};
+
+  const disableCode = process.env.DISABLE_SETUP_CODE === "true";
+  const needsCode = !disableCode && !isLocalRequest(req);
+
+  if (needsCode && !secrets.setupCodeMatches(code)) {
+    recordFailure(peer);
+    logger.warn({ ip: peer }, "[dashboard] Setup attempted with a wrong code");
+    return renderSetup(req, res, "Wrong setup code.", 401);
+  }
+
+  if (!password) {
+    return renderSetup(req, res, "Password is required.", 400);
+  }
+
+  if (password !== confirm) {
+    return renderSetup(req, res, "The two passwords don't match.", 400);
   }
 
   try {
-    const user = store.createSaasUser({ name, email, password, company });
-    if (!secrets.hasDashboardPassword()) {
-      try { secrets.setDashboardPassword(password); } catch {}
+    secrets.setDashboardPassword(password);
+    const saasName = (name && String(name).trim()) || "Administrator";
+    const saasEmail = (email && String(email).trim().toLowerCase()) || "admin@yuxli.local";
+    const saasCompany = (company && String(company).trim()) || "Default Workspace";
+    let user;
+    if (store.countSaasUsers() === 0) {
+      user = store.createSaasUser({
+        name: saasName,
+        email: saasEmail,
+        password,
+        company: saasCompany,
+        role: "owner",
+        plan: "free",
+        workspaceId: "ws_default",
+      });
+    } else {
+      user = store.getSaasUserByEmail(saasEmail) || store.listSaasUsers()[0];
     }
     clearAttempts(peer);
+    logger.info({ ip: peer }, "[dashboard] Setup complete — workspace claimed");
     req.session.regenerate((err) => {
       if (err) return next(err);
-      stampPanelSession(req.session, user);
+      stampPanelSession(req.session, user, { operator: true });
       req.session.save((saveErr) => {
         if (saveErr) return next(saveErr);
         res.redirect(303, "/");
       });
     });
   } catch (error) {
-    return res.status(400).render("signup", {
-      error: error.message,
-      minLength: secrets.MIN_PASSWORD_LENGTH,
-    });
+    return renderSetup(req, res, error.message, 400);
   }
 });
 
@@ -303,7 +354,7 @@ app.get(["/health", "/ping", "/healthz"], (req, res) => {
 });
 
 app.get("/", noStore, (req, res) => {
-  if (!secrets.hasDashboardPassword() && store.countSaasUsers() === 0) return res.redirect("/signup");
+  if (!secrets.hasDashboardPassword() && store.countSaasUsers() === 0) return res.redirect("/setup");
   if (isPanelSessionValid(req.session)) {
     const dashboardHtmlPath = path.join(assetPath("public"), "dashboard", "index.html");
     if (fs.existsSync(dashboardHtmlPath)) {
@@ -332,7 +383,7 @@ app.get("/", noStore, (req, res) => {
 
 app.get("/login", noStore, (req, res) => {
   if (isPanelSessionValid(req.session)) return res.redirect("/");
-  if (!secrets.hasDashboardPassword() && store.countSaasUsers() === 0) return res.redirect("/signup");
+  if (!secrets.hasDashboardPassword() && store.countSaasUsers() === 0) return res.redirect("/setup");
   return res.render("login", { error: null, minLength: secrets.MIN_PASSWORD_LENGTH });
 });
 
@@ -384,6 +435,7 @@ app.get("/signup", noStore, (req, res) => {
 });
 
 app.post("/signup", (req, res, next) => {
+  if (!secrets.hasDashboardPassword()) return res.redirect(303, "/setup");
   const peer = clientAddress(req);
   const { name, email, password, confirm, company } = req.body || {};
 
@@ -396,9 +448,6 @@ app.post("/signup", (req, res, next) => {
 
   try {
     const user = store.createSaasUser({ name, email, password, company });
-    if (!secrets.hasDashboardPassword()) {
-      try { secrets.setDashboardPassword(password); } catch {}
-    }
     clearAttempts(peer);
     req.session.regenerate((err) => {
       if (err) return next(err);

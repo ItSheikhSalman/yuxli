@@ -1,5 +1,4 @@
-// Professional Ping & Latency Diagnostics Command (!ping, !p, !speed)
-
+const { tr } = require("../utils/i18n.cjs");
 const settings = require("../config/settings.cjs");
 
 function formatUptime(seconds) {
@@ -20,9 +19,9 @@ module.exports = {
   name: "ping",
   aliases: ["p", "speed", "latency", "بینگ"],
   description: {
-    en: "Checks bot latency, response speed, and runtime health.",
-    ur: "Bot ki speed, latency aur system health check karein.",
-    ar: "فحص سرعة استجابة البوت وحالة النظام.",
+    en: "Checks bot latency and health.",
+    ur: "Bot ki speed aur health check karein.",
+    ar: "فحص سرعة استجابة البوت.",
   },
   usage: {
     en: "ping",
@@ -32,6 +31,14 @@ module.exports = {
   chat: "all",
 
   async execute(sock, msg) {
+    if (settings.get("bot_language") === "en") {
+      return await sock.sendMessage(
+        msg.key.remoteJid,
+        { text: "Pong! 🏓" },
+        { quoted: msg },
+      );
+    }
+
     const start = Date.now();
     const msgTime = msg.messageTimestamp ? Number(msg.messageTimestamp) * 1000 : start;
     const latency = Math.max(1, start - msgTime);
@@ -44,14 +51,14 @@ module.exports = {
     const speedBadge = latency < 300 ? "⚡ Lightning Fast" : latency < 1000 ? "🟢 Good" : "🟡 Moderate";
 
     const card = [
-      `╭───「 🏓 *PONG! SYSTEM DIAGNOSTICS* 」`,
+      `╭───「 🏓 *PONG! SYSTEM DIAGNOSTICS · فحص سرعة استجابة النظام* 」`,
       `│`,
       `│  ⚡ *Speed:* \`${latency} ms\` (${speedBadge})`,
       `│  🧠 *AI Provider:* \`${provider}\``,
       `│  ⏳ *Uptime:* \`${uptime}\``,
       `│  💾 *RAM:* \`${ram} MB\``,
       `│  🌐 *Default Lang:* \`${lang}\``,
-      `│  🟢 *State:* \`100% Operational\``,
+      `│  🟢 *State:* \`100% Operational · يعمل بكفاءة\``,
       `│`,
       `╰───「 🚀 Yuxli Assistant Engine 」`,
     ].join("\n");

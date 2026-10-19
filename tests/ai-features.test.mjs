@@ -41,6 +41,7 @@ const groupMetadata = {
 };
 
 const sock = { user: { id: "201999999999:7@s.whatsapp.net" }, async sendMessage() {} };
+require("./src/services/intelligence/runtime.cjs").bindSocket(sock, "conn_default");
 
 function msgFrom(jid, { fromMe = false, text = "!ai hi" } = {}) {
   return {
@@ -57,7 +58,7 @@ async function callerFor(jid, opts = {}) {
 // Capturing socket: records every sendMessage payload.
 function capturingSock() {
   const sent = [];
-  return {
+  const capture = {
     sent,
     user: sock.user,
     async sendMessage(jid, content) {
@@ -66,6 +67,8 @@ function capturingSock() {
     },
     async sendPresenceUpdate() {},
   };
+  require("./src/services/intelligence/runtime.cjs").aliasSocket(capture, sock);
+  return capture;
 }
 
 section("tool declarations");
@@ -191,7 +194,10 @@ section("summarize_chat tool");
   let summarizeRunOptions = null;
 
   try {
-    const caller = await callerFor(chatId);
+    const unsolicited = await runTool("summarize_chat", {}, { caller: await callerFor(chatId), sock });
+    ok("ordinary greeting cannot save a summary", unsolicited.denied === true);
+    equal("unapproved summary never calls the provider", summarizeRunOptions, null);
+    const caller = await callerFor(chatId, { text: "!ai summarize and save this conversation" });
     const result = await runTool("summarize_chat", {}, { caller, sock });
     equal("two facts saved", result.saved, 2);
     const entries = memory.listMemory({ scope: "chat", chatId });
@@ -206,7 +212,7 @@ section("summarize_chat tool");
     // only `scope` is declared, and the facts come from the transcript.
     const before = memory.listMemory({ scope: "chat", chatId }).length;
     const noHistory = await runTool("summarize_chat", { content: "hack" }, {
-      caller: await callerFor("209999999999@s.whatsapp.net"),
+      caller: await callerFor("209999999999@s.whatsapp.net", { text: "!ai summarize and save this conversation" }),
       sock,
     });
     ok("unknown chat has nothing to summarize", noHistory.error?.includes("no stored conversation"));

@@ -10,6 +10,12 @@
 // Eviction: time-based + size-cap, both small — a retry request arrives within
 // minutes or not at all.
 
+import { createRequire } from "node:module";
+
+const require = createRequire(import.meta.url);
+const scope = require("../services/workspaceScope.cjs");
+const cacheKey = (id) => JSON.stringify([scope.workspaceId(), scope.current().connectionId, id]);
+
 const DEFAULT_TTL_MS = 1000 * 60 * 60; // 1 hour
 const DEFAULT_MAX_ITEMS = 500;
 
@@ -38,16 +44,16 @@ export function configureRecentCache({ ttlMs: nextTtl, maxItems: nextMax } = {})
 export function rememberMessage(id, value) {
   if (!id) return;
   const expiresAt = Date.now() + ttlMs;
-  recent.set(id, { value, expiresAt });
+  recent.set(cacheKey(id), { value, expiresAt });
   if (recent.size > maxItems) gc();
 }
 
 export function recallMessage(id) {
   if (!id) return null;
-  const entry = recent.get(id);
+  const entry = recent.get(cacheKey(id));
   if (!entry) return null;
   if (entry.expiresAt <= Date.now()) {
-    recent.delete(id);
+    recent.delete(cacheKey(id));
     return null;
   }
   return entry.value;
@@ -55,7 +61,7 @@ export function recallMessage(id) {
 
 export function forgetMessage(id) {
   if (!id) return;
-  recent.delete(id);
+  recent.delete(cacheKey(id));
 }
 
 // Used by Baileys getMessage; expects a `proto.IMessage` (or undefined).
@@ -63,6 +69,7 @@ export async function getMessageFromRecent(key) {
   if (!key?.id) return undefined;
   const stored = recallMessage(key.id);
   if (!stored) return undefined;
+  if (key.remoteJid && stored.key?.remoteJid !== key.remoteJid) return undefined;
   // Stored archive uses { message, ... } shape -- we only need .message
   return stored.message || stored.rawMessage || undefined;
 }

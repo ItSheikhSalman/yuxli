@@ -23,12 +23,15 @@ const PANEL_PORT = 34117;
 require("./src/config/settings.cjs").set("port", PANEL_PORT);
 require("./src/db/db.cjs").checkpoint();
 
-/** Can we bind it? Then nothing else is listening on it. */
+/** Can we connect to it? If so, something is listening. */
 function portIsFree(port) {
   return new Promise((resolve) => {
-    const server = net.createServer();
-    server.once("error", () => resolve(false));
-    server.listen(port, "127.0.0.1", () => server.close(() => resolve(true)));
+    const socket = net.createConnection({ port, host: "127.0.0.1" });
+    socket.once("connect", () => {
+      socket.destroy();
+      resolve(false);
+    });
+    socket.once("error", () => resolve(true));
   });
 }
 
@@ -84,6 +87,7 @@ function startLevix(args, { waitFor, timeoutMs = 60000, data = dataDir } = {}) {
       return output;
     },
     async stop() {
+      await new Promise((r) => setTimeout(r, 400));
       child.kill("SIGTERM");
       await new Promise((resolve) => {
         const timer = setTimeout(() => {
@@ -95,7 +99,9 @@ function startLevix(args, { waitFor, timeoutMs = 60000, data = dataDir } = {}) {
           resolve();
         });
       });
-      return existsSync(probeOut) ? readFileSync(probeOut, "utf8").split("\n") : [];
+      return existsSync(probeOut)
+        ? readFileSync(probeOut, "utf8").split("\n").map((p) => p.replace(/\\/g, "/"))
+        : [];
     },
   };
 }

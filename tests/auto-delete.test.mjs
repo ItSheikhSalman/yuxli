@@ -48,7 +48,7 @@ function wipeRules() {
 }
 
 function fakeSock() {
-  return {
+  const socket = {
     user: { id: BOT, lid: "999@lid" },
     sent: [],
     modified: [],
@@ -64,6 +64,8 @@ function fakeSock() {
       throw new Error("live sock.groupMetadata() is forbidden on the hot path");
     },
   };
+  require("./src/services/intelligence/runtime.cjs").bindSocket(socket, "conn_default");
+  return socket;
 }
 
 function makeMsg({

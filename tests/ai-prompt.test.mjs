@@ -234,7 +234,7 @@ section("the persona API hands back the operator's half and nothing else");
     equal("the persona reads back", res.status, 200);
     const { persona } = await res.json();
 
-    ok("the editor gets the prompt", persona.body.includes("personal WhatsApp assistant"));
+    ok("the editor gets the truthful prompt", persona.body.includes("AI assistant on WhatsApp"));
     ok("and not the human note", !persona.body.startsWith("#"));
 
     const payload = JSON.stringify(persona);

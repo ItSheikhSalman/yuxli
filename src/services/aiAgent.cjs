@@ -81,6 +81,10 @@ function geminiClient() {
 const { dataPath, assetPath } = require("../config/paths.cjs");
 const PERSONA_TEMPLATE = assetPath("src", "config", "ai-persona.md");
 const PERSONA_FILE = dataPath("ai-persona.md");
+function personaFile() {
+  const scope = require("./workspaceScope.cjs");
+  return scope.workspaceId() === "ws_default" ? PERSONA_FILE : dataPath("workspaces", scope.directory(), "ai-persona.md");
+}
 
 try {
   if (!fs.existsSync(PERSONA_FILE) && fs.existsSync(PERSONA_TEMPLATE)) {
@@ -94,7 +98,7 @@ try {
 // has been copied". The real persona is the operator's copy of ai-persona.md.
 // No product identity in here: that comes from src/config/ai-identity.cjs and is
 // prepended separately, so it survives any edit to the persona.
-const DEFAULT_PERSONA = `You are a personal WhatsApp assistant that chats naturally like a real human.
+const DEFAULT_PERSONA = `You are an AI assistant on WhatsApp, never a human impersonator.
 ALWAYS reply in natural, everyday Roman Urdu by default.
 Whenever providing code, scripts, or commands, ALWAYS wrap them in triple backticks (\`\`\`lang ... \`\`\`) so WhatsApp renders an instant copy box.
 Be concise, direct, and conversational, and use your tools instead of guessing.`;
@@ -111,12 +115,13 @@ let personaCache = { text: null, stamp: null };
  */
 function loadPersona() {
   try {
-    const stat = fs.statSync(PERSONA_FILE, { bigint: true });
-    const stamp = `${stat.mtimeNs}:${stat.size}`;
+    const file = personaFile();
+    const stat = fs.statSync(file, { bigint: true });
+    const stamp = `${file}:${stat.mtimeNs}:${stat.size}`;
     if (personaCache.text && personaCache.stamp === stamp) {
       return personaCache.text;
     }
-    const raw = fs.readFileSync(PERSONA_FILE, "utf8").trim();
+    const raw = fs.readFileSync(file, "utf8").trim();
     // Everything above the `---` separator is a note to the human editing the
     // file, not part of the prompt.
     const body = raw.includes("\n---")
@@ -149,7 +154,7 @@ function nowLabel() {
 function botLangDirective(mode = "auto", isRoast = false) {
   const botLang = settings.get("bot_language") || "ur";
   if (isRoast || mode === "roast") {
-    return "- Primary Language Directive: Reply in natural everyday Roman Urdu with sharp, savage humor, raw authentic friend roast slang, and punchy comebacks. Drop polite corporate robotic restraint.";
+    return "- Primary Language Directive: Use natural Roman Urdu and friendly humor only with target consent. Respect opt-outs and remain identifiable as AI.";
   }
   if (botLang === "en") {
     return "- Primary Language Directive: Reply in English, natural, conversational, and direct.";
@@ -158,7 +163,7 @@ function botLangDirective(mode = "auto", isRoast = false) {
     return "- Primary Language Directive: Reply in Modern Standard Arabic (العربية الفصحى), natural and clear.";
   }
   // Default and Urdu: ALWAYS default to natural everyday Roman Urdu!
-  return "- Primary Language Directive: ALWAYS reply in natural, everyday Roman Urdu by default (e.g. 'haan theek hy', 'acha sahi', 'kahan ho?', 'main aa raha hoon', 'ok', 'chalo done'). Never sound like an AI bot; sound like a real Pakistani WhatsApp user. Only write in Urdu script if the user specifically writes in Urdu script or explicitly asks for it.";
+  return "- Primary Language Directive: Use natural Roman Urdu by default; adapt when the user uses another language or asks for Urdu script. Be concise and conversational while remaining an identifiable AI assistant.";
 }
 
 /**
@@ -170,6 +175,8 @@ function botLangDirective(mode = "auto", isRoast = false) {
  * src/config/ai-identity.cjs) and is never rendered by the panel.
  */
 function buildSystemInstruction(context = {}) {
+  const adaptiveInstruction = require("./intelligence/runtime.cjs").instruction(context);
+  if (adaptiveInstruction) return adaptiveInstruction;
   const { chatId, senderName, senderId, isOwner, isAdmin, isGroup, chatName, targetInfo, isTargetedRoast, latestUserText } = context;
   const currentMode = aiMood.getChatMode(chatId, senderId);
   const dynamicCue = aiMood.detectExpressionCue(latestUserText || "");
@@ -552,21 +559,62 @@ registerProvider("gemini", new GeminiProvider());
  * Modular dispatch through getProvider().
  */
 async function runAgent(options = {}) {
+  const workspaceId = require("./intelligence/runtime.cjs").isolated(options.context)
+    ? options.context.workspaceId
+    : require("./workspaceScope.cjs").workspaceId();
+  const entitlements = require("./entitlements.cjs");
+  const isolated = require("./intelligence/runtime.cjs").isolated(options.context);
+  if (isolated && !["active", "trialing"].includes(entitlements.getWorkspaceSubscription(workspaceId).status)) {
+    throw Object.assign(new Error("Workspace subscription is not active"), { statusCode: 403 });
+  }
+  const allowedProviders = isolated ? entitlements.getEntitlementSummary(workspaceId).plan.limits.allowedAiProviders : null;
+
+  // Atomically reserve AI query quota before invoking providers
+  const reservation = entitlements.reserveAiQuota(workspaceId, {
+    requestId: options.requestId || null,
+    tokenEstimate: 200,
+  });
+
   const aiFailover = require("./aiFailover.cjs");
   const autoFallback = settings.get("ai_auto_fallback") !== false;
   let preferredProvider = options.provider || getProvider();
+  if (allowedProviders && !allowedProviders.includes(preferredProvider.id)) {
+    entitlements.releaseAiQuotaReservation(reservation.reservationId);
+    throw Object.assign(new Error("Provider is not included in this workspace plan"), { statusCode: 403 });
+  }
 
   // If auto-fallback is off, run directly on chosen provider
   if (!autoFallback) {
-    if (!preferredProvider.isConfigured() && hasProvider("flipia")) {
+    if (!isolated && !preferredProvider.isConfigured() && hasProvider("flipia")) {
       preferredProvider = getProvider("flipia");
     }
-    const result = await preferredProvider.runTurn({
-      ...options,
-      history: trimHistory(options.history),
-      systemInstruction: buildSystemInstruction(options.context),
-    });
-    return { ...result, history: trimHistory(result.history) };
+    try {
+      const result = await preferredProvider.runTurn({
+        ...options,
+        history: trimHistory(options.history),
+        systemInstruction: buildSystemInstruction(options.context),
+      });
+      if (reservation?.reservationId) {
+        entitlements.commitAiQuotaReservation(reservation.reservationId, {
+          actualTokens: result?.usage?.totalTokens || 200,
+        });
+      }
+      return { ...result, history: trimHistory(result.history) };
+    } catch (err) {
+      if (reservation?.reservationId) {
+        entitlements.releaseAiQuotaReservation(reservation.reservationId);
+      }
+      throw err;
+    }
+  }
+
+  // If the operator selected a specific provider and it is not configured, fail loudly
+  if (settings.get("ai_provider") !== "auto" && !preferredProvider.isConfigured()) {
+    if (reservation?.reservationId) {
+      entitlements.releaseAiQuotaReservation(reservation.reservationId);
+    }
+    const label = preferredProvider.label || preferredProvider.id;
+    throw new Error(`${label} API key is not configured`);
   }
 
   // Automatic multi-key rotation and multi-provider failover cascade!
@@ -576,6 +624,7 @@ async function runAgent(options = {}) {
 
   let lastError = null;
   for (const pid of chain) {
+    if (allowedProviders && !allowedProviders.includes(pid)) continue;
     if (!hasProvider(pid)) continue;
     const provider = getProvider(pid);
     if (!provider.isConfigured()) continue;
@@ -591,6 +640,11 @@ async function runAgent(options = {}) {
           history: trimmed,
           systemInstruction: instruction,
         });
+        if (reservation?.reservationId) {
+          entitlements.commitAiQuotaReservation(reservation.reservationId, {
+            actualTokens: result?.usage?.totalTokens || 200,
+          });
+        }
         return { ...result, history: trimHistory(result.history) };
       } catch (err) {
         lastError = err;
@@ -604,6 +658,14 @@ async function runAgent(options = {}) {
         if (keys.length > 1 && isQuota && attemptsLeft > 0) {
           aiFailover.rotateKey(pid);
           continue;
+        }
+
+        // If the error is NOT quota/rate-limit and operator picked a specific provider, propagate error
+        if (!isQuota && settings.get("ai_provider") !== "auto") {
+          if (reservation?.reservationId) {
+            entitlements.releaseAiQuotaReservation(reservation.reservationId);
+          }
+          throw err;
         }
 
         // Otherwise break out of key loop and cascade to next provider
@@ -626,6 +688,10 @@ async function runAgent(options = {}) {
     }
   }
 
+  // All providers failed -> refund reservation
+  if (reservation?.reservationId) {
+    entitlements.releaseAiQuotaReservation(reservation.reservationId);
+  }
   throw lastError || new Error("All AI providers in fallback chain failed");
 }
 
@@ -665,7 +731,7 @@ async function runGeminiTurn({
         systemInstruction: instruction,
         ...(tools.length ? { tools } : {}),
         ...(toolConfig ? { toolConfig } : {}),
-        safetySettings: [
+        safetySettings: require("./intelligence/runtime.cjs").isolated(context) ? undefined : [
           { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
           { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
           { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
@@ -703,6 +769,8 @@ async function runGeminiTurn({
 
   sources.push(...extractSources(response));
   let steps = 0;
+  const tokenUsage = require("./intelligence/usage.cjs").accumulator();
+  tokenUsage.add(response, "gemini");
 
   while (steps < stepBudget) {
     // `functionCalls` is a getter on the new response object, not a method.
@@ -750,6 +818,7 @@ async function runGeminiTurn({
     // One message carrying every functionResponse part, which is what the API
     // expects when the model asked for several calls in one turn.
     response = await chat.sendMessage({ message: responses });
+    tokenUsage.add(response, "gemini");
     // Grounding can happen on any turn, not just the first.
     sources.push(...extractSources(response));
   }
@@ -783,6 +852,7 @@ async function runGeminiTurn({
   return {
     text,
     history: newHistory,
+    usage: tokenUsage.value(),
     toolCalls,
     steps,
     // Empty unless Gemini actually grounded this answer on a search.
@@ -809,6 +879,7 @@ module.exports = {
   sanitizeHistoryForSession,
   trimHistory,
   PERSONA_FILE,
+  personaFile,
   detectModelCapabilities,
   getProvider,
   GeminiProvider,

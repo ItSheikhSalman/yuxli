@@ -38,7 +38,7 @@ export function setupEventListeners(
   // the case the reconnect ladder exists to survive, so it must not be fatal.
   const contained = (label, handler) => (payload) => {
     Promise.resolve()
-      .then(() => handler(payload))
+      .then(() => require("../services/workspaceScope.cjs").forSocket(sock, () => handler(payload)))
       .catch((err) => logger.error({ err }, `[Events] ${label} handler failed`));
   };
 
@@ -77,7 +77,7 @@ export function setupEventListeners(
   sock.ev.on("contacts.update", contained("contacts.update", persistContacts));
 
   // V7: LID mapping updates
-  sock.ev.on("lid-mapping.update", (updates) => {
+  sock.ev.on("lid-mapping.update", contained("lid-mapping.update", (updates) => {
     logger.info(`[LID] Received ${Object.keys(updates).length} LID mapping updates`);
     const mappings = [];
     for (const [lid, pn] of Object.entries(updates)) {
@@ -88,11 +88,12 @@ export function setupEventListeners(
     if (mappings.length > 0) {
       storeLidPnMappings(mappings);
     }
-  });
+  }));
 
   // Group metadata updates
-  sock.ev.on("groups.upsert", (updates) => {
+  sock.ev.on("groups.upsert", contained("groups.upsert", (updates) => {
     for (const group of updates) {
+      require("../services/intelligence/chatDirectory.cjs").observe(sock, group.id, group.subject);
       logger.info(`[Cache] Caching metadata for group: ${group.id}`);
       groupMetadataCache.set(group.id, group);
       upsertGroupDirectory(group.id, {
@@ -100,20 +101,21 @@ export function setupEventListeners(
         participantCount: group.participants?.length ?? null,
       });
     }
-  });
+  }));
 
-  sock.ev.on("groups.update", (updates) => {
+  sock.ev.on("groups.update", contained("groups.update", (updates) => {
     for (const group of updates || []) {
       if (!group?.id) continue;
       const current = groupMetadataCache.get(group.id) || {};
       const next = { ...current, ...group };
+      require("../services/intelligence/chatDirectory.cjs").observe(sock, group.id, next.subject);
       groupMetadataCache.set(group.id, next);
       upsertGroupDirectory(group.id, {
         subject: next.subject || null,
         participantCount: next.participants?.length ?? null,
       });
     }
-  });
+  }));
 
   // Incoming messages
   sock.ev.on(

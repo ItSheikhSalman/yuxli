@@ -3,7 +3,7 @@
 // The AI can save/forget things by itself (see services/aiTools.cjs) — this
 // command is the manual door to the same Markdown files:
 //
-//   memory/global.md                 shared by every chat
+//   memory/global.md                 workspace operator notes, never auto-injected
 //   memory/chats/<chat-id>.md        this conversation only
 //
 // Anyone can add a fact to the chat they're in; touching the global memory,
@@ -100,6 +100,7 @@ module.exports = {
       );
 
     try {
+      if (scope === "global" && (isGroup || !botPrivileged)) return denied();
       // ---------------------------------------------------------------- add
       if (["add", "save", "احفظ", "ضيف", "اضف"].includes(action)) {
         const content = rest.join(" ").trim();
@@ -134,7 +135,7 @@ module.exports = {
           return reply(tr("Write the word you're looking for.", "اكتب الكلمة التي تبحث عنها."));
         }
         const chatHits = memory.searchMemory(query, { scope: "chat", chatId });
-        const globalHits = memory.searchMemory(query, { scope: "global" });
+        const globalHits = !isGroup && botPrivileged ? memory.searchMemory(query, { scope: "global" }) : [];
 
         if (!chatHits.length && !globalHits.length) {
           return reply(

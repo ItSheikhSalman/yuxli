@@ -29,7 +29,7 @@ const logger = require("../utils/logger.cjs");
 const memory = require("../utils/memory.cjs");
 const { decodeBuffer, stripHtml, decodeText } = require("../utils/textDecode.cjs");
 const { grantRole, revokeRole, listRoles } = require("../utils/permissions.cjs");
-const { authorize } = require("./aiToolAuth.cjs");
+const { authorize, isTrustedCaller } = require("./aiToolAuth.cjs");
 const { isForbiddenIp } = require("../utils/providerUrl.cjs");
 const { sendBotMessage } = require("../utils/sendBotMessage.cjs");
 
@@ -588,7 +588,7 @@ const TOOLS = {
     describe: () => "🧠 جارٍ البحث في الذاكرة...",
     describeEn: () => "🧠 Searching memory...",
     // `!memory search` reads both scopes for anyone who may run `!memory`.
-    access: { command: "memory" },
+    access: (args) => ({ command: "memory", role: ["all", "global"].includes(String(args?.scope)) ? "botPrivileged" : undefined }),
     async run(args, { caller }) {
       const wanted = String(args?.scope || "chat").toLowerCase();
       const scopes = wanted === "all" ? ["chat", "global"] : [scopeOf(args)];
@@ -1220,6 +1220,16 @@ function declaredArgs(tool, args) {
  * refuses anything else before run() is reached.
  */
 async function runTool(name, args, ctx) {
+  if (isTrustedCaller(ctx?.caller)) {
+    return require("./workspaceScope.cjs").run(ctx.caller, () => executeTool(name, args, ctx));
+  }
+  return executeTool(name, args, ctx);
+}
+
+async function executeTool(name, args, ctx) {
+  if (require("./intelligence/runtime.cjs").isolated(ctx)) {
+    return { error: "Adaptive and playground turns cannot execute legacy side-effect tools. Use the authorized explicit command.", denied: true };
+  }
   const tool = TOOLS[name];
   if (!tool) return { error: `unknown tool: ${name}` };
 
@@ -1227,6 +1237,15 @@ async function runTool(name, args, ctx) {
   const caller = ctx?.caller;
 
   try {
+    if (caller?.isGroup && ["global", "all"].includes(String(input.scope))) {
+      return { error: "Private or global memory is not available in groups", denied: true };
+    }
+    if (["save_memory", "summarize_chat"].includes(name) && !/\b(remember|memorize|save|memory|yaad)\b|احفظ|تذكر|یاد/iu.test(caller?.text || "")) {
+      return { error: "Saving memory requires an explicit request from the verified sender", denied: true };
+    }
+    if (["create_reminder", "cancel_reminder"].includes(name) && !require("./workspaceScope.cjs").installationContext()) {
+      return { error: "Legacy reminders require the installation workspace; use a connection-aware authorized scheduling workflow", denied: true };
+    }
     const access = typeof tool.access === "function" ? tool.access(input) : tool.access;
     const verdict = authorize(access || null, caller);
     if (!verdict.allowed) {
@@ -1235,6 +1254,10 @@ async function runTool(name, args, ctx) {
         "[aiTools] tool call refused",
       );
       return { error: verdict.error, denied: true };
+    }
+
+    if (ctx?.sock && !require("./aiToolAuth.cjs").ownsOutputSocket(caller, ctx.sock)) {
+      return { error: "Tool delivery requires the caller's authorized connection", denied: true };
     }
 
     const result = await tool.run(input, { caller, sock: ctx?.sock });

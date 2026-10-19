@@ -44,6 +44,7 @@ function readCreds() {
 }
 
 function forPanel() {
+  if (!require("../services/workspaceScope.cjs").installationContext()) return { key: null };
   const me = readCreds()?.me;
   const lid = me?.lid ? normalizedLid(me.lid) : null;
   const phone = normalizedPn(me?.id);
@@ -82,6 +83,7 @@ function lookupLid(sock, pn) {
  * @returns {Promise<{ key: string|null }>}
  */
 async function forMessage(msg, sock) {
+  if (!require("../services/workspaceScope.cjs").installationContext()) return { key: null };
   if (msg?.key?.fromMe) return forPanel();
 
   const messageIds = getSenderCandidates(msg, sock);

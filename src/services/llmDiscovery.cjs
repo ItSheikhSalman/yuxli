@@ -545,7 +545,7 @@ async function discoverProviderModels(optionsOrProvider = "gemini", maybeOptions
   }
 
   if (!hasKey) {
-    if ((provKey !== "openai" && provKey !== "flipia" && provKey !== "groq") || !baseUrl) {
+    if (provKey !== "flipia") {
       return seedOnlyResult(
         provKey,
         `Please connect your ${provKey} API key to discover models available to your account.`,

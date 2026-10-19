@@ -124,7 +124,7 @@ function toRomanUrdu(text) {
 /** The configured language, or null for "auto". */
 function configuredLang() {
   const setting = settings.get("bot_language");
-  return setting === "ar" || setting === "en" || setting === "ur" ? setting : "ur";
+  return setting === "ar" || setting === "en" || setting === "ur" ? setting : null;
 }
 
 /**
@@ -155,7 +155,7 @@ function detectLang(text = "", { syntax = [] } = {}) {
     .split(/\s+/)
     .map((token) => token.replace(TOKEN_EDGES, "").toLowerCase())
     .filter((token) => ENGLISH_WORD.test(token) && !ignore.has(token));
-  return words.length ? "en" : "ur";
+  return words.length ? "en" : "ar";
 }
 
 /**
@@ -191,22 +191,21 @@ function langForCommand(command, args = [], aliases = command?.aliases || []) {
 
 /** Run `fn` with replies in `lang`. Returns what `fn` returns. */
 function withLang(lang, fn) {
-  const chosen = lang === "en" ? "en" : lang === "ar" ? "ar" : "ur";
+  const chosen = lang === "en" ? "en" : lang === "ur" ? "ur" : "ar";
   return scope.run(chosen, fn);
 }
 
 /** The language of the message being answered right now. */
 function currentLang() {
-  return scope.getStore() || configuredLang() || "ur";
+  return scope.getStore() || configuredLang() || "ar";
 }
 
 /** Pick the reply for the current message. */
 function tr(en, ar, ur) {
   const lang = currentLang();
   if (lang === "en") return en;
-  if (lang === "ar") return ar;
-  if (ur) return ur;
-  return toRomanUrdu(en);
+  if (lang === "ur") return ur || toRomanUrdu(en);
+  return ar;
 }
 
 module.exports = { detectLang, syntaxWords, langForCommand, withLang, currentLang, tr, toRomanUrdu };

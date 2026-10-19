@@ -18,6 +18,7 @@ const crypto = require("node:crypto");
 
 const logger = require("../utils/logger.cjs");
 const normalizeJid = require("../utils/normalizeJid.cjs");
+const workspaceScope = require("../services/workspaceScope.cjs");
 const { db, q, parseJson, sweepExpired, checkpoint, DB_PATH } = require("./db.cjs");
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -126,7 +127,7 @@ function forwardExpiry() {
 // Values are JSON, so an object or an array round-trips as itself.
 
 function getBotSetting(key, defaultValue = null) {
-  const row = q("SELECT value FROM bot_settings WHERE key = ?").get(key);
+  const row = q("SELECT value FROM bot_settings WHERE key = ?").get(workspaceScope.key(key));
   if (!row) return defaultValue;
   const value = parseJson(row.value, undefined);
   return value === undefined ? defaultValue : value;
@@ -136,11 +137,11 @@ function saveBotSetting(key, value) {
   q(
     `INSERT INTO bot_settings (key, value) VALUES (?, ?)
      ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
-  ).run(key, JSON.stringify(value ?? null));
+  ).run(workspaceScope.key(key), JSON.stringify(value ?? null));
 }
 
 function deleteBotSetting(key) {
-  q("DELETE FROM bot_settings WHERE key = ?").run(key);
+  q("DELETE FROM bot_settings WHERE key = ?").run(workspaceScope.key(key));
 }
 
 // ===================================================================
@@ -148,20 +149,20 @@ function deleteBotSetting(key) {
 // ===================================================================
 
 function getGroupSettings(groupId) {
-  const row = q("SELECT settings FROM group_settings WHERE group_id = ?").get(groupId);
+  const row = q("SELECT settings FROM group_settings WHERE workspace_id=? AND group_id=?").get(workspaceScope.workspaceId(), groupId);
   return row ? parseJson(row.settings, {}) : {};
 }
 
 function saveGroupSettings(groupId, settings) {
   q(
-    `INSERT INTO group_settings (group_id, settings) VALUES (?, ?)
-     ON CONFLICT(group_id) DO UPDATE SET settings = excluded.settings`,
-  ).run(groupId, JSON.stringify(settings || {}));
+    `INSERT INTO group_settings (workspace_id,group_id,settings) VALUES (?,?,?)
+     ON CONFLICT(workspace_id,group_id) DO UPDATE SET settings = excluded.settings`,
+  ).run(workspaceScope.workspaceId(), groupId, JSON.stringify(settings || {}));
 }
 
 function getAllGroupSettings() {
-  return q("SELECT group_id, settings FROM group_settings")
-    .all()
+  return q("SELECT group_id, settings FROM group_settings WHERE workspace_id=?")
+    .all(workspaceScope.workspaceId())
     .map((row) => ({
       group_id: row.group_id,
       settings: parseJson(row.settings, {}),
@@ -169,22 +170,23 @@ function getAllGroupSettings() {
 }
 
 function countGroups() {
-  return q("SELECT COUNT(*) AS n FROM group_settings").get().n;
+  return q("SELECT COUNT(*) AS n FROM group_settings WHERE workspace_id=?").get(workspaceScope.workspaceId()).n;
 }
 
 function upsertGroupDirectory(groupId, { subject = null, participantCount = null } = {}) {
   if (!groupId) return;
   const existing = q(
-    "SELECT subject, participant_count FROM group_directory WHERE group_id = ?",
-  ).get(groupId);
+    "SELECT subject, participant_count FROM group_directory WHERE workspace_id=? AND group_id=?",
+  ).get(workspaceScope.workspaceId(), groupId);
   q(
-    `INSERT INTO group_directory (group_id, subject, participant_count, updated_at)
-     VALUES (?, ?, ?, ?)
-     ON CONFLICT(group_id) DO UPDATE SET
+    `INSERT INTO group_directory (workspace_id,group_id, subject, participant_count, updated_at)
+     VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(workspace_id,group_id) DO UPDATE SET
        subject = COALESCE(excluded.subject, group_directory.subject),
        participant_count = COALESCE(excluded.participant_count, group_directory.participant_count),
        updated_at = excluded.updated_at`,
   ).run(
+    workspaceScope.workspaceId(),
     groupId,
     subject || existing?.subject || null,
     participantCount == null ? (existing?.participant_count ?? null) : participantCount,
@@ -194,30 +196,30 @@ function upsertGroupDirectory(groupId, { subject = null, participantCount = null
 
 function getGroupDirectory(groupId) {
   return q(
-    "SELECT group_id, subject, participant_count, updated_at FROM group_directory WHERE group_id = ?",
-  ).get(groupId);
+    "SELECT group_id, subject, participant_count, updated_at FROM group_directory WHERE workspace_id=? AND group_id=?",
+  ).get(workspaceScope.workspaceId(), groupId);
 }
 
 function getAllGroupDirectory() {
   return q(
-    "SELECT group_id, subject, participant_count, updated_at FROM group_directory ORDER BY subject COLLATE NOCASE",
-  ).all();
+    "SELECT group_id, subject, participant_count, updated_at FROM group_directory WHERE workspace_id=? ORDER BY subject COLLATE NOCASE",
+  ).all(workspaceScope.workspaceId());
 }
 
 function clearGroupDirectory() {
-  q("DELETE FROM group_directory").run();
+  q("DELETE FROM group_directory WHERE workspace_id=?").run(workspaceScope.workspaceId());
 }
 
 function clearGroupSettings() {
-  q("DELETE FROM group_settings").run();
+  q("DELETE FROM group_settings WHERE workspace_id=?").run(workspaceScope.workspaceId());
 }
 
 function clearUserMetadata() {
-  q("DELETE FROM user_metadata").run();
+  q("DELETE FROM user_metadata WHERE workspace_id=?").run(workspaceScope.workspaceId());
 }
 
 function clearLidMappings() {
-  q("DELETE FROM lid_mapping").run();
+  q("DELETE FROM lid_mapping WHERE workspace_id=?").run(workspaceScope.workspaceId());
 }
 
 /** Drop WhatsApp-derived directory data after unlink / logged-out. */
@@ -233,7 +235,8 @@ function clearWhatsAppDirectory() {
 // ===================================================================
 
 function getUserWarnings(groupId, userId) {
-  const row = q("SELECT warnings FROM warnings WHERE group_id = ? AND user_id = ?").get(
+  const row = q("SELECT warnings FROM warnings WHERE workspace_id=? AND group_id=? AND user_id=?").get(
+    workspaceScope.workspaceId(),
     groupId,
     userId,
   );
@@ -242,18 +245,18 @@ function getUserWarnings(groupId, userId) {
 
 function saveUserWarnings(groupId, userId, warningsArray) {
   q(
-    `INSERT INTO warnings (group_id, user_id, warnings) VALUES (?, ?, ?)
-     ON CONFLICT(group_id, user_id) DO UPDATE SET warnings = excluded.warnings`,
-  ).run(groupId, userId, JSON.stringify(warningsArray || []));
+    `INSERT INTO warnings (workspace_id,group_id,user_id,warnings) VALUES (?,?,?,?)
+     ON CONFLICT(workspace_id,group_id,user_id) DO UPDATE SET warnings = excluded.warnings`,
+  ).run(workspaceScope.workspaceId(), groupId, userId, JSON.stringify(warningsArray || []));
 }
 
 function clearUserWarnings(groupId, userId) {
-  q("DELETE FROM warnings WHERE group_id = ? AND user_id = ?").run(groupId, userId);
+  q("DELETE FROM warnings WHERE workspace_id=? AND group_id=? AND user_id=?").run(workspaceScope.workspaceId(), groupId, userId);
 }
 
 function getAllWarnings() {
-  return q("SELECT group_id, user_id, warnings FROM warnings")
-    .all()
+  return q("SELECT group_id, user_id, warnings FROM warnings WHERE workspace_id=?")
+    .all(workspaceScope.workspaceId())
     .map((row) => ({
       group_id: row.group_id,
       user_id: row.user_id,
@@ -262,7 +265,7 @@ function getAllWarnings() {
 }
 
 function countWarnings() {
-  return q("SELECT COUNT(*) AS n FROM warnings").get().n;
+  return q("SELECT COUNT(*) AS n FROM warnings WHERE workspace_id=?").get(workspaceScope.workspaceId()).n;
 }
 
 // ===================================================================
@@ -270,25 +273,25 @@ function countWarnings() {
 // ===================================================================
 
 function getUserTodos(userId) {
-  const row = q("SELECT tasks FROM todos WHERE user_id = ?").get(userId);
+  const row = q("SELECT tasks FROM todos WHERE workspace_id=? AND user_id=?").get(workspaceScope.workspaceId(), userId);
   return row ? parseJson(row.tasks, []) : [];
 }
 
 function saveUserTodos(userId, tasksArray) {
   q(
-    `INSERT INTO todos (user_id, tasks) VALUES (?, ?)
-     ON CONFLICT(user_id) DO UPDATE SET tasks = excluded.tasks`,
-  ).run(userId, JSON.stringify(tasksArray || []));
+    `INSERT INTO todos (workspace_id,user_id,tasks) VALUES (?,?,?)
+     ON CONFLICT(workspace_id,user_id) DO UPDATE SET tasks = excluded.tasks`,
+  ).run(workspaceScope.workspaceId(), userId, JSON.stringify(tasksArray || []));
 }
 
 function getAllTodos() {
-  return q("SELECT user_id, tasks FROM todos")
-    .all()
+  return q("SELECT user_id, tasks FROM todos WHERE workspace_id=?")
+    .all(workspaceScope.workspaceId())
     .map((row) => ({ user_id: row.user_id, tasks: parseJson(row.tasks, []) }));
 }
 
 function countTodos() {
-  return q("SELECT COUNT(*) AS n FROM todos").get().n;
+  return q("SELECT COUNT(*) AS n FROM todos WHERE workspace_id=?").get(workspaceScope.workspaceId()).n;
 }
 
 // ===================================================================
@@ -297,13 +300,14 @@ function countTodos() {
 
 function saveNote(groupId, keyword, text) {
   q(
-    `INSERT INTO notes (group_id, keyword, note_text) VALUES (?, ?, ?)
-     ON CONFLICT(group_id, keyword) DO UPDATE SET note_text = excluded.note_text`,
-  ).run(groupId, keyword, text);
+    `INSERT INTO notes (workspace_id,group_id,keyword,note_text) VALUES (?,?,?,?)
+     ON CONFLICT(workspace_id,group_id,keyword) DO UPDATE SET note_text = excluded.note_text`,
+  ).run(workspaceScope.workspaceId(), groupId, keyword, text);
 }
 
 function getNote(groupId, keyword) {
-  const row = q("SELECT note_text FROM notes WHERE group_id = ? AND keyword = ?").get(
+  const row = q("SELECT note_text FROM notes WHERE workspace_id=? AND group_id=? AND keyword=?").get(
+    workspaceScope.workspaceId(),
     groupId,
     keyword,
   );
@@ -311,13 +315,14 @@ function getNote(groupId, keyword) {
 }
 
 function getAllNotes(groupId) {
-  return q("SELECT keyword FROM notes WHERE group_id = ? ORDER BY keyword")
-    .all(groupId)
+  return q("SELECT keyword FROM notes WHERE workspace_id=? AND group_id=? ORDER BY keyword")
+    .all(workspaceScope.workspaceId(), groupId)
     .map((row) => row.keyword);
 }
 
 function deleteNote(groupId, keyword) {
-  const { changes } = q("DELETE FROM notes WHERE group_id = ? AND keyword = ?").run(
+  const { changes } = q("DELETE FROM notes WHERE workspace_id=? AND group_id=? AND keyword=?").run(
+    workspaceScope.workspaceId(),
     groupId,
     keyword,
   );
@@ -326,13 +331,13 @@ function deleteNote(groupId, keyword) {
 
 function getAllNotesFlat(limit = 100) {
   return q(
-    `SELECT group_id, keyword, note_text FROM notes
+    `SELECT group_id, keyword, note_text FROM notes WHERE workspace_id=?
      ORDER BY group_id, keyword LIMIT ?`,
-  ).all(limit);
+  ).all(workspaceScope.workspaceId(), limit);
 }
 
 function countNotes() {
-  return q("SELECT COUNT(*) AS n FROM notes").get().n;
+  return q("SELECT COUNT(*) AS n FROM notes WHERE workspace_id=?").get(workspaceScope.workspaceId()).n;
 }
 
 // ===================================================================
@@ -361,12 +366,12 @@ function deleteQrCode() {
 
 function storeLidPnMapping(lid, pn, deviceIndex = 0) {
   q(
-    `INSERT INTO lid_mapping (lid, pn, device_index, updated_at) VALUES (?, ?, ?, ?)
-     ON CONFLICT(lid) DO UPDATE SET
+    `INSERT INTO lid_mapping (workspace_id,lid,pn,device_index,updated_at) VALUES (?,?,?,?,?)
+     ON CONFLICT(workspace_id,lid) DO UPDATE SET
        pn = excluded.pn,
        device_index = excluded.device_index,
        updated_at = excluded.updated_at`,
-  ).run(lid, pn, deviceIndex, Date.now());
+  ).run(workspaceScope.workspaceId(), lid, pn, deviceIndex, Date.now());
   logger.debug(`[LID] Stored mapping: ${lid} <-> ${pn}`);
 }
 
@@ -379,7 +384,7 @@ function storeLidPnMappings(mappings) {
 }
 
 function getLidForPn(pn) {
-  const row = q("SELECT lid FROM lid_mapping WHERE pn = ?").get(pn);
+  const row = q("SELECT lid FROM lid_mapping WHERE workspace_id=? AND pn=?").get(workspaceScope.workspaceId(), pn);
   return row ? row.lid : null;
 }
 
@@ -397,13 +402,13 @@ function getLidsForPn(pn) {
       found.set(row.lid, row.lid);
     }
   };
-  consider(q("SELECT lid, pn FROM lid_mapping WHERE pn = ?").all(pn));
+  consider(q("SELECT lid, pn FROM lid_mapping WHERE workspace_id=? AND pn=?").all(workspaceScope.workspaceId(), pn));
   if (!String(pn).includes(":")) {
     const at = String(pn).lastIndexOf("@");
     if (at > 0) {
       const user = String(pn).slice(0, at);
       consider(
-        q("SELECT lid, pn FROM lid_mapping WHERE pn >= ? AND pn < ?").all(`${user}:`, `${user};`),
+        q("SELECT lid, pn FROM lid_mapping WHERE workspace_id=? AND pn>=? AND pn<?").all(workspaceScope.workspaceId(), `${user}:`, `${user};`),
       );
     }
   }
@@ -421,16 +426,16 @@ function getLidsForPns(pns) {
 }
 
 function getPnForLid(lid) {
-  const row = q("SELECT pn FROM lid_mapping WHERE lid = ?").get(lid);
+  const row = q("SELECT pn FROM lid_mapping WHERE workspace_id=? AND lid=?").get(workspaceScope.workspaceId(), lid);
   return row ? row.pn : null;
 }
 
 function getAllLidMappings() {
-  return q("SELECT lid, pn, device_index FROM lid_mapping").all();
+  return q("SELECT lid, pn, device_index FROM lid_mapping WHERE workspace_id=?").all(workspaceScope.workspaceId());
 }
 
 function countLidMappings() {
-  return q("SELECT COUNT(*) AS n FROM lid_mapping").get().n;
+  return q("SELECT COUNT(*) AS n FROM lid_mapping WHERE workspace_id=?").get(workspaceScope.workspaceId()).n;
 }
 
 // ===================================================================
@@ -524,7 +529,7 @@ function resolveExistingUser(userData) {
 }
 
 function userRow(jid) {
-  return q("SELECT * FROM user_metadata WHERE user_jid = ?").get(jid);
+  return q("SELECT * FROM user_metadata WHERE workspace_id=? AND user_jid=?").get(workspaceScope.workspaceId(), jid);
 }
 
 /**
@@ -573,9 +578,9 @@ function saveUserMetadata(userData) {
 
   q(
     `INSERT INTO user_metadata
-       (user_jid, user_lid, phone_number, is_owner, is_admin, first_seen, last_seen, display_name, saved_name)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-     ON CONFLICT(user_jid) DO UPDATE SET
+       (workspace_id,user_jid, user_lid, phone_number, is_owner, is_admin, first_seen, last_seen, display_name, saved_name)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(workspace_id,user_jid) DO UPDATE SET
        user_lid     = excluded.user_lid,
        phone_number = excluded.phone_number,
        is_owner     = excluded.is_owner,
@@ -584,6 +589,7 @@ function saveUserMetadata(userData) {
        display_name = excluded.display_name,
        saved_name   = excluded.saved_name`,
   ).run(
+    workspaceScope.workspaceId(),
     row.user_jid,
     row.user_lid,
     row.phone_number,
@@ -669,23 +675,23 @@ function getUserMetadata(identifier) {
   let row = userRow(identifier);
 
   if (!row) {
-    row = q("SELECT * FROM user_metadata WHERE user_lid = ?").get(identifier);
+    row = q("SELECT * FROM user_metadata WHERE workspace_id=? AND user_lid=?").get(workspaceScope.workspaceId(), identifier);
   }
 
   if (!row) {
-    row = q("SELECT * FROM user_metadata WHERE phone_number = ?").get(identifier);
+    row = q("SELECT * FROM user_metadata WHERE workspace_id=? AND phone_number=?").get(workspaceScope.workspaceId(), identifier);
   }
 
   if (!row) {
     const phone = digitsOf(identifier);
     if (phone) {
       row =
-        q("SELECT * FROM user_metadata WHERE phone_number = ?").get(phone) ||
+        q("SELECT * FROM user_metadata WHERE workspace_id=? AND phone_number=?").get(workspaceScope.workspaceId(), phone) ||
         q(
           `SELECT * FROM user_metadata
-           WHERE user_jid LIKE ? OR user_lid LIKE ?
+           WHERE workspace_id=? AND (user_jid LIKE ? OR user_lid LIKE ?)
            LIMIT 1`,
-        ).get(`${phone}@%`, `${phone}@%`);
+        ).get(workspaceScope.workspaceId(), `${phone}@%`, `${phone}@%`);
     }
   }
 
@@ -705,19 +711,19 @@ function isUserBotAdmin(identifier) {
 }
 
 function getAllOwners() {
-  return q("SELECT * FROM user_metadata WHERE is_owner = 1").all().map(rowToUser);
+  return q("SELECT * FROM user_metadata WHERE workspace_id=? AND is_owner=1").all(workspaceScope.workspaceId()).map(rowToUser);
 }
 
 function getAllBotAdmins() {
-  return q("SELECT * FROM user_metadata WHERE is_admin = 1").all().map(rowToUser);
+  return q("SELECT * FROM user_metadata WHERE workspace_id=? AND is_admin=1").all(workspaceScope.workspaceId()).map(rowToUser);
 }
 
 function getAllUsers() {
-  return q("SELECT * FROM user_metadata ORDER BY last_seen DESC").all().map(rowToUser);
+  return q("SELECT * FROM user_metadata WHERE workspace_id=? ORDER BY last_seen DESC").all(workspaceScope.workspaceId()).map(rowToUser);
 }
 
 function countUsers() {
-  return q("SELECT COUNT(*) AS n FROM user_metadata").get().n;
+  return q("SELECT COUNT(*) AS n FROM user_metadata WHERE workspace_id=?").get(workspaceScope.workspaceId()).n;
 }
 
 /**
@@ -757,7 +763,7 @@ function setUserRole(identifier, role, enabled = true) {
 }
 
 function updateUserLastSeen(jid) {
-  q("UPDATE user_metadata SET last_seen = ? WHERE user_jid = ?").run(Date.now(), jid);
+  q("UPDATE user_metadata SET last_seen=? WHERE workspace_id=? AND user_jid=?").run(Date.now(), workspaceScope.workspaceId(), jid);
 }
 
 // ===================================================================
@@ -768,23 +774,23 @@ function incrementForwardScore(messageId, groupId, senderId) {
   const now = Date.now();
   q(
     `INSERT INTO forward_scores
-       (message_id, group_id, original_sender, forward_count,
+       (workspace_id,message_id, group_id, original_sender, forward_count,
         first_forwarded_at, last_forwarded_at, expires_at)
-     VALUES (?, ?, ?, 1, ?, ?, ?)
-     ON CONFLICT(message_id) DO UPDATE SET
+     VALUES (?, ?, ?, ?, 1, ?, ?, ?)
+     ON CONFLICT(workspace_id,message_id) DO UPDATE SET
        forward_count     = forward_count + 1,
        last_forwarded_at = excluded.last_forwarded_at,
        expires_at        = excluded.expires_at`,
-  ).run(messageId, groupId, senderId, now, now, forwardExpiry());
+  ).run(workspaceScope.workspaceId(), messageId, groupId, senderId, now, now, forwardExpiry());
 
   return (
-    q("SELECT forward_count FROM forward_scores WHERE message_id = ?").get(messageId)
+    q("SELECT forward_count FROM forward_scores WHERE workspace_id=? AND message_id=?").get(workspaceScope.workspaceId(), messageId)
       ?.forward_count ?? 1
   );
 }
 
 function getForwardScore(messageId) {
-  const row = q("SELECT * FROM forward_scores WHERE message_id = ?").get(messageId);
+  const row = q("SELECT * FROM forward_scores WHERE workspace_id=? AND message_id=?").get(workspaceScope.workspaceId(), messageId);
   return row
     ? {
         count: row.forward_count,
@@ -799,10 +805,10 @@ function getTopForwardedMessages(groupId, limit = 10) {
   return q(
     `SELECT message_id, original_sender, forward_count, first_forwarded_at
      FROM forward_scores
-     WHERE group_id = ?
+     WHERE workspace_id=? AND group_id=?
      ORDER BY forward_count DESC
      LIMIT ?`,
-  ).all(groupId, limit);
+  ).all(workspaceScope.workspaceId(), groupId, limit);
 }
 
 // ===================================================================
@@ -818,37 +824,37 @@ function addDebt({ groupId, debtorId, creditorId, amount, currency = "USD", desc
   const createdAt = Date.now();
   const { lastInsertRowid } = q(
     `INSERT INTO debts
-       (group_id, debtor_id, creditor_id, amount, currency, description, created_at, settled, settled_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 0, NULL)`,
-  ).run(groupId, debtorId, creditorId, amount, currency, description, createdAt);
+       (workspace_id,group_id, debtor_id, creditor_id, amount, currency, description, created_at, settled, settled_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, NULL)`,
+  ).run(workspaceScope.workspaceId(), groupId, debtorId, creditorId, amount, currency, description, createdAt);
 
   return getDebt(Number(lastInsertRowid));
 }
 
 function getDebt(id) {
-  return debtRow(q("SELECT * FROM debts WHERE id = ?").get(id));
+  return debtRow(q("SELECT * FROM debts WHERE workspace_id=? AND id=?").get(workspaceScope.workspaceId(), id));
 }
 
 function deleteDebt(id) {
-  const { changes } = q("DELETE FROM debts WHERE id = ?").run(id);
+  const { changes } = q("DELETE FROM debts WHERE workspace_id=? AND id=?").run(workspaceScope.workspaceId(), id);
   return changes > 0;
 }
 
 function listDebts(groupId, { settled = false } = {}) {
   return q(
-    `SELECT * FROM debts WHERE group_id = ? AND settled = ?
+    `SELECT * FROM debts WHERE workspace_id=? AND group_id=? AND settled=?
      ORDER BY created_at DESC`,
   )
-    .all(groupId, bool(settled))
+    .all(workspaceScope.workspaceId(), groupId, bool(settled))
     .map(debtRow);
 }
 
 function getRecentDebts(limit = 50) {
-  return q("SELECT * FROM debts ORDER BY created_at DESC LIMIT ?").all(limit).map(debtRow);
+  return q("SELECT * FROM debts WHERE workspace_id=? ORDER BY created_at DESC LIMIT ?").all(workspaceScope.workspaceId(), limit).map(debtRow);
 }
 
 function countDebts(settled = false) {
-  return q("SELECT COUNT(*) AS n FROM debts WHERE settled = ?").get(bool(settled)).n;
+  return q("SELECT COUNT(*) AS n FROM debts WHERE workspace_id=? AND settled=?").get(workspaceScope.workspaceId(), bool(settled)).n;
 }
 
 // ===================================================================
@@ -892,19 +898,21 @@ function scheduleRow(row) {
 }
 
 function getSchedules() {
-  return q("SELECT * FROM schedules ORDER BY created_at").all().map(scheduleRow);
+  return q("SELECT * FROM schedules WHERE workspace_id=? ORDER BY created_at").all(workspaceScope.workspaceId()).map(scheduleRow);
 }
 
 function getSchedule(id) {
-  return scheduleRow(q("SELECT * FROM schedules WHERE id = ?").get(String(id)));
+  return scheduleRow(q("SELECT * FROM schedules WHERE workspace_id=? AND id=?").get(workspaceScope.workspaceId(), String(id)));
 }
 
 function saveSchedule(job) {
+  const existing = q("SELECT workspace_id FROM schedules WHERE id=?").get(String(job.id));
+  if (existing && existing.workspace_id !== workspaceScope.workspaceId()) throw workspaceScope.denied();
   q(
     `INSERT INTO schedules
        (id, type, target_jid, message, cron_string, date, status, creator_jid,
-        created_at, last_run_at, last_delivery_status, last_error, media)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        created_at, last_run_at, last_delivery_status, last_error, media, workspace_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(id) DO UPDATE SET
        type        = excluded.type,
        target_jid  = excluded.target_jid,
@@ -931,70 +939,84 @@ function saveSchedule(job) {
     job.lastDeliveryStatus ?? null,
     job.lastError ?? null,
     job.media ? JSON.stringify(job.media) : null,
+    workspaceScope.workspaceId(),
   );
   return getSchedule(job.id);
 }
 
 function setScheduleStatus(id, status) {
-  q("UPDATE schedules SET status = ? WHERE id = ?").run(status, String(id));
+  q("UPDATE schedules SET status=? WHERE workspace_id=? AND id=?").run(status, workspaceScope.workspaceId(), String(id));
 }
 
 function setScheduleDelivery(id, status, runAt, error = null) {
   q(
     `UPDATE schedules
         SET last_delivery_status = ?, last_run_at = ?, last_error = ?
-      WHERE id = ?`,
-  ).run(status, runAt, error, String(id));
+      WHERE workspace_id=? AND id=?`,
+  ).run(status, runAt, error, workspaceScope.workspaceId(), String(id));
   return getSchedule(id);
 }
 
 function deleteSchedule(id) {
-  const { changes } = q("DELETE FROM schedules WHERE id = ?").run(String(id));
+  const { changes } = q("DELETE FROM schedules WHERE workspace_id=? AND id=?").run(workspaceScope.workspaceId(), String(id));
   return changes > 0;
 }
 
 /** Keep old jobs visible after unlink, but never arm them for a new account. */
 function pauseAllSchedules() {
-  return q("UPDATE schedules SET status = 'paused' WHERE status IN ('active', 'pending')").run()
+  return q("UPDATE schedules SET status='paused' WHERE workspace_id=? AND status IN ('active', 'pending')").run(workspaceScope.workspaceId())
     .changes;
 }
 
 function countSchedules() {
-  return q("SELECT COUNT(*) AS n FROM schedules").get().n;
+  return q("SELECT COUNT(*) AS n FROM schedules WHERE workspace_id=?").get(workspaceScope.workspaceId()).n;
 }
 
 // ===================================================================
 // --- AI conversation history ---
 // ===================================================================
 //
-// One row per chat, no expiry. `!del` clears one chat, `!delall` clears the
-// table. The callers are async (they always were, back when this was a
-// separate database), so storage-hub keeps the async signatures.
+function pruneChatHistories() {
+  const configured = Number(getBotSetting("ai_history_retention_days") ?? 7);
+  const days = Number.isFinite(configured) ? Math.min(30, Math.max(0, configured)) : 7;
+  q("DELETE FROM ai_history WHERE workspace_id=? AND updated_at<=?").run(workspaceScope.workspaceId(), Date.now() - days * 86400000);
+  return days;
+}
 
 function getChatHistory(chatId) {
-  const row = q("SELECT history FROM ai_history WHERE chat_id = ?").get(chatId);
+  workspaceScope.assertChat(chatId);
+  pruneChatHistories();
+  const row = q("SELECT history FROM ai_history WHERE workspace_id=? AND chat_id=?").get(workspaceScope.workspaceId(), chatId);
   return row ? parseJson(row.history, []) : [];
 }
 
 function saveChatHistory(chatId, historyArray) {
+  workspaceScope.assertChat(chatId);
+  if (!pruneChatHistories()) return;
+  const bounded = Array.isArray(historyArray) ? historyArray.slice(-60) : [];
+  while (bounded.length && Buffer.byteLength(JSON.stringify(bounded)) > 262144) bounded.shift();
   q(
-    `INSERT INTO ai_history (chat_id, history, updated_at) VALUES (?, ?, ?)
-     ON CONFLICT(chat_id) DO UPDATE SET
+    `INSERT INTO ai_history (workspace_id, chat_id, history, updated_at) VALUES (?, ?, ?, ?)
+     ON CONFLICT(workspace_id,chat_id) DO UPDATE SET
        history = excluded.history,
        updated_at = excluded.updated_at`,
-  ).run(chatId, JSON.stringify(historyArray || []), Date.now());
+  ).run(workspaceScope.workspaceId(), chatId, JSON.stringify(bounded), Date.now());
 }
 
 function deleteChatHistory(chatId) {
-  const { changes } = q("DELETE FROM ai_history WHERE chat_id = ? OR chat_id LIKE ?").run(
+  workspaceScope.assertChat(chatId);
+  const { changes } = q("DELETE FROM ai_history WHERE workspace_id=? AND (chat_id=? OR substr(chat_id,1,length(?))=?)").run(
+    workspaceScope.workspaceId(),
     chatId,
-    `${chatId}::%`,
+    `${chatId}::`,
+    `${chatId}::`,
   );
   return changes > 0;
 }
 
 function deleteAllChatHistories() {
-  q("DELETE FROM ai_history").run();
+  if (workspaceScope.current().chatId) throw workspaceScope.denied("Use the current conversation's reset command");
+  q("DELETE FROM ai_history WHERE workspace_id=?").run(workspaceScope.workspaceId());
 }
 
 // Read-only views for the dashboard's conversation inspector: which chats
@@ -1002,17 +1024,22 @@ function deleteAllChatHistories() {
 // last-updated stamp. `json_array_length` counts the stored turns without
 // parsing the blob in JavaScript.
 function listChatHistories() {
+  if (workspaceScope.current().chatId) throw workspaceScope.denied("Conversation history enumeration is not available in chats");
+  pruneChatHistories();
   return q(
     `SELECT chat_id AS chatId,
             updated_at AS updatedAt,
             json_array_length(history) AS turns
-     FROM ai_history
+     FROM ai_history WHERE workspace_id=?
      ORDER BY updated_at DESC`,
-  ).all();
+  ).all(workspaceScope.workspaceId());
 }
 
 function getChatHistoryWithMeta(chatId) {
-  const row = q("SELECT history, updated_at AS updatedAt FROM ai_history WHERE chat_id = ?").get(
+  workspaceScope.assertChat(chatId);
+  pruneChatHistories();
+  const row = q("SELECT history, updated_at AS updatedAt FROM ai_history WHERE workspace_id=? AND chat_id=?").get(
+    workspaceScope.workspaceId(),
     chatId,
   );
   if (!row) return null;
@@ -1026,33 +1053,48 @@ function getChatHistoryWithMeta(chatId) {
 // Values arrive already serialized by BufferJSON (see auth-storage.cjs), so
 // they are stored as text and handed back as text.
 
-function authRead(key) {
-  const row = q("SELECT value FROM baileys_auth WHERE key = ?").get(key);
+function authDbKey(key, connectionId = "conn_default") {
+  if (connectionId && connectionId !== "conn_default" && connectionId !== "default") {
+    return `${connectionId}:${key}`;
+  }
+  return key;
+}
+
+function authRead(key, connectionId = "conn_default") {
+  const dbKey = authDbKey(key, connectionId);
+  const row = q("SELECT value FROM baileys_auth WHERE key = ?").get(dbKey);
   if (!row) return null;
   const vault = require("../config/vault.cjs");
   return vault.open(row.value);
 }
 
-function authWrite(key, serialized) {
+function authWrite(key, serialized, connectionId = "conn_default") {
+  const dbKey = authDbKey(key, connectionId);
   const vault = require("../config/vault.cjs");
   const payload = serialized == null ? "" : String(serialized);
   const stored = vault.isSealed(payload) ? payload : vault.seal(payload);
   q(
     `INSERT INTO baileys_auth (key, value) VALUES (?, ?)
      ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
-  ).run(key, stored);
+  ).run(dbKey, stored);
 }
 
-function authRemove(key) {
-  q("DELETE FROM baileys_auth WHERE key = ?").run(key);
+function authRemove(key, connectionId = "conn_default") {
+  const dbKey = authDbKey(key, connectionId);
+  q("DELETE FROM baileys_auth WHERE key = ?").run(dbKey);
 }
 
-function authClearAll() {
-  q("DELETE FROM baileys_auth").run();
+function authClearAll(connectionId = "conn_default") {
+  if (connectionId && connectionId !== "conn_default" && connectionId !== "default") {
+    q("DELETE FROM baileys_auth WHERE key LIKE ?").run(`${connectionId}:%`);
+  } else {
+    q("DELETE FROM baileys_auth WHERE key NOT LIKE '%:%'").run();
+  }
 }
 
-function hasCredentials() {
-  return !!q("SELECT 1 AS x FROM baileys_auth WHERE key = 'creds'").get();
+function hasCredentials(connectionId = "conn_default") {
+  const dbKey = authDbKey("creds", connectionId);
+  return !!q("SELECT 1 AS x FROM baileys_auth WHERE key = ?").get(dbKey);
 }
 
 /**
@@ -1838,7 +1880,7 @@ function hashSaasPassword(plain, salt = crypto.randomBytes(16)) {
   return { salt: salt.toString("hex"), hash: hash.toString("hex") };
 }
 
-function createSaasUser({ name, email, password, company, role = "owner", plan = "Enterprise Pro" }) {
+function createSaasUser({ name, email, password, company, role = "owner", plan = "free", workspaceId = null }) {
   const cleanEmail = String(email || "").trim().toLowerCase();
   const cleanName = String(name || "").trim();
   const cleanCompany = String(company || "").trim() || "My Workspace";
@@ -1859,6 +1901,9 @@ function createSaasUser({ name, email, password, company, role = "owner", plan =
   const { salt, hash } = hashSaasPassword(password);
   const now = Date.now();
 
+  const selectedWorkspace = workspaceId === "ws_default" ? "ws_default" : `ws_${crypto.randomUUID()}`;
+  db.exec("BEGIN IMMEDIATE");
+  try {
   q(`INSERT INTO saas_users (id, email, name, password_hash, salt, company, role, plan, created_at, last_login)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
     id,
@@ -1873,7 +1918,16 @@ function createSaasUser({ name, email, password, company, role = "owner", plan =
     now
   );
 
-  return { id, email: cleanEmail, name: cleanName, company: cleanCompany, role, plan };
+  q(`INSERT INTO workspaces(id,name,slug,owner_id,created_at) VALUES (?,?,?,?,?)
+    ON CONFLICT(id) DO UPDATE SET owner_id=excluded.owner_id`).run(selectedWorkspace, cleanCompany, selectedWorkspace, id, now);
+  q("INSERT INTO workspace_members(id,workspace_id,user_id,role,created_at) VALUES (?,?,?,?,?)").run(`member_${crypto.randomUUID()}`, selectedWorkspace, id, "owner", now);
+  if (selectedWorkspace !== "ws_default") insertWhatsappConnection({ id: `conn_${crypto.randomUUID()}`, workspaceId: selectedWorkspace, name: "Primary WhatsApp", isDefault: 1 });
+  db.exec("COMMIT");
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
+  return { id, email: cleanEmail, name: cleanName, company: cleanCompany, role, plan, workspaceId: selectedWorkspace };
 }
 
 function getSaasUserByEmail(email) {
@@ -1921,11 +1975,23 @@ function verifySaasUserPassword(email, candidate) {
   return null;
 }
 
-function insertAntiBanLog(action, details = "", riskScore = 5) {
+function insertAntiBanLog(actionOrObj, details = "", riskScore = 5) {
+  let action = actionOrObj;
+  let finalDetails = details;
+  let score = riskScore;
+  if (actionOrObj && typeof actionOrObj === "object") {
+    action = actionOrObj.action || "Anti-Ban Protection Active";
+    score = actionOrObj.riskScore ?? 5;
+    const parts = [];
+    if (actionOrObj.delayMs != null) parts.push(`delay: ${actionOrObj.delayMs}ms`);
+    if (actionOrObj.jid) parts.push(`target: ${actionOrObj.jid}`);
+    if (actionOrObj.details) parts.push(actionOrObj.details);
+    finalDetails = parts.join(" | ");
+  }
   q("INSERT INTO antiban_logs (action, details, risk_score, created_at) VALUES (?, ?, ?, ?)").run(
-    action,
-    String(details),
-    Number(riskScore) || 5,
+    String(action),
+    String(finalDetails || ""),
+    Number(score) || 5,
     Date.now()
   );
 }
@@ -1938,11 +2004,74 @@ function getAntiBanStats() {
   const count = q("SELECT COUNT(*) AS count FROM antiban_logs").get().count || 0;
   return {
     totalEvents: count,
-    recentLogs: q("SELECT * FROM antiban_logs ORDER BY created_at DESC LIMIT 10").all()
+    recentLogs: q("SELECT * FROM antiban_logs ORDER BY created_at DESC LIMIT 10").all(),
   };
 }
 
+// ===================================================================
+// Multi-Connection Management
+// ===================================================================
+
+function listWhatsappConnections(workspaceId = "ws_default") {
+  return q("SELECT * FROM whatsapp_connections WHERE workspace_id = ? ORDER BY is_default DESC, created_at ASC").all(workspaceId);
+}
+
+function getWhatsappConnection(connectionId, workspaceId = null) {
+  if (workspaceId) {
+    return q("SELECT * FROM whatsapp_connections WHERE id = ? AND workspace_id = ?").get(connectionId, workspaceId);
+  }
+  return q("SELECT * FROM whatsapp_connections WHERE id = ?").get(connectionId);
+}
+
+function insertWhatsappConnection({ id, workspaceId = "ws_default", name, phoneNumber = null, isDefault = 0 }) {
+  const now = Date.now();
+  q(`
+    INSERT INTO whatsapp_connections (id, workspace_id, name, phone_number, status, is_default, created_at, updated_at)
+    VALUES (?, ?, ?, ?, 'idle', ?, ?, ?)
+  `).run(id, workspaceId, name, phoneNumber, isDefault ? 1 : 0, now, now);
+  return getWhatsappConnection(id, workspaceId);
+}
+
+function updateWhatsappConnectionStatus(id, status, phoneNumber = null) {
+  const now = Date.now();
+  if (phoneNumber !== null) {
+    q("UPDATE whatsapp_connections SET status = ?, phone_number = ?, updated_at = ? WHERE id = ?").run(status, phoneNumber, now, id);
+  } else {
+    q("UPDATE whatsapp_connections SET status = ?, updated_at = ? WHERE id = ?").run(status, now, id);
+  }
+}
+
+function deleteWhatsappConnection(id, workspaceId) {
+  q("DELETE FROM whatsapp_connections WHERE id = ? AND workspace_id = ?").run(id, workspaceId);
+  authClearAll(id);
+}
+
+// Workspaces
+function insertWorkspace({ id, name, slug, ownerId = null }) {
+  const now = Date.now();
+  q("INSERT OR IGNORE INTO workspaces (id, name, slug, owner_id, created_at) VALUES (?, ?, ?, ?, ?)").run(
+    id,
+    name,
+    slug,
+    ownerId,
+    now
+  );
+}
+
+function getWorkspace(id) {
+  return q("SELECT * FROM workspaces WHERE id = ?").get(id);
+}
+
 module.exports = {
+  // Workspaces
+  insertWorkspace,
+  getWorkspace,
+  // Connections
+  listWhatsappConnections,
+  getWhatsappConnection,
+  insertWhatsappConnection,
+  updateWhatsappConnectionStatus,
+  deleteWhatsappConnection,
   // Lifecycle
   initStore,
   flushStore,

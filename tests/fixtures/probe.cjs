@@ -20,11 +20,13 @@ if (!isMainThread) return;
 
 function dump() {
   try {
-    fs.writeFileSync(process.env.PROBE_OUT, Object.keys(require.cache).join("\n"));
+    const temporary = `${process.env.PROBE_OUT}.${process.pid}.tmp`;
+    fs.writeFileSync(temporary, Object.keys(require.cache).join("\n"));
+    fs.renameSync(temporary, process.env.PROBE_OUT);
   } catch {}
 }
 
-const timer = setInterval(dump, 250);
+const timer = setInterval(dump, 100);
 timer.unref();
 
 process.on("exit", dump);

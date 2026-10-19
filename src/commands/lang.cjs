@@ -43,7 +43,7 @@ module.exports = {
     if (!args || args.length === 0) {
       const labels = {
         auto: tr("Auto (follows each message)", "تلقائي (حسب لغة رسالتك)", "Auto (har message ki zuban ke mutabiq)"),
-        ur: "Roman Urdu (رومن اردو) [Default]",
+        ur: tr("Roman Urdu", "الرومانية الأردية", "Roman Urdu (رومن اردو)"),
         ar: tr("Arabic", "العربية الفصحى", "Arabic (العربية)"),
         en: tr("English", "الإنجليزية", "English"),
       };
@@ -51,7 +51,7 @@ module.exports = {
         `🌐 *Bot Language*
 
 ⚙️ *Current Language:* \`${labels[currentLang] || currentLang}\`
-• \`${prefix}lang ur\` — Roman Urdu (رومن اردو) [Default - always Roman Urdu]
+• \`${prefix}lang ur\` — Roman Urdu
 • \`${prefix}lang en\` — English always
 • \`${prefix}lang ar\` — Modern Standard Arabic always
 • \`${prefix}lang auto\` — follow the language of each message
@@ -62,9 +62,9 @@ Commands, !help, TTS and the AI assistant all reply in it.
         `🌐 *لغة البوت*
 
 ⚙️ *اللغة الحالية:* \`${labels[currentLang] || currentLang}\`
-• \`${prefix}lang ur\` — الرومانية الأردية (Roman Urdu) دائمًا
+• \`${prefix}lang ur\` — الرومانية الأردية دائماً
 • \`${prefix}lang ar\` — العربية الفصحى دائماً
-• \`${prefix}lang en\` — English always
+• \`${prefix}lang en\` — الإنجليزية دائماً
 • \`${prefix}lang auto\` — تلقائي حسب لغة الرسالة
 
 ستستخدمها جميع الأوامر و!help والصوت والذكاء الاصطناعي في الردود.

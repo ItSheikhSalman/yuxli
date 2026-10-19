@@ -29,7 +29,7 @@ export function LoadingState({ text }: { text?: string }) {
 }
 
 export function Skeleton({ className }: { className?: string }) {
-  return <div aria-hidden className={cn("animate-pulse rounded-lg bg-panel-hover", className)} />;
+  return <div aria-hidden className={cn("animate-pulse motion-reduce:animate-none rounded-lg bg-panel-hover", className)} />;
 }
 
 export function EmptyState({

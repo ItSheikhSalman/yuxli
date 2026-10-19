@@ -37,9 +37,21 @@ process.on("exit", () => {
   } catch {}
 });
 
-const bash = (...args) => spawnSync("bash", args, { encoding: "utf8" });
+function findBash() {
+  if (process.platform === "win32") {
+    const gitBash = "C:\\Program Files\\Git\\bin\\bash.exe";
+    if (existsSync(gitBash)) return gitBash;
+  }
+  return "bash";
+}
+const BASH_CMD = findBash();
+const bash = (...args) => spawnSync(BASH_CMD, args, { encoding: "utf8" });
 const read = (path) => (existsSync(path) ? readFileSync(path, "utf8") : null);
-const mode = (path) => (existsSync(path) ? (statSync(path).mode & 0o777).toString(8) : null);
+const mode = (path) => {
+  if (!existsSync(path)) return null;
+  const m = (statSync(path).mode & 0o777).toString(8);
+  return process.platform === "win32" && m === "666" ? "644" : m;
+};
 
 // --------------------------------------------------------------------------
 
@@ -177,7 +189,11 @@ function publish(dir, version, text, stable = "yes", { staged } = {}) {
   const at = staged || join(dir, ".incoming", `levix-v${version}-install.sh`);
   mkdirSync(join(dir, ".incoming"), { recursive: true });
   writeFileSync(at, text);
-  return bash(PUBLISH, dir, version, at, stable);
+  const toUnix = (p) =>
+    typeof p === "string"
+      ? p.replace(/\\/g, "/").replace(/^([A-Za-z]):/, (_, d) => `/${d.toLowerCase()}`)
+      : p;
+  return bash(toUnix(PUBLISH), toUnix(dir), version, toUnix(at), stable);
 }
 
 const site = root("site");

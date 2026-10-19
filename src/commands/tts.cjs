@@ -138,8 +138,38 @@ async function transcodeToOpus(mp3Path) {
 async function synthesizeVoice(text, lang) {
   const chosenLang = resolveTtsLang(text, lang);
   const mp3Path = tmpPath("mp3");
+  const preferredProvider = settings.get("tts_provider") || "google";
+  let synthesized = false;
+
   try {
-    await synthesizeMp3(text, mp3Path, chosenLang);
+    if (preferredProvider === "speechster") {
+      try {
+        const speechster = require("../services/integrations/ahm7/adapters/speechsterAdapter.cjs");
+        const res = await speechster.synthesizeSpeech(text, { lang: chosenLang });
+        await fsp.writeFile(mp3Path, res.buffer);
+        synthesized = true;
+      } catch (err) {
+        logger.warn({ err: err.message }, "[TTS] SpeechSter preferred provider failed, falling back to Google TTS");
+      }
+    }
+
+    if (!synthesized) {
+      try {
+        await synthesizeMp3(text, mp3Path, chosenLang);
+        synthesized = true;
+      } catch (googleErr) {
+        logger.warn({ err: googleErr.message }, "[TTS] Google TTS failed, attempting AHM7 SpeechSter fallback");
+        try {
+          const speechster = require("../services/integrations/ahm7/adapters/speechsterAdapter.cjs");
+          const res = await speechster.synthesizeSpeech(text, { lang: chosenLang });
+          await fsp.writeFile(mp3Path, res.buffer);
+          synthesized = true;
+        } catch (speechsterErr) {
+          logger.error({ err: speechsterErr.message }, "[TTS] Both Google TTS and SpeechSter failed");
+          throw googleErr;
+        }
+      }
+    }
 
     const oggPath = await transcodeToOpus(mp3Path);
     if (oggPath && fs.existsSync(oggPath)) {

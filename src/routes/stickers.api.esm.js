@@ -106,7 +106,12 @@ function asyncRoute(handler) {
       }
       res.status(httpStatus(error)).json(toResponseBody(error));
       if (error instanceof StickerError && error.code === "TOO_LARGE") {
-        res.on("finish", () => req.destroy());
+        res.on("finish", () => {
+          req.resume();
+          if (process.platform !== "win32") {
+            req.destroy();
+          }
+        });
       }
     });
   };

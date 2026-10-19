@@ -43,27 +43,27 @@ function memoryFactory() {
 // TEXT column: Baileys' session keys are full of Buffers, and BufferJSON is
 // what turns them into something storable and back again. Storing the string
 // rather than a parsed object means the buffers round-trip exactly.
-function sqliteFactory() {
+function sqliteFactory(connectionId = "conn_default") {
   return {
     async writeData(key, value) {
-      store.authWrite(key, JSON.stringify(value, BufferJSON.replacer));
+      store.authWrite(key, JSON.stringify(value, BufferJSON.replacer), connectionId);
     },
     async readData(key) {
-      const text = store.authRead(key);
+      const text = store.authRead(key, connectionId);
       if (text === null || text === undefined) return null;
       return JSON.parse(text, BufferJSON.reviver);
     },
     async removeData(key) {
-      store.authRemove(key);
+      store.authRemove(key, connectionId);
     },
     async clearAll() {
-      store.authClearAll();
+      store.authClearAll(connectionId);
     },
   };
 }
 
-function createAuthStorage(type = "sqlite") {
-  if (type === "sqlite") return sqliteFactory();
+function createAuthStorage(type = "sqlite", connectionId = "conn_default") {
+  if (type === "sqlite") return sqliteFactory(connectionId);
   if (type === "memory") return memoryFactory();
 
   throw new Error(`Unknown storage type: ${type}`);
@@ -71,4 +71,5 @@ function createAuthStorage(type = "sqlite") {
 
 module.exports = {
   createAuthStorage,
+  sqliteFactory,
 };

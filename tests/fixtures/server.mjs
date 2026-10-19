@@ -10,7 +10,7 @@
 //   node tests/fixtures/server.mjs --data <dir> [--trust 1] [--host 0.0.0.0] [--routes]
 
 import { createRequire } from "node:module";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const ROOT = fileURLToPath(new URL("../..", import.meta.url));
 const require = createRequire(`${ROOT}/package.json`);
@@ -36,9 +36,9 @@ const { app, server, dashboardJson, requireLoginApi, noStore, installFinalHandle
   require(`${ROOT}/app.cjs`);
 
 if (has("routes")) {
-  const dashboardApi = (await import(`${ROOT}/src/routes/dashboard.api.esm.js`)).default;
-  const stickerApi = await import(`${ROOT}/src/routes/stickers.api.esm.js`);
-  const { loadCommands } = await import(`${ROOT}/src/handlers/command.handler.js`);
+  const dashboardApi = (await import(pathToFileURL(`${ROOT}/src/routes/dashboard.api.esm.js`).href)).default;
+  const stickerApi = await import(pathToFileURL(`${ROOT}/src/routes/stickers.api.esm.js`).href);
+  const { loadCommands } = await import(pathToFileURL(`${ROOT}/src/handlers/command.handler.js`).href);
   await loadCommands();
   app.use(
     "/dashboard/api",

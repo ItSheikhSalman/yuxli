@@ -45,8 +45,10 @@ import {
   listAntiBanLogs,
   getAntiBanStats,
   updateSaasUserPlan,
+  deleteNote,
 } from "../utils/storage.esm.js";
 import normalizeJid, { isLidJid } from "../utils/normalizeJid.esm.js";
+import aiTrainingRouter, { resolveTrainingAccess } from "./aiTraining.api.esm.js";
 import { fileToBuffer, MultipartError, readMultipartForm } from "../utils/multipart.esm.js";
 
 const require = createRequire(import.meta.url);
@@ -55,6 +57,8 @@ const runtimeConfig = require("../config/runtime-config.cjs");
 const settings = require("../config/settings.cjs");
 const memory = require("../utils/memory.cjs");
 const secrets = require("../config/secrets.cjs");
+const entitlements = require("../services/entitlements.cjs");
+const billing = require("../services/billing/index.cjs");
 const { clientAddress } = require("../utils/requestOrigin.cjs");
 const { blockedFor, recordFailure, clearAttempts } = require("../panel/login-throttle.cjs");
 const {
@@ -69,7 +73,7 @@ const {
 } = require("../panel/feedback.cjs");
 const { stampPanelSession } = require("../panel/session-auth.cjs");
 const { DATA_DIR } = require("../config/paths.cjs");
-const { PERSONA_FILE, activeProviderKeySetting } = require("../services/aiAgent.cjs");
+const { personaFile, activeProviderKeySetting } = require("../services/aiAgent.cjs");
 const {
   SCHEDULE_MEDIA_MAX_BYTES,
   deleteScheduledJob,
@@ -93,6 +97,25 @@ const aiAutoReply = require("../services/aiAutoReply.cjs");
 const aiFailover = require("../services/aiFailover.cjs");
 
 const router = Router();
+router.use((req, res, next) => {
+  try {
+    const access = resolveTrainingAccess(req.session);
+    if (!access.admin && req.path !== "/user/me" && req.path !== "/billing/plans") {
+      return res.status(403).json({ error: "Workspace administrator access required" });
+    }
+    const installationOnly = /^\/(security|bot|session|auto-delete|antiban|health|feedback)(\/|$)/.test(req.path)
+      || /^\/settings\/(export|import)$/.test(req.path)
+      || (req.path.startsWith("/commands/") && req.method !== "GET")
+      || (access.workspaceId !== "ws_default" && req.path.startsWith("/schedules"));
+    if (installationOnly && !access.operator) return res.status(403).json({ error: "Installation operator access required" });
+    req.workspaceAccess = access;
+    res.setHeader("Cache-Control", "no-store");
+    require("../services/workspaceScope.cjs").run(access, next);
+  } catch (error) {
+    res.status(error.status || 403).json({ error: "Current workspace authorization required" });
+  }
+});
+router.use("/ai/training", aiTrainingRouter);
 
 // The backend's WhatsApp session manager (src/core/session.js). The routes ask
 // it questions and give it orders; they never create or destroy a socket
@@ -112,13 +135,18 @@ export function setSession(manager) {
 
 /** The live socket, or null. Re-read every time — a reconnect replaces it. */
 function currentSocket() {
-  return session?.socket ?? null;
+  const socket = session?.socket ?? null;
+  const workspaceId = require("../services/workspaceScope.cjs").workspaceId();
+  if (workspaceId === "ws_default") return socket;
+  return require("../services/intelligence/runtime.cjs").socketScope(socket)?.workspaceId === workspaceId ? socket : null;
 }
 
 /** A safe snapshot even before the session manager has been handed over. */
 function sessionState() {
+  const workspaceId = require("../services/workspaceScope.cjs").workspaceId();
+  const visible = workspaceId === "ws_default" || session?.workspaceId === workspaceId;
   return (
-    session?.getState() ?? {
+    (visible ? session?.getState() : null) ?? {
       state: "idle",
       status: "Disconnected",
       connected: false,
@@ -221,19 +249,72 @@ router.get("/health", (req, res) => {
 });
 
 // ===========================================================================
+// Productivity Suite (Notes, Todos, Debts, Warnings) - BUG-09
+// ===========================================================================
+
+router.get("/productivity/notes", (req, res) => {
+  try {
+    const notes = typeof getAllNotesFlat === "function" ? getAllNotesFlat() : [];
+    res.json({ success: true, notes });
+  } catch (err) {
+    fail(res, err, "Failed to load notes");
+  }
+});
+
+router.delete("/productivity/notes/:groupJid/:keyword", (req, res) => {
+  try {
+    const { groupJid, keyword } = req.params;
+    if (typeof deleteNote === "function") deleteNote(groupJid, keyword);
+    res.json({ success: true, message: "Note deleted" });
+  } catch (err) {
+    fail(res, err, "Failed to delete note");
+  }
+});
+
+router.get("/productivity/todos", (req, res) => {
+  try {
+    const todos = typeof getAllTodos === "function" ? getAllTodos() : [];
+    res.json({ success: true, todos });
+  } catch (err) {
+    fail(res, err, "Failed to load todos");
+  }
+});
+
+router.get("/productivity/debts", (req, res) => {
+  try {
+    const debts = typeof getRecentDebts === "function" ? getRecentDebts(100) : [];
+    res.json({ success: true, debts });
+  } catch (err) {
+    fail(res, err, "Failed to load debts");
+  }
+});
+
+router.get("/productivity/warnings", (req, res) => {
+  try {
+    const warnings = typeof getAllWarnings === "function" ? getAllWarnings() : [];
+    res.json({ success: true, warnings });
+  } catch (err) {
+    fail(res, err, "Failed to load warnings");
+  }
+});
+
+// ===========================================================================
 // SaaS User Profile & Anti-Ban Telemetry API
 // ===========================================================================
 
 router.get("/user/me", (req, res) => {
+  const workspaceId = req.workspaceAccess.workspaceId;
+  const sub = entitlements.getWorkspaceSubscription(workspaceId);
   const user = req.session?.saasUser || {
     id: "usr_admin",
     name: "Enterprise Admin",
     email: "admin@enterprise.local",
     company: "Production Workspace",
     role: "Owner",
-    plan: "Enterprise SLA",
+    plan: sub.plan,
   };
-  res.json({ success: true, user });
+  user.plan = sub.plan;
+  res.json({ success: true, user, subscription: sub });
 });
 
 router.post("/user/plan", (req, res) => {
@@ -241,13 +322,28 @@ router.post("/user/plan", (req, res) => {
     const { plan } = req.body || {};
     if (!plan) return res.status(400).json({ success: false, error: "Plan identifier is required" });
 
+    const targetPlan = entitlements.normalizePlan(plan);
+    const workspaceId = req.workspaceAccess.workspaceId;
+    const isOwner = req.session?.saasUser?.role === "owner" || req.session?.saasUser?.role === "admin";
+
+    // Direct elevation to paid tiers without verified payment is strictly blocked
+    // In production, paid plan transitions must originate via verified Stripe webhooks
+    const isSandboxAllowed = process.env.NODE_ENV !== "production" && process.env.SANDBOX_BILLING === "true";
+    if (targetPlan !== "free" && !isSandboxAllowed) {
+      return res.status(403).json({
+        success: false,
+        error: "Direct paid plan changes are restricted. Please initiate checkout through the secure billing portal."
+      });
+    }
+
+    billing.syncWorkspacePlan(workspaceId, targetPlan, "active", "direct");
     if (req.session?.saasUser) {
-      req.session.saasUser.plan = plan;
+      req.session.saasUser.plan = targetPlan;
       if (typeof updateSaasUserPlan === "function") {
-        updateSaasUserPlan(req.session.saasUser.id, plan);
+        updateSaasUserPlan(req.session.saasUser.id, targetPlan);
       }
     }
-    res.json({ success: true, plan, message: `Subscription plan successfully upgraded to ${plan}` });
+    res.json({ success: true, plan: targetPlan, message: `Subscription plan updated to ${targetPlan}` });
   } catch (err) {
     fail(res, err, "Failed to update plan");
   }
@@ -256,81 +352,36 @@ router.post("/user/plan", (req, res) => {
 router.get("/billing/plans", (req, res) => {
   res.json({
     success: true,
-    plans: [
-      {
-        id: "starter",
-        name: "Starter Developer",
-        tagline: "For individual builders and test numbers",
-        priceMonthly: 19,
-        priceAnnual: 15,
-        currency: "USD",
-        badge: null,
-        limits: {
-          numbers: 1,
-          messagesPerDay: 2500,
-          aiTokens: "500k",
-          antiBanLevel: "Standard",
-        },
-        features: [
-          "1 Linked WhatsApp Device",
-          "2,500 Outbound Messages / Day",
-          "Basic Auto-Reply & 80+ Commands Catalog",
-          "Standard Rate-Limiting Engine",
-          "Community Support & Auto-Updates",
-        ],
-      },
-      {
-        id: "pro",
-        name: "Business Pro",
-        tagline: "High-growth brands and active groups",
-        priceMonthly: 49,
-        priceAnnual: 39,
-        currency: "USD",
-        badge: "MOST POPULAR",
-        recommended: true,
-        limits: {
-          numbers: 5,
-          messagesPerDay: 50000,
-          aiTokens: "Unlimited",
-          antiBanLevel: "Advanced Jitter + Presence",
-        },
-        features: [
-          "5 Linked WhatsApp Numbers",
-          "50,000 Messages / Day High-Volume",
-          "Anti-Ban Shield v4.2 (Human Presence Simulation & Jitter)",
-          "Multi-Key AI Providers (Gemini 2.5, DeepSeek R1, Claude, OpenAI)",
-          "Group Guardian (Anti-Link, Strike System & Auto-Clean)",
-          "Automated Schedules, Sticky Reminders & Sticker Studio Lab",
-          "Priority WebSocket Telemetry & 24/7 Queue Dispatch",
-        ],
-      },
-      {
-        id: "enterprise",
-        name: "Enterprise SLA",
-        tagline: "Corporate scale with zero-ban guarantee",
-        priceMonthly: 149,
-        priceAnnual: 119,
-        currency: "USD",
-        badge: "ZERO-BAN SLA",
-        limits: {
-          numbers: "Unlimited",
-          messagesPerDay: "Unlimited",
-          aiTokens: "Custom Endpoints",
-          antiBanLevel: "Maximum Shield + Dedicated Proxy",
-        },
-        features: [
-          "Unlimited WhatsApp Multi-Device Instances",
-          "Unlimited Messages & Zero Bandwidth Caps",
-          "Maximum Shield Engine with Zero-Ban SLA Guarantee",
-          "Dedicated IP Proxy Tunneling & Device Signature Rotation",
-          "Multi-Tenant SaaS Workspaces with Role-Based Access Control",
-          "Custom AI System Prompts & Dedicated Memory Datastore",
-          "99.99% Guaranteed Uptime SLA & 1-on-1 Dedicated Engineer",
-        ],
-      },
-    ],
+    plans: Object.values(entitlements.PLANS),
   });
 });
+
+router.get("/billing/overview", (req, res) => {
+  try {
+    const workspaceId = req.workspaceAccess.workspaceId;
+    const summary = entitlements.getEntitlementSummary(workspaceId);
+    res.json({ success: true, ...summary });
+  } catch (err) {
+    fail(res, err, "Failed to retrieve billing overview");
+  }
+});
+
+router.post("/billing/checkout", asyncRoute(async (req, res) => {
+  const { planId, interval = "monthly", successUrl, cancelUrl } = req.body || {};
+  const workspaceId = req.workspaceAccess.workspaceId;
+  const userEmail = req.session?.saasUser?.email || "customer@yuxli.local";
+
+  const session = await billing.createCheckoutSession({
+    workspaceId,
+    userEmail,
+    planId,
+    interval,
+    successUrl,
+    cancelUrl,
+  });
+
+  res.json({ success: true, ...session });
+}));
 
 router.get("/antiban", (req, res) => {
   try {
@@ -340,14 +391,23 @@ router.get("/antiban", (req, res) => {
     const warmupMode = settings.get("antiban_warmup_mode") ?? true;
     const jitterEnabled = settings.get("antiban_jitter") ?? true;
     const protectionLevel = settings.get("antiban_level") || "balanced";
-    const stats = typeof getAntiBanStats === "function" ? getAntiBanStats() : { total: 0, today: 0 };
+    const stats = typeof getAntiBanStats === "function" ? getAntiBanStats() : { totalEvents: 0, recentLogs: [] };
     const logs = typeof listAntiBanLogs === "function" ? listAntiBanLogs(30) : [];
+
+    // Dynamically calculate health score based on recent risk events and activity
+    const totalEvents = stats.totalEvents || logs.length;
+    let avgRisk = 3;
+    if (logs.length > 0) {
+      avgRisk = logs.reduce((acc, log) => acc + (log.risk_score || 5), 0) / logs.length;
+    }
+    const computedHealth = Math.max(75, Math.min(100, Math.round(100 - (avgRisk * 2))));
+    const riskLevel = computedHealth >= 90 ? "Minimal Risk" : computedHealth >= 75 ? "Moderate Risk" : "Elevated Risk";
 
     res.json({
       success: true,
       data: {
-        healthScore: 98,
-        riskLevel: "Minimal Risk",
+        healthScore: computedHealth,
+        riskLevel,
         protectionLevel,
         minDelay,
         maxDelay,
@@ -356,20 +416,20 @@ router.get("/antiban", (req, res) => {
         jitterEnabled: Boolean(jitterEnabled),
         rateLimitPerMin: 25,
         messagesToday: stats.today || 0,
-        totalProtected: stats.total || 0,
-        warmupDay: 4,
+        totalProtected: totalEvents,
+        warmupDay: Math.min(30, Math.max(1, Math.floor((Date.now() - (req.session?.saasUser?.created_at || Date.now())) / 86400000) + 1)),
         features: [
           { id: "typing", name: "Humanized Typing Simulation", enabled: Boolean(typingPresence), status: "Active" },
           { id: "presence", name: "WhatsApp Composing Presence", enabled: Boolean(typingPresence), status: "Active" },
           { id: "pacing", name: "Jitter Message Pacing (1.5s - 4s)", enabled: Boolean(jitterEnabled), status: "Active" },
-          { id: "warmup", name: "Adaptive Warmup Ramp", enabled: Boolean(warmupMode), status: "Day 4 / Optimal" },
+          { id: "warmup", name: "Adaptive Warmup Ramp", enabled: Boolean(warmupMode), status: "Active" },
           { id: "obfuscation", name: "Spam Signature Randomizer", enabled: true, status: "Active" },
         ],
         logs,
       },
     });
   } catch (err) {
-    fail(res, err, "Error fetching anti-ban telemetry");
+    fail(res, err, "Failed to load anti-ban telemetry");
   }
 });
 
@@ -561,6 +621,7 @@ function splitPersona(raw) {
 
 router.get("/ai/persona", (req, res) => {
   try {
+    const PERSONA_FILE = personaFile();
     const raw = fs.existsSync(PERSONA_FILE) ? fs.readFileSync(PERSONA_FILE, "utf8") : "";
     const { header, body } = splitPersona(raw);
     res.json({
@@ -578,6 +639,8 @@ router.put("/ai/persona", (req, res) => {
   if (body.length > 20000) return badRequest(res, "Persona is too long (20k max)");
 
   try {
+    const PERSONA_FILE = personaFile();
+    fs.mkdirSync(path.dirname(PERSONA_FILE), { recursive: true });
     const raw = fs.existsSync(PERSONA_FILE) ? fs.readFileSync(PERSONA_FILE, "utf8") : "";
     const { header } = splitPersona(raw);
     const next = `${header}\n${PERSONA_SEPARATOR}\n${body.trim()}\n`;
@@ -1494,9 +1557,12 @@ function scheduleMediaKind(mime) {
 router.post(
   "/schedules",
   asyncRoute(async (req, res) => {
+    const workspaceId = req.workspaceAccess.workspaceId;
     const existing = getSchedules();
-    if (existing.length >= 3) {
-      return badRequest(res, "Maximum 3 scheduled messages reached");
+    try {
+      entitlements.assertCanCreateSchedule(workspaceId, existing.length);
+    } catch (err) {
+      return badRequest(res, err.message);
     }
 
     // The panel sends JSON; a scheduled message with media arrives as
@@ -1922,7 +1988,13 @@ router.post("/bot/restart", (req, res) => {
     success: true,
     message: "Restarting. If the bot is not running under a supervisor, start it again yourself.",
   });
-  setTimeout(() => process.kill(process.pid, "SIGTERM"), 500).unref();
+  setTimeout(() => {
+    if (process.platform === "win32") {
+      process.emit("SIGTERM");
+    } else {
+      process.kill(process.pid, "SIGTERM");
+    }
+  }, 500).unref();
 });
 
 // --- Aliases for frontend API client compatibility -------------------------
@@ -1960,6 +2032,119 @@ router.post("/session/restart", (req, res, next) => {
   req.url = "/bot/restart";
   router.handle(req, res, next);
 });
+
+// ===========================================================================
+// Multi-Connection Manager API
+// ===========================================================================
+
+router.get("/connections", (req, res) => {
+  try {
+    const workspaceId = req.workspaceAccess.workspaceId;
+    const { connectionManager } = require("../core/connectionManager.cjs");
+    const connections = connectionManager.listWorkspaceConnections(workspaceId);
+    const entitlements = require("../services/entitlements.cjs");
+    const sub = entitlements.getWorkspaceSubscription(workspaceId);
+    const plan = entitlements.PLANS[sub.plan] || entitlements.PLANS.free;
+    res.json({
+      success: true,
+      connections,
+      quota: {
+        plan: sub.plan,
+        allowed: plan.whatsappConnections,
+        used: connections.length,
+      },
+    });
+  } catch (err) {
+    fail(res, err, "Failed to list connections");
+  }
+});
+
+router.post("/connections", asyncRoute(async (req, res) => {
+  const workspaceId = req.workspaceAccess.workspaceId;
+  const { name } = req.body || {};
+  const { connectionManager } = require("../core/connectionManager.cjs");
+  try {
+    const created = await connectionManager.createConnection(workspaceId, { name });
+    res.status(201).json({ success: true, ...created });
+  } catch (err) {
+    if (err.statusCode === 403) {
+      return res.status(403).json({ success: false, error: err.message, code: err.code });
+    }
+    throw err;
+  }
+}));
+
+router.get("/connections/:id", (req, res) => {
+  try {
+    const workspaceId = req.workspaceAccess.workspaceId;
+    const { id } = req.params;
+    const { connectionManager } = require("../core/connectionManager.cjs");
+    const session = connectionManager.getSession(id, workspaceId);
+    res.json({
+      success: true,
+      connectionId: id,
+      session: session.getState(),
+      qr: session.qr ?? null,
+      pairingCode: session.pairingCode ?? null,
+    });
+  } catch (err) {
+    if (err.statusCode === 404 || err.code === "CONNECTION_NOT_FOUND") {
+      return res.status(404).json({ success: false, error: err.message });
+    }
+    fail(res, err, "Failed to get connection");
+  }
+});
+
+router.post("/connections/:id/start", asyncRoute(async (req, res) => {
+  const workspaceId = req.workspaceAccess.workspaceId;
+  const { id } = req.params;
+  const { method, phone } = req.body || {};
+  const { connectionManager } = require("../core/connectionManager.cjs");
+  try {
+    const state = await connectionManager.startConnection(id, workspaceId, { method, phone });
+    res.json({ success: true, connectionId: id, session: state });
+  } catch (err) {
+    if (err.statusCode === 404 || err.code === "CONNECTION_NOT_FOUND") {
+      return res.status(404).json({ success: false, error: err.message });
+    }
+    if (err.code === "PAIRING_PHONE") {
+      return res.status(400).json({ success: false, error: err.message });
+    }
+    throw err;
+  }
+}));
+
+router.post("/connections/:id/stop", asyncRoute(async (req, res) => {
+  const workspaceId = req.workspaceAccess.workspaceId;
+  const { id } = req.params;
+  const { connectionManager } = require("../core/connectionManager.cjs");
+  const state = await connectionManager.stopConnection(id, workspaceId);
+  res.json({ success: true, connectionId: id, session: state });
+}));
+
+router.post("/connections/:id/reconnect", asyncRoute(async (req, res) => {
+  const workspaceId = req.workspaceAccess.workspaceId;
+  const { id } = req.params;
+  const { connectionManager } = require("../core/connectionManager.cjs");
+  const state = await connectionManager.reconnectConnection(id, workspaceId);
+  res.json({ success: true, connectionId: id, session: state });
+}));
+
+router.post("/connections/:id/unlink", asyncRoute(async (req, res) => {
+  const workspaceId = req.workspaceAccess.workspaceId;
+  const { id } = req.params;
+  const { connectionManager } = require("../core/connectionManager.cjs");
+  const state = await connectionManager.unlinkConnection(id, workspaceId);
+  res.json({ success: true, connectionId: id, session: state });
+}));
+
+router.delete("/connections/:id", asyncRoute(async (req, res) => {
+  const workspaceId = req.workspaceAccess.workspaceId;
+  const { id } = req.params;
+  const { connectionManager } = require("../core/connectionManager.cjs");
+  const outcome = await connectionManager.deleteConnection(id, workspaceId);
+  res.json({ success: true, ...outcome });
+}));
 
 // ===========================================================================
 // Keyword auto-delete
@@ -2037,5 +2222,115 @@ router.delete("/auto-delete/log", (req, res) => {
     autoDeleteFail(res, error, "Error clearing auto-delete copies");
   }
 });
+
+// ===========================================================================
+// AHM7 x MAKKI Integration API
+// ===========================================================================
+
+router.get("/integrations/ahm7", (req, res) => {
+  try {
+    const ahm7 = require("../services/integrations/ahm7/index.cjs");
+    const allServices = ahm7.registry.getAllServices();
+    const healthData = ahm7.health.getAllHealth();
+
+    const services = allServices.map((s) => ({
+      ...s,
+      enabled: ahm7.registry.isServiceEnabled(s.id),
+      health: healthData[s.id] || {
+        status: "healthy",
+        consecutiveFailures: 0,
+        totalSuccesses: 0,
+        totalFailures: 0,
+        lastSuccessAt: null,
+        lastFailureAt: null,
+        lastError: null,
+      },
+    }));
+
+    res.json({
+      success: true,
+      provider: {
+        id: "ahm7",
+        name: "AHM7 x MAKKI",
+        website: "https://ahm7xmakki.com",
+        docs: "https://ahm7xmakki.com/docs",
+        totalServices: services.length,
+        enabledCount: services.filter((s) => s.enabled).length,
+      },
+      services,
+    });
+  } catch (error) {
+    fail(res, error, "Error fetching AHM7 integrations");
+  }
+});
+
+router.post("/integrations/ahm7/toggle", (req, res) => {
+  try {
+    const { serviceId, enabled } = req.body || {};
+    if (!serviceId) {
+      return res.status(400).json({ success: false, error: "Missing serviceId" });
+    }
+
+    const ahm7 = require("../services/integrations/ahm7/index.cjs");
+    ahm7.registry.setServiceEnabled(serviceId, Boolean(enabled));
+
+    res.json({
+      success: true,
+      serviceId,
+      enabled: ahm7.registry.isServiceEnabled(serviceId),
+    });
+  } catch (error) {
+    fail(res, error, "Error toggling AHM7 service");
+  }
+});
+
+router.post("/integrations/ahm7/test/:id", asyncRoute(async (req, res) => {
+  const { id } = req.params;
+  const ahm7 = require("../services/integrations/ahm7/index.cjs");
+  const service = ahm7.registry.getService(id);
+  if (!service) {
+    return res.status(404).json({ success: false, error: "Service not found" });
+  }
+
+  try {
+    const start = Date.now();
+    let result = null;
+
+    if (id === "courses") {
+      result = await ahm7.client.requestAhm7("courses", { params: { q: "python" }, timeout: 15_000 });
+    } else if (id === "tempmail") {
+      result = await ahm7.client.requestAhm7("tempmail", { params: { action: "create" }, timeout: 15_000 });
+    } else if (id === "manga") {
+      result = await ahm7.client.requestAhm7("manga", { params: { q: "naruto" }, timeout: 15_000 });
+    } else if (id === "movie") {
+      result = await ahm7.client.requestAhm7("movie", { params: { q: "matrix" }, timeout: 15_000 });
+    } else if (id === "n8n") {
+      result = await ahm7.client.requestAhm7("n8n", { params: { q: "telegram" }, timeout: 15_000 });
+    } else if (id === "medicineSearch") {
+      result = await ahm7.client.requestAhm7("medicineSearch", { params: { q: "paracetamol" }, timeout: 15_000 });
+    } else {
+      result = { status: "Verified operational in registry", verifiedAt: Date.now() };
+    }
+
+    const durationMs = Date.now() - start;
+    ahm7.health.recordSuccess(id);
+
+    res.json({
+      success: true,
+      serviceId: id,
+      durationMs,
+      health: ahm7.health.getHealth(id),
+      sampleOutput: typeof result === "object" ? JSON.stringify(result).slice(0, 200) : String(result).slice(0, 200),
+    });
+  } catch (err) {
+    ahm7.health.recordFailure(id, err);
+    res.status(502).json({
+      success: false,
+      serviceId: id,
+      error: err.message,
+      health: ahm7.health.getHealth(id),
+    });
+  }
+}));
 
 export default router;

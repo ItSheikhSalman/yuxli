@@ -75,14 +75,14 @@ function withOutboundSavers(sock) {
  *   rather than read here, so this factory stays a pure function of its
  *   arguments and a test can hand it a fake.
  */
-export async function createWhatsAppSocket({ proxy = null, pairingCode = false } = {}) {
+export async function createWhatsAppSocket({ proxy = null, pairingCode = false, connectionId = "conn_default" } = {}) {
   logger.info(
     proxy
-      ? `[Socket] Initializing WhatsApp socket through ${proxy.label}`
-      : "[Socket] Initializing WhatsApp socket with database auth",
+      ? `[Socket] Initializing WhatsApp socket [${connectionId}] through ${proxy.label}`
+      : `[Socket] Initializing WhatsApp socket [${connectionId}] with database auth`,
   );
 
-  const { state, saveCreds, clearAll } = await useDatabaseAuthState();
+  const { state, saveCreds, clearAll } = await useDatabaseAuthState(null, connectionId);
 
   // Whether this install is already paired. NOT `store.hasCredentials()`: the
   // auth state writes a `creds` row on its very first call, paired or not.
@@ -91,9 +91,15 @@ export async function createWhatsAppSocket({ proxy = null, pairingCode = false }
   // handshake never finished.
   const isPaired = !!state?.creds?.me?.id && state?.creds?.registered !== false;
 
-  const cachedGroupMetadata = (jid) => groupMetadataCache.get(jid);
+  const scope = require("../services/workspaceScope.cjs");
+  const runtime = require("../services/intelligence/runtime.cjs");
+  let socket = null;
+  const cachedGroupMetadata = (jid) => runtime.socketScope(socket)
+    ? scope.forSocket(socket, () => groupMetadataCache.get(jid)) : undefined;
 
   const config = getBaileysConfig(cachedGroupMetadata, { pairingCode });
+  config.getMessage = (key) => runtime.socketScope(socket)
+    ? scope.forSocket(socket, () => getMessageFromRecent(key)) : undefined;
 
   // Three separate hooks, because Baileys has three separate network paths:
   //   agent              -> the `ws` WebSocket        (https.request, classic agent)
@@ -113,6 +119,9 @@ export async function createWhatsAppSocket({ proxy = null, pairingCode = false }
       ...config,
     }),
   );
+
+  require("../services/intelligence/runtime.cjs").bindSocket(sock, connectionId);
+  socket = sock;
 
   return { sock, saveCreds, clearAll, isPaired };
 }

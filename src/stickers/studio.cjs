@@ -442,7 +442,7 @@ function createStudio({ media, jobs, library, uploads } = {}) {
       const raw = lib.readStickerFile(owner, sticker.id);
       const packed = med.withStickerMetadata(raw, {
         packName: firstPackName(owner, sticker) || brand.name,
-        publisher: brand.name,
+        publisher: "Levix",
       });
       await sock.sendMessage(jid, { sticker: packed });
     }

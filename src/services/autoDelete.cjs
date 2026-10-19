@@ -475,6 +475,7 @@ function keepCopyText(body) {
  * (caller must stop the rest of the pipeline). Never throws.
  */
 async function handleIncoming(sock, msg, body, helpers) {
+  if (!require("./workspaceScope.cjs").installationContext()) return false;
   try {
     const enabled = store.listEnabledAutoDeleteRules();
     if (!enabled.length) return false;

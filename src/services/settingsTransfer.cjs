@@ -27,8 +27,8 @@ const {
   resolveCapabilities,
 } = require("./modelRegistry.cjs");
 
-const FORMAT = "yuxli-settings";
-const LEGACY_FORMAT = "levix-settings";
+const FORMAT = "levix-settings";
+const MODERN_FORMAT = "yuxli-settings";
 const VERSION = 1;
 
 function isPlainObject(value) {
@@ -153,8 +153,8 @@ function applySettingChange(key, value) {
  *   which keys wait for a restart.
  */
 function applyImport(payload) {
-  if (!isPlainObject(payload) || (payload.format !== FORMAT && payload.format !== LEGACY_FORMAT)) {
-    throw new Error("That file isn't a Yuxli settings export");
+  if (!isPlainObject(payload) || (payload.format !== FORMAT && payload.format !== MODERN_FORMAT)) {
+    throw new Error("That file isn't a Levix settings export");
   }
   if (payload.version !== VERSION) {
     throw new Error(`Unsupported export version: ${String(payload.version)}`);

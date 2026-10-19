@@ -37,6 +37,13 @@ export const LogsView: React.FC<LogsViewProps> = ({ socket }) => {
   const [source, setSource] = useState<LogSource>("bot");
   const [hostLines, setHostLines] = useState<string[]>([]);
 
+  // Virtualization state (BUG-12)
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [scrollTop, setScrollTop] = useState(0);
+  const [containerHeight, setContainerHeight] = useState(500);
+  const ITEM_HEIGHT = 28;
+  const OVERSCAN = 12;
+
   useEffect(() => {
     if (source !== "bot") return;
     api
@@ -50,7 +57,7 @@ export const LogsView: React.FC<LogsViewProps> = ({ socket }) => {
   useEffect(() => {
     if (source !== "bot" || !socket) return;
     const handleLog = (entry: LogItem) => {
-      setLogs((prev) => [...prev.slice(-400), entry]);
+      setLogs((prev) => [...prev.slice(-1000), entry]);
     };
     socket.on("log", handleLog);
     return () => {
@@ -75,13 +82,43 @@ export const LogsView: React.FC<LogsViewProps> = ({ socket }) => {
   }, [source, fetchHostLog]);
 
   useEffect(() => {
-    if (autoScroll && logEndRef.current) {
-      logEndRef.current.scrollIntoView({ behavior: "smooth" });
+    if (containerRef.current) {
+      setContainerHeight(containerRef.current.clientHeight || 500);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (autoScroll && containerRef.current) {
+      containerRef.current.scrollTop = containerRef.current.scrollHeight;
     }
   }, [logs, hostLines, autoScroll]);
 
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    setScrollTop(el.scrollTop);
+    const isAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+    if (!isAtBottom && autoScroll) {
+      setAutoScroll(false);
+    } else if (isAtBottom && !autoScroll) {
+      setAutoScroll(true);
+    }
+  };
+
   const filtered = logs.filter((l) => (filter === "all" ? true : l.level === filter));
-  const displayCount = source === "bot" ? filtered.length : hostLines.length;
+  const totalItems = source === "bot" ? filtered.length : hostLines.length;
+  const displayCount = totalItems;
+
+  const startIndex = Math.max(0, Math.floor(scrollTop / ITEM_HEIGHT) - OVERSCAN);
+  const endIndex = Math.min(
+    totalItems,
+    Math.ceil((scrollTop + containerHeight) / ITEM_HEIGHT) + OVERSCAN
+  );
+
+  const topPadding = startIndex * ITEM_HEIGHT;
+  const bottomPadding = Math.max(0, (totalItems - endIndex) * ITEM_HEIGHT);
+
+  const visibleLogs = source === "bot" ? filtered.slice(startIndex, endIndex) : [];
+  const visibleHostLines = source === "host" ? hostLines.slice(startIndex, endIndex) : [];
 
   const levelClass = (level: string) =>
     level === "error"
@@ -171,6 +208,8 @@ export const LogsView: React.FC<LogsViewProps> = ({ socket }) => {
 
       <Card
         padded={false}
+        ref={containerRef}
+        onScroll={handleScroll}
         className="h-[65vh] overflow-y-auto bg-panel-solid border border-line p-4 font-mono text-xs leading-relaxed text-muted md:p-5"
         dir="ltr"
       >
@@ -178,34 +217,41 @@ export const LogsView: React.FC<LogsViewProps> = ({ socket }) => {
           filtered.length === 0 ? (
             <EmptyState icon={<Terminal size={24} />} text={t("noLogs")} />
           ) : (
-            <div className="flex flex-col gap-1.5">
-              {filtered.map((l, i) => (
-                <div
-                  key={i}
-                  className="flex items-baseline gap-2.5 rounded px-1 py-0.5 hover:bg-panel-hover/40"
-                >
-                  <span className="shrink-0 select-none text-[11px] text-faint">
-                    {l.time || new Date().toLocaleTimeString()}
-                  </span>
-                  <span
-                    className={`inline-flex shrink-0 items-center rounded border px-1.5 font-mono text-[10px] font-bold ${levelClass(l.level || "info")}`}
+            <div className="flex flex-col gap-1.5" style={{ paddingTop: topPadding, paddingBottom: bottomPadding }}>
+              {visibleLogs.map((l, idx) => {
+                const actualIndex = startIndex + idx;
+                return (
+                  <div
+                    key={actualIndex}
+                    className="flex items-baseline gap-2.5 rounded px-1 py-0.5 hover:bg-panel-hover/40"
+                    style={{ minHeight: `${ITEM_HEIGHT}px` }}
                   >
-                    {(l.level || "info").toUpperCase()}
-                  </span>
-                  <span className="break-all font-mono text-text-main">{l.msg}</span>
-                </div>
-              ))}
+                    <span className="shrink-0 select-none text-[11px] text-faint">
+                      {l.time || new Date().toLocaleTimeString()}
+                    </span>
+                    <span
+                      className={`inline-flex shrink-0 items-center rounded border px-1.5 font-mono text-[10px] font-bold ${levelClass(l.level || "info")}`}
+                    >
+                      {(l.level || "info").toUpperCase()}
+                    </span>
+                    <span className="break-all font-mono text-text-main">{l.msg}</span>
+                  </div>
+                );
+              })}
             </div>
           )
         ) : hostLines.length === 0 ? (
           <EmptyState icon={<Smartphone size={24} />} text={t("noLogs")} />
         ) : (
-          <div className="flex flex-col gap-1.5">
-            {hostLines.map((line, i) => (
-              <div key={i} className="rounded px-1 py-0.5 hover:bg-panel-hover/40">
-                <span className="break-all font-mono text-text-main">{line}</span>
-              </div>
-            ))}
+          <div className="flex flex-col gap-1.5" style={{ paddingTop: topPadding, paddingBottom: bottomPadding }}>
+            {visibleHostLines.map((line, idx) => {
+              const actualIndex = startIndex + idx;
+              return (
+                <div key={actualIndex} className="rounded px-1 py-0.5 hover:bg-panel-hover/40" style={{ minHeight: `${ITEM_HEIGHT}px` }}>
+                  <span className="break-all font-mono text-text-main">{line}</span>
+                </div>
+              );
+            })}
           </div>
         )}
         <div ref={logEndRef} />

@@ -33,6 +33,7 @@
 //     True if two identifiers refer to the same person (LID/PN/phone equiv).
 
 import normalizeJid, { isLidJid, isPnJid } from "./normalizeJid.esm.js";
+import workspaceScope from "../services/workspaceScope.cjs";
 import {
   isUserBotAdmin as dbIsBotAdmin,
   isUserOwner as dbIsOwner,
@@ -47,8 +48,8 @@ import {
 //   owners      — full access, including OWNER_ONLY commands
 //   bot admins  — treated as an admin in every chat (group admin OR this role
 //                 satisfies ADMINS_ONLY / ADMINS_OWNER), but not OWNER_ONLY
-const bootstrap = new Set();
-const bootstrapAdminSet = new Set();
+const bootstrap = new workspaceScope.ScopedSet();
+const bootstrapAdminSet = new workspaceScope.ScopedSet();
 
 function digitsOnly(value) {
   if (!value) return null;

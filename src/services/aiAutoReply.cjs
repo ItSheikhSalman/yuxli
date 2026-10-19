@@ -8,12 +8,14 @@ const store = require("../db/store.cjs");
 const normalizeJid = require("../utils/normalizeJid.cjs");
 
 function getChatAutoReply(chatId) {
+  require("./workspaceScope.cjs").assertChat(chatId);
   if (!chatId) return "mention";
   const normalized = normalizeJid(chatId);
   return store.getBotSetting(`ai_autoreply:${normalized}`, "mention");
 }
 
 function setChatAutoReply(chatId, mode) {
+  require("./workspaceScope.cjs").assertChat(chatId);
   if (!chatId) return "mention";
   const normalized = normalizeJid(chatId);
   const clean = String(mode || "").toLowerCase().trim();

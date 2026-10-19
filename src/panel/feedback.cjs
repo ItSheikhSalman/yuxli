@@ -179,7 +179,7 @@ async function submitFeedback(feedback, attachment = null) {
   try {
     let body;
     const headers = {
-      "User-Agent": `Yuxli/${runtime.version} (${runtime.platform})`,
+      "User-Agent": `Levix/${runtime.version} (${runtime.platform})`,
     };
     const hasFile =
       attachment && Buffer.isBuffer(attachment.buffer) && attachment.buffer.length > 0;

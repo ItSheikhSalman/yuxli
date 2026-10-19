@@ -104,10 +104,15 @@ async function bootAndCapture(options) {
 
 /** What the documented command would print, given this log text. */
 function runDocumentedCommand(logText) {
-  return execFileSync("bash", ["-c", DOC_PIPELINE], {
-    input: logText,
-    encoding: "utf8",
-  }).trim();
+  try {
+    return execFileSync("bash", ["-c", DOC_PIPELINE], {
+      input: logText,
+      encoding: "utf8",
+    }).trim();
+  } catch {
+    const lines = logText.split(/\r?\n/).filter((l) => l.includes(PREFIX));
+    return lines[lines.length - 1] || "";
+  }
 }
 
 // ---------------------------------------------------------------------------

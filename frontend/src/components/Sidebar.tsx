@@ -3,6 +3,7 @@
 import {
   Bot,
   Calendar,
+  CheckSquare,
   ChevronDown,
   ChevronRight,
   Cpu,
@@ -34,7 +35,10 @@ export type ViewTab =
   | "antiban"
   | "plans"
   | "commands"
+  | "productivity"
   | "ai"
+  | "training"
+  | "integrations"
   | "groups"
   | "autodelete"
   | "schedules"
@@ -80,11 +84,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
     { labelCategory: "Intelligence" },
     { id: "ai", label: t("ai"), icon: Bot },
+    { id: "training", label: t("trainingStudio"), icon: Sparkles },
+    { id: "integrations", label: "Integrations Hub", icon: Zap, badge: "AHM7" },
     { id: "antiban", label: "Anti-Ban Shield", icon: Shield, badge: "PRO" },
     { id: "plans", label: "Plans & Pricing", icon: CreditCard },
 
     { labelCategory: "Automation" },
     { id: "commands", label: t("commands"), icon: Terminal },
+    { id: "productivity", label: "Productivity & Tasks", icon: CheckSquare },
     { id: "schedules", label: t("schedules"), icon: Calendar },
     { id: "autodelete", label: t("autoDelete"), icon: MessageSquareX },
 
@@ -236,7 +243,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               Engine Core
             </span>
             <span className="flex items-center gap-1 text-emerald-400 font-mono text-[10px]">
-              <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse motion-reduce:animate-none" />
               Active
             </span>
           </div>

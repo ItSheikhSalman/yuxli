@@ -825,8 +825,11 @@ section("uploads are capped, typed, and owner-bound");
 section("a write the disk refuses is storage unavailable");
 
 {
-  if (typeof process.getuid === "function" && process.getuid() === 0) {
-    ok("skipped as root", true);
+  if (
+    (typeof process.getuid === "function" && process.getuid() === 0) ||
+    process.platform === "win32"
+  ) {
+    ok("skipped when permissions cannot be enforced by chmod (root or win32)", true);
   } else {
     const who = person("201900000001@s.whatsapp.net");
     save(who, "seed-file");

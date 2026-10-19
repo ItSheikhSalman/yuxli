@@ -6,11 +6,11 @@ const require = createRequire(import.meta.url);
 const { createAuthStorage } = require("./auth-storage.cjs");
 const logger = require("../utils/logger.cjs");
 
-export async function useDatabaseAuthState(storageType = null) {
+export async function useDatabaseAuthState(storageType = null, connectionId = "conn_default") {
   // SQLite unless the caller explicitly asks for the throwaway memory store.
   const resolvedType = storageType || "sqlite";
-  const storage = createAuthStorage(resolvedType);
-  logger.info(`[Auth] Using ${resolvedType} storage backend`);
+  const storage = createAuthStorage(resolvedType, connectionId);
+  logger.info(`[Auth] Using ${resolvedType} storage backend for connection: ${connectionId}`);
 
   const writeData = async (key, data) => {
     try {

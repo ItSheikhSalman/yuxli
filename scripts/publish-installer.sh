@@ -53,7 +53,7 @@ printf '%s' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-
   die "not a version: '$version'"
 
 case "$root" in
-  /*) : ;;
+  /*|[A-Za-z]:*) : ;;
   *) die "the download root must be an absolute path: $root" ;;
 esac
 case "$root$staged" in *..*) die "refusing a path containing '..'" ;; esac

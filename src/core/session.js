@@ -91,6 +91,8 @@ function clearAccountScopedState() {
   } catch (error) {
     logger.warn({ err: error }, "[Session] failed to clear AI context buffers after unlink");
   }
+  groupMetadataCache.flushAll();
+  if (require("../services/workspaceScope.cjs").workspaceId() !== "ws_default") return;
   try {
     // Same boundary as the memory wipe above: the next phone that pairs must
     // not inherit this account's stickers, packs, or files.
@@ -268,14 +270,18 @@ export class WhatsAppSession {
     pairingCodeDelayMs = 1500,
     isLinked = isPairedSession,
     clearDirectory = clearAccountScopedState,
+    connectionId = "conn_default",
+    workspaceId = "ws_default",
   } = {}) {
+    this.connectionId = connectionId;
+    this.workspaceId = workspaceId;
     this.createSocket = createSocket;
     this.attachListeners = attachListeners;
     this.onOpen = onOpen;
     this.initializeScheduledJobs = initializeScheduledJobs;
     this.stopScheduledJobs = stopScheduledJobs;
     this.isLinked = isLinked;
-    this.clearDirectory = clearDirectory;
+    this.clearDirectory = () => require("../services/workspaceScope.cjs").run({ workspaceId: this.workspaceId }, clearDirectory);
     this.loadProxy = loadProxy;
     this.buildProxyAgents = buildProxyAgents;
     this.emitEvent = emit;
@@ -353,6 +359,8 @@ export class WhatsAppSession {
       reason: this.#reason,
       detail: this.#detail,
       lastDisconnect: this.#lastDisconnect,
+      connectionId: this.connectionId,
+      workspaceId: this.workspaceId,
       user: this.#socket?.user
         ? { id: this.#socket.user.id || null, name: this.#socket.user.name || null }
         : null,
@@ -485,6 +493,13 @@ export class WhatsAppSession {
     const sock = this.#socket;
     const clearAll = this.#clearAll;
 
+    if (sock) require("../services/intelligence/runtime.cjs").revokeSocket(sock);
+    try {
+      require("../services/intelligence/lifecycle.cjs").resetAccount(this.workspaceId, this.connectionId);
+    } catch (error) {
+      this.log.error({ err: error }, "[Session] failed to reset adaptive learning after unlink");
+    }
+
     // Stale from here on: whatever the socket emits while logging out is not
     // allowed to schedule anything.
     this.#generation += 1;
@@ -614,6 +629,7 @@ export class WhatsAppSession {
       created = await this.createSocket({
         proxy,
         pairingCode: !this.isLinked() && this.#pairingIntent.method === "pairing",
+        connectionId: this.connectionId,
       });
     } catch (error) {
       this.log.error({ err: error }, "[Session] failed to create the WhatsApp socket");
@@ -1087,7 +1103,14 @@ export class WhatsAppSession {
     // `session` carries everything; `status_update` is the shape the dashboard
     // and the headless printer have always listened for.
     this.emitEvent("session", snapshot);
-    this.emitEvent("status_update", { status: snapshot.status, state: snapshot.state });
+    if (this.connectionId) {
+      this.emitEvent(`session:${this.connectionId}`, snapshot);
+    }
+    this.emitEvent("status_update", {
+      status: snapshot.status,
+      state: snapshot.state,
+      connectionId: this.connectionId,
+    });
   }
 }
 

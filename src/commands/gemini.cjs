@@ -62,6 +62,7 @@ const aiMood = require("../services/aiMood.cjs");
 const activeSessionLocks = new Map();
 
 async function withSessionLock(sessionKey, fn) {
+  sessionKey = require("../services/workspaceScope.cjs").key(sessionKey);
   const prev = activeSessionLocks.get(sessionKey) || Promise.resolve();
   let release;
   const current = new Promise((resolve) => {
@@ -93,7 +94,7 @@ const MAX_BUFFER_KEYS = 64;
 const BUFFER_TTL_MS = 30 * 60 * 1000;
 
 function bufferKey(msg) {
-  return `${msg.key.remoteJid}::${msg.key.participant || msg.key.remoteJid}`;
+  return require("../services/workspaceScope.cjs").key(`${msg.key.remoteJid}::${msg.key.participant || msg.key.remoteJid}`);
 }
 function pruneBuffers(now = Date.now()) {
   for (const [key, slot] of contextBuffers) {
@@ -131,11 +132,12 @@ function setBuffer(msg, entries) {
   }
   if (!kept.length) return false;
   if (contextBuffers.size >= MAX_BUFFER_KEYS && !contextBuffers.has(key)) return false;
-  contextBuffers.set(key, { entries: kept, at: Date.now() });
+  contextBuffers.set(key, { entries: kept, at: Date.now(), workspaceId: require("../services/workspaceScope.cjs").workspaceId() });
   return true;
 }
 function clearAllContextBuffers() {
-  contextBuffers.clear();
+  const workspaceId = require("../services/workspaceScope.cjs").workspaceId();
+  for (const [key, value] of contextBuffers) if (value.workspaceId === workspaceId) contextBuffers.delete(key);
 }
 
 // Keys come from config/settings.cjs (what the dashboard saved, else the default)
@@ -322,6 +324,12 @@ module.exports = {
       : inlineSubCmds.has(candidateInline)
         ? candidateInline
         : null;
+
+    const adaptive = require("../services/intelligence/whatsapp.cjs");
+    if (!subCommand && adaptive.optedOut(sock, msg)) return;
+    if (!subCommand && !["add", "send", "show", "clear"].includes(candidateInline) && adaptive.configured(sock, chatId)) {
+      return adaptive.handle({ socket: sock, message: msg, text: args.join(" "), explicitCommand: true, groupMetadata });
+    }
 
     // --- conversation history management ---
     if (subCommand === "del" || subCommand === "resetai") {
@@ -831,13 +839,27 @@ module.exports = {
     };
 
     if (isTargetedRoast) {
+      const privacy = require("../services/intelligence/privacy.cjs");
+      const targetIds = targetInfo?.allTargets || [targetInfo?.targetJid].filter(Boolean);
+      const selfRequested = /\b(roast me|mujhe roast|roast mujhe)\b/i.test(rawPromptText) || (ctx?.invokedName === "roast" && targetInfo?.targetJid === caller.senderId);
+      const allowed = targetIds.length > 0 && targetIds.every((targetId) => {
+        const consent = privacy.consent(caller.workspaceId, chatId, targetId);
+        return !consent.optedOut && !consent.roastOptOut && (consent.roast || (selfRequested && caller.candidates.includes(targetId)));
+      });
+      if (!allowed) {
+        await sendBotMessage(sock, chatId, { text: tr("I need each target's consent before teasing them. Individual opt-outs always apply.", "أحتاج إلى موافقة كل شخص قبل المزاح معه، ويجب احترام الانسحاب دائماً.") }, { replyTo: msg });
+        return;
+      }
+    }
+
+    if (isTargetedRoast) {
       const targetTag = targetInfo?.targetTag || userName || "friend";
       const targetJid = targetInfo?.targetJid || "friend";
       parts.unshift({
         text: `[TARGETED FRIEND ROAST REQUEST]\n` +
           `Target friend to roast: ${targetTag} (${targetJid})\n` +
           `Requested by: ${userName || "User"} (${normalizedSenderId || "sender"})\n` +
-          `Instruction: Directly target ${targetTag} with savage, witty, hilarious, and spicy burns! Tag them directly as "${targetTag}" in your response. You are authorized to use raw authentic Pakistani/Desi slang and playful curse words (suar, kuta, bc, bsdk, dala, dog, pig, bitch, fuck, chapri, chirkut, etc.) for close friends banter ("friends wala mazak"). Deliver lethal, unforgettable comedic burns!`,
+          `Request: One brief, friendly joke about the current harmless topic only. Consent has been checked. No insults about identity, threats, humiliation, or private memories. Stay identifiable as an AI assistant.`,
       });
     } else if (targets.length) {
       parts.unshift({

@@ -14,6 +14,8 @@ import type {
   StickerJobSource,
   StickerList,
   StickerUpload,
+  WhatsappConnectionItem,
+  ConnectionQuota,
 } from "../types";
 
 export class ApiError extends Error {
@@ -31,7 +33,7 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T = any>(endpoint: string, options: RequestInit = {}): Promise<T> {
+export async function request<T = any>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const url = endpoint.startsWith("/dashboard/api")
     ? endpoint
     : `/dashboard/api${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
@@ -563,7 +565,7 @@ export const api = {
         }>;
       };
     }>("/antiban"),
-  updateAntiBan: (body: {
+    updateAntiBan: (body: {
     protectionLevel?: string;
     minDelay?: number;
     maxDelay?: number;
@@ -571,6 +573,92 @@ export const api = {
     warmupMode?: boolean;
     jitterEnabled?: boolean;
   }) => api.post<{ success: boolean; message: string }>("/antiban", body),
+  getBillingOverview: () => api.get<any>("/billing/overview"),
+  createCheckoutSession: (
+    planIdOrBody: string | { planId: string; interval?: string },
+    interval: string = "monthly",
+  ) => {
+    const payload =
+      typeof planIdOrBody === "string"
+        ? { planId: planIdOrBody, interval }
+        : planIdOrBody;
+    return api.post<any>("/billing/checkout", payload);
+  },
+  getNotes: () => api.get<{ success: boolean; notes: any[] }>("/productivity/notes"),
+  deleteNote: (groupJid: string, keyword: string) =>
+    api.delete<{ success: boolean; message: string }>(`/productivity/notes/${encodeURIComponent(groupJid)}/${encodeURIComponent(keyword)}`),
+  getTodos: () => api.get<{ success: boolean; todos: any[] }>("/productivity/todos"),
+  getDebts: () => api.get<{ success: boolean; debts: any[] }>("/productivity/debts"),
+  getWarnings: () => api.get<{ success: boolean; warnings: any[] }>("/productivity/warnings"),
+  // Multi-Connection Hub
+  getConnections: () =>
+    api.get<{
+      success: boolean;
+      connections: WhatsappConnectionItem[];
+      quota?: ConnectionQuota;
+    }>("/connections"),
+  createConnection: (name?: string) =>
+    api.post<{ success: boolean; connectionId: string; name: string }>("/connections", { name }),
+  getConnection: (id: string) =>
+    api.get<{ success: boolean; connectionId: string; session: any; qr: string | null; pairingCode: string | null }>(`/connections/${id}`),
+  startConnection: (id: string, body?: { method?: string; phone?: string }) =>
+    api.post<{ success: boolean; connectionId: string; session: any }>(`/connections/${id}/start`, body),
+  stopConnection: (id: string) =>
+    api.post<{ success: boolean; connectionId: string; session: any }>(`/connections/${id}/stop`),
+  reconnectConnection: (id: string) =>
+    api.post<{ success: boolean; connectionId: string; session: any }>(`/connections/${id}/reconnect`),
+  unlinkConnection: (id: string) =>
+    api.post<{ success: boolean; connectionId: string; session: any }>(`/connections/${id}/unlink`),
+  deleteConnection: (id: string) =>
+    api.delete<{ success: boolean; connectionId: string }>(`/connections/${id}`),
+  // AHM7 x MAKKI Integration API
+  getAhm7Integrations: () =>
+    api.get<{
+      success: boolean;
+      provider: {
+        id: string;
+        name: string;
+        website: string;
+        docs: string;
+        totalServices: number;
+        enabledCount: number;
+      };
+      services: Array<{
+        id: string;
+        name: string;
+        category: string;
+        description: string;
+        command: string;
+        endpoint: string;
+        method: string;
+        status: string;
+        expectedFormat?: string;
+        tierRequired: string;
+        enabled: boolean;
+        health: {
+          status: string;
+          consecutiveFailures: number;
+          totalSuccesses: number;
+          totalFailures: number;
+          lastSuccessAt: number | null;
+          lastFailureAt: number | null;
+          lastError: string | null;
+        };
+      }>;
+    }>("/integrations/ahm7"),
+  toggleAhm7Service: (serviceId: string, enabled: boolean) =>
+    api.post<{ success: boolean; serviceId: string; enabled: boolean }>("/integrations/ahm7/toggle", {
+      serviceId,
+      enabled,
+    }),
+  testAhm7Service: (serviceId: string) =>
+    api.post<{
+      success: boolean;
+      serviceId: string;
+      durationMs: number;
+      health: any;
+      sampleOutput?: string;
+    }>(`/integrations/ahm7/test/${serviceId}`),
 };
 
 

@@ -1002,8 +1002,9 @@ async function runProviderAgent(
   const tools = useTools ? adapter.tools() : [];
   const toolCalls = [];
   let steps = 0;
+  const tokenUsage = require("./intelligence/usage.cjs").accumulator();
 
-  const send = () => {
+  const send = async () => {
     const request = requestFor(adapter, provider, {
       baseUrl,
       apiKey,
@@ -1012,7 +1013,9 @@ async function runProviderAgent(
       messages,
       tools,
     });
-    return callApi({ ...request, label: adapter.label });
+    const response = await callApi({ ...request, label: adapter.label });
+    tokenUsage.add(response, provider);
+    return response;
   };
 
   let response = await send();
@@ -1039,7 +1042,7 @@ async function runProviderAgent(
     messages.push(parsed.assistantMessage);
 
     if (!parsed.calls.length) {
-      return finish({ text: parsed.text, canonical, toolCalls, steps });
+      return finish({ text: parsed.text, canonical, toolCalls, steps, usage: tokenUsage.value() });
     }
     if (steps >= stepBudget) {
       // Same contract as the Gemini loop: the budget answer, not a lie.
@@ -1053,6 +1056,7 @@ async function runProviderAgent(
         canonical,
         toolCalls,
         steps,
+        usage: tokenUsage.value(),
       });
     }
 
@@ -1101,9 +1105,10 @@ async function runProviderAgent(
   }
 }
 
-function finish({ text, canonical, toolCalls, steps }) {
+function finish({ text, canonical, toolCalls, steps, usage }) {
   return {
     text,
+    usage,
     history: canonical,
     toolCalls,
     steps,

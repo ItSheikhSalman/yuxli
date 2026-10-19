@@ -25,6 +25,7 @@ import {
   Users,
   Zap,
 } from "lucide-react";
+import { useI18n } from "../context/I18nContext";
 import type React from "react";
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
@@ -51,6 +52,31 @@ export interface PlanData {
 }
 
 const FALLBACK_PLANS: PlanData[] = [
+  {
+    id: "free",
+    name: "Free Community",
+    tagline: "Permanent free tier for personal automation, testing, and evaluation",
+    priceMonthly: 0,
+    priceAnnual: 0,
+    currency: "USD",
+    badge: "FREE",
+    limits: {
+      numbers: 1,
+      messagesPerDay: "100",
+      aiTokens: "50 req/mo",
+      antiBanLevel: "Standard Delay",
+    },
+    features: [
+      "1 Linked WhatsApp Device",
+      "3 Managed WhatsApp Groups",
+      "15 Active Automated Commands",
+      "2 Active Event Automations",
+      "10 Scheduled Messages / Month",
+      "50 AI Model Requests / Month",
+      "7-Day Activity History & Logs",
+      "1 Single Workspace Member",
+    ],
+  },
   {
     id: "starter",
     name: "Starter Developer",
@@ -130,6 +156,7 @@ const FALLBACK_PLANS: PlanData[] = [
 interface FeatureRow {
   name: string;
   category: string;
+  free: string | boolean;
   starter: string | boolean;
   pro: string | boolean;
   enterprise: string | boolean;
@@ -137,41 +164,42 @@ interface FeatureRow {
 
 const COMPARISON_FEATURES: FeatureRow[] = [
   // Infrastructure
-  { name: "Linked WhatsApp Devices", category: "Infrastructure", starter: "1 Account", pro: "5 Accounts", enterprise: "Unlimited" },
-  { name: "Daily Message Throughput", category: "Infrastructure", starter: "2,500 / day", pro: "50,000 / day", enterprise: "Unlimited" },
-  { name: "Cloud Uptime Target", category: "Infrastructure", starter: "99.5%", pro: "99.9%", enterprise: "99.99% SLA" },
-  { name: "WebSocket Realtime Telemetry", category: "Infrastructure", starter: true, pro: true, enterprise: true },
+  { name: "Linked WhatsApp Devices", category: "Infrastructure", free: "1 Account", starter: "1 Account", pro: "5 Accounts", enterprise: "Unlimited" },
+  { name: "Daily Message Throughput", category: "Infrastructure", free: "100 / day", starter: "2,500 / day", pro: "50,000 / day", enterprise: "Unlimited" },
+  { name: "Cloud Uptime Target", category: "Infrastructure", free: "99.0%", starter: "99.5%", pro: "99.9%", enterprise: "99.99% SLA" },
+  { name: "WebSocket Realtime Telemetry", category: "Infrastructure", free: true, starter: true, pro: true, enterprise: true },
   
   // Anti-Ban & Safety
-  { name: "Anti-Ban Protection Engine", category: "Protection", starter: "Standard", pro: "Advanced Shield v4.2", enterprise: "Maximum + Dedicated Proxy" },
-  { name: "Typing Presence Simulation", category: "Protection", starter: false, pro: true, enterprise: true },
-  { name: "Randomized Jitter Delay Pacing", category: "Protection", starter: false, pro: true, enterprise: true },
-  { name: "Automated Warmup Ramp (14-Day)", category: "Protection", starter: false, pro: true, enterprise: true },
-  { name: "Residential Proxy Tunneling", category: "Protection", starter: false, pro: false, enterprise: true },
+  { name: "Anti-Ban Protection Engine", category: "Protection", free: "Basic", starter: "Standard", pro: "Advanced Shield v4.2", enterprise: "Maximum + Dedicated Proxy" },
+  { name: "Typing Presence Simulation", category: "Protection", free: false, starter: false, pro: true, enterprise: true },
+  { name: "Randomized Jitter Delay Pacing", category: "Protection", free: false, starter: false, pro: true, enterprise: true },
+  { name: "Automated Warmup Ramp (14-Day)", category: "Protection", free: false, starter: false, pro: true, enterprise: true },
+  { name: "Residential Proxy Tunneling", category: "Protection", free: false, starter: false, pro: false, enterprise: true },
   
   // AI & Automation
-  { name: "Multi-Model AI Providers", category: "AI & Automation", starter: "Gemini Only", pro: "Gemini, Claude, DeepSeek, OpenAI", enterprise: "Custom Endpoints & Fine-Tuning" },
-  { name: "Conversational Vector Memory", category: "AI & Automation", starter: "Ephemeral (10 turns)", pro: "Long-Term Datastore", enterprise: "Unlimited Dedicated Memory" },
-  { name: "Automated Cron Schedules", category: "AI & Automation", starter: "Up to 5", pro: "Unlimited", enterprise: "Unlimited" },
-  { name: "80+ Command Catalog", category: "AI & Automation", starter: true, pro: true, enterprise: true },
-  { name: "Sticker Studio & Media Lab", category: "AI & Automation", starter: true, pro: true, enterprise: true },
+  { name: "Multi-Model AI Providers", category: "AI & Automation", free: "Gemini (50/mo)", starter: "Gemini Only", pro: "Gemini, Claude, DeepSeek, OpenAI", enterprise: "Custom Endpoints & Fine-Tuning" },
+  { name: "Conversational Vector Memory", category: "AI & Automation", free: "Ephemeral (5 turns)", starter: "Ephemeral (10 turns)", pro: "Long-Term Datastore", enterprise: "Unlimited Dedicated Memory" },
+  { name: "Automated Cron Schedules", category: "AI & Automation", free: "Up to 2", starter: "Up to 5", pro: "Unlimited", enterprise: "Unlimited" },
+  { name: "80+ Command Catalog", category: "AI & Automation", free: "15 Commands", starter: true, pro: true, enterprise: true },
+  { name: "Sticker Studio & Media Lab", category: "AI & Automation", free: true, starter: true, pro: true, enterprise: true },
   
   // Group & Moderation
-  { name: "Group Guardian Anti-Link Defense", category: "Moderation", starter: false, pro: true, enterprise: true },
-  { name: "Automated Warning Strike System", category: "Moderation", starter: false, pro: true, enterprise: true },
-  { name: "Auto-Delete Ephemeral Sweeper", category: "Moderation", starter: true, pro: true, enterprise: true },
-  { name: "Whitelisted Group/DM Scopes", category: "Moderation", starter: true, pro: true, enterprise: true },
+  { name: "Group Guardian Anti-Link Defense", category: "Moderation", free: false, starter: false, pro: true, enterprise: true },
+  { name: "Automated Warning Strike System", category: "Moderation", free: false, starter: false, pro: true, enterprise: true },
+  { name: "Auto-Delete Ephemeral Sweeper", category: "Moderation", free: true, starter: true, pro: true, enterprise: true },
+  { name: "Whitelisted Group/DM Scopes", category: "Moderation", free: true, starter: true, pro: true, enterprise: true },
   
   // Enterprise & Security
-  { name: "Role-Based Access Control", category: "Enterprise", starter: false, pro: false, enterprise: true },
-  { name: "Audit Logs & Security Export", category: "Enterprise", starter: false, pro: true, enterprise: true },
-  { name: "Support Response SLA", category: "Enterprise", starter: "Community", pro: "Priority Email (4h)", enterprise: "Dedicated SLA Engineer" },
+  { name: "Role-Based Access Control", category: "Enterprise", free: false, starter: false, pro: false, enterprise: true },
+  { name: "Audit Logs & Security Export", category: "Enterprise", free: false, starter: false, pro: true, enterprise: true },
+  { name: "Support Response SLA", category: "Enterprise", free: "Community", starter: "Community", pro: "Priority Email (4h)", enterprise: "Dedicated SLA Engineer" },
 ];
 
 const FAQS = [
   {
     q: "How does YUXLI safeguard my WhatsApp number?",
-    a: "Anti-Ban Shield v4.2 uses proprietary human presence emulation (simulating 'composing' and 'paused' states), millisecond jitter latency, and an automated 14-day warm-up ramp to match normal human communication patterns.",
+    a: "",
+    answerKey: "trainingWhatsAppDisclaimer" as const,
   },
   {
     q: "Can I upgrade, downgrade, or cancel at any time?",
@@ -188,9 +216,10 @@ const FAQS = [
 ];
 
 export const PlansPricingView: React.FC<{ onUserPlanUpdated?: () => void }> = ({ onUserPlanUpdated }) => {
+  const { t } = useI18n();
   const { toast } = useToast();
   const [plans, setPlans] = useState<PlanData[]>(FALLBACK_PLANS);
-  const [currentPlanId, setCurrentPlanId] = useState<string>("pro");
+  const [currentPlanId, setCurrentPlanId] = useState<string>("free");
   const [isAnnual, setIsAnnual] = useState(true);
   const [upgradingId, setUpgradingId] = useState<string | null>(null);
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
@@ -203,8 +232,9 @@ export const PlansPricingView: React.FC<{ onUserPlanUpdated?: () => void }> = ({
         if (mounted && res?.user?.plan) {
           const raw = res.user.plan.toLowerCase();
           if (raw.includes("enterprise")) setCurrentPlanId("enterprise");
-          else if (raw.includes("starter") || raw.includes("basic")) setCurrentPlanId("starter");
-          else setCurrentPlanId("pro");
+          else if (raw.includes("pro")) setCurrentPlanId("pro");
+          else if (raw.includes("starter") || raw.includes("basic") || raw.includes("developer")) setCurrentPlanId("starter");
+          else setCurrentPlanId("free");
         }
       })
       .catch(() => {});
@@ -231,9 +261,24 @@ export const PlansPricingView: React.FC<{ onUserPlanUpdated?: () => void }> = ({
 
     setUpgradingId(planId);
     try {
-      const res = await api.updatePlan(planId);
-      setCurrentPlanId(planId);
-      toast(res?.message || `Plan updated to ${planId.toUpperCase()}`, "success");
+      if (planId === "free") {
+        const res = await api.updatePlan("free");
+        setCurrentPlanId("free");
+        toast(res?.message || "Workspace plan set to Free", "success");
+      } else {
+        const session = await api.createCheckoutSession(planId, isAnnual ? "annual" : "monthly");
+        if (session?.checkoutUrl) {
+          window.location.href = session.checkoutUrl;
+          return;
+        }
+        if (session?.mode === "sandbox") {
+          setCurrentPlanId(planId);
+          toast(session?.message || `Sandbox subscription activated: ${planId.toUpperCase()}`, "success");
+        } else {
+          setCurrentPlanId(planId);
+          toast(`Plan upgraded to ${planId.toUpperCase()}`, "success");
+        }
+      }
       if (onUserPlanUpdated) onUserPlanUpdated();
     } catch (err: any) {
       toast(err.message || "Failed to update subscription", "error");
@@ -291,18 +336,20 @@ export const PlansPricingView: React.FC<{ onUserPlanUpdated?: () => void }> = ({
           <span className="font-semibold text-text-main uppercase font-mono">
             {currentPlanId === "enterprise"
               ? "Enterprise SLA"
+              : currentPlanId === "pro"
+              ? "Business Pro"
               : currentPlanId === "starter"
               ? "Starter Developer"
-              : "Business Pro"}
+              : "Free Community"}
           </span>
         </div>
         <span className="text-[11px] font-medium text-emerald-400">
-          Operational & Renewing
+          Operational & Active
         </span>
       </div>
 
-      {/* ── 3 Tier Cards ── */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-stretch">
+      {/* ── 4 Tier Cards ── */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-stretch">
         {plans.map((plan) => {
           const isCurrent = currentPlanId === plan.id;
           const isPro = plan.recommended || plan.id === "pro";
@@ -420,10 +467,11 @@ export const PlansPricingView: React.FC<{ onUserPlanUpdated?: () => void }> = ({
           <table className="w-full text-left text-xs">
             <thead>
               <tr className="border-b border-line bg-panel-raised text-text-main font-semibold">
-                <th className="p-3 w-2/5">Feature</th>
-                <th className="p-3 w-1/5 text-center">Starter</th>
-                <th className="p-3 w-1/5 text-center text-indigo-400 font-bold">Business Pro</th>
-                <th className="p-3 w-1/5 text-center text-emerald-400 font-bold">Enterprise SLA</th>
+                <th className="p-3 w-1/3">Feature</th>
+                <th className="p-3 w-1/6 text-center text-muted font-bold">Free</th>
+                <th className="p-3 w-1/6 text-center">Starter</th>
+                <th className="p-3 w-1/6 text-center text-indigo-400 font-bold">Business Pro</th>
+                <th className="p-3 w-1/6 text-center text-emerald-400 font-bold">Enterprise SLA</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
@@ -432,6 +480,17 @@ export const PlansPricingView: React.FC<{ onUserPlanUpdated?: () => void }> = ({
                   <td className="p-3">
                     <div className="font-medium text-text-main">{feat.name}</div>
                     <div className="text-[10px] text-faint font-mono">{feat.category}</div>
+                  </td>
+                  <td className="p-3 text-center">
+                    {typeof feat.free === "boolean" ? (
+                      feat.free ? (
+                        <Check size={14} className="mx-auto text-emerald-400" />
+                      ) : (
+                        <span className="text-faint font-mono">—</span>
+                      )
+                    ) : (
+                      <span className="text-muted font-medium">{feat.free}</span>
+                    )}
                   </td>
                   <td className="p-3 text-center">
                     {typeof feat.starter === "boolean" ? (
@@ -508,7 +567,7 @@ export const PlansPricingView: React.FC<{ onUserPlanUpdated?: () => void }> = ({
                 </button>
                 {isOpen && (
                   <div className="p-3.5 pt-0 text-xs text-muted leading-relaxed border-t border-line/60">
-                    {faq.a}
+                    {faq.answerKey ? t(faq.answerKey) : faq.a}
                   </div>
                 )}
               </div>

@@ -28,7 +28,20 @@ const CACHE_CONFIG = {
   checkperiod: 60 * 5, // 5 minutes
 };
 
-const cache = new NodeCache(CACHE_CONFIG);
+const entries = new NodeCache(CACHE_CONFIG);
+const scope = require("../services/workspaceScope.cjs");
+const cache = {
+  get: (jid) => entries.get(scope.key(jid)),
+  set: (jid, metadata) => entries.set(scope.key(jid), metadata),
+  del: (jid) => entries.del(scope.key(jid)),
+  has: (jid) => entries.has(scope.key(jid)),
+  keys: () => entries.keys().flatMap((key) => {
+    if (!key.startsWith("[")) return scope.workspaceId() === "ws_default" ? [key] : [];
+    const [workspaceId, jid] = JSON.parse(key);
+    return workspaceId === scope.workspaceId() ? [jid] : [];
+  }),
+  flushAll: () => { for (const jid of cache.keys()) cache.del(jid); },
+};
 
 function isGroupJid(jid) {
   return String(jid || "").endsWith("@g.us");
@@ -57,6 +70,8 @@ function keys() {
  * next caller retries — correctness beats request avoidance.
  */
 async function resolveGroupMetadata(sock, jid) {
+  const bound = require("../services/intelligence/runtime.cjs").socketScope(sock);
+  if (bound && bound.workspaceId !== scope.workspaceId()) return scope.forSocket(sock, () => resolveGroupMetadata(sock, jid));
   if (!isGroupJid(jid)) return null;
 
   const hit = cache.get(jid);

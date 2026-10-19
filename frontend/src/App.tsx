@@ -21,6 +21,9 @@ import { SettingsView } from "./views/SettingsView";
 import { StickerStudioView } from "./views/StickerStudioView";
 import { AntiBanShieldView } from "./views/AntiBanShieldView";
 import { PlansPricingView } from "./views/PlansPricingView";
+import { ProductivityView } from "./views/ProductivityView";
+import { IntegrationsView } from "./views/IntegrationsView";
+import { TrainingStudioView } from "./views/TrainingStudioView";
 
 const VALID_VIEWS: ViewTab[] = [
   "overview",
@@ -28,7 +31,10 @@ const VALID_VIEWS: ViewTab[] = [
   "antiban",
   "plans",
   "commands",
+  "productivity",
   "ai",
+  "training",
+  "integrations",
   "groups",
   "autodelete",
   "schedules",
@@ -163,7 +169,10 @@ const MainLayout: React.FC = () => {
     antiban: "Anti-Ban Shield",
     plans: "Plans & Pricing",
     commands: t("commands"),
+    productivity: "Productivity & Tasks",
     ai: t("ai"),
+    training: t("trainingStudio"),
+    integrations: "Integrations & API Hub",
     groups: t("groups"),
     autodelete: t("autoDelete"),
     schedules: t("schedules"),
@@ -208,7 +217,10 @@ const MainLayout: React.FC = () => {
               <PlansPricingView onUserPlanUpdated={() => refreshStatus()} />
             )}
             {currentView === "ai" && <AIAssistantView />}
+            {currentView === "training" && <TrainingStudioView />}
+            {currentView === "integrations" && <IntegrationsView />}
             {currentView === "commands" && <CommandsView />}
+            {currentView === "productivity" && <ProductivityView />}
             {currentView === "schedules" && (
               <SchedulesView isConnected={isConnected} onNavigate={handleSelectView} />
             )}

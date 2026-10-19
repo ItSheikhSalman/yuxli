@@ -102,7 +102,34 @@ module.exports = {
     try {
       logger.info({ prompt: promptInput, invokedAs }, "[Image] Generating free image");
 
-      const imageBuffer = await fetchPollinationsImage(finalPrompt, width, height, "flux");
+      const preferredEngine = settings.get("image_engine") || "pollinations";
+      let imageBuffer = null;
+
+      if (preferredEngine === "pixelster") {
+        try {
+          const pixelster = require("../services/integrations/ahm7/adapters/pixelsterAdapter.cjs");
+          const res = await pixelster.generateImage(finalPrompt, { width, height, model: "flux-dev" });
+          imageBuffer = res.buffer;
+        } catch (err) {
+          logger.warn({ err: err.message }, "[Image] PixelSter preferred engine failed, falling back to Pollinations");
+        }
+      }
+
+      if (!imageBuffer) {
+        try {
+          imageBuffer = await fetchPollinationsImage(finalPrompt, width, height, "flux");
+        } catch (pollinationsErr) {
+          logger.warn({ err: pollinationsErr.message }, "[Image] Pollinations failed, falling back to AHM7 PixelSter");
+          try {
+            const pixelster = require("../services/integrations/ahm7/adapters/pixelsterAdapter.cjs");
+            const res = await pixelster.generateImage(finalPrompt, { width, height, model: "flux-dev" });
+            imageBuffer = res.buffer;
+          } catch (pixelsterErr) {
+            logger.error({ err: pixelsterErr.message }, "[Image] Both Pollinations and PixelSter failed");
+            throw pollinationsErr;
+          }
+        }
+      }
 
       if (status?.remove) await status.remove();
 

@@ -31,11 +31,11 @@ section("buildMemoryContext injects what the operator and the bot wrote");
 const context = memory.buildMemoryContext("120363-test@g.us");
 
 ok("bot-saved entries reach the model", context.includes("صاحب الجروب اسمه عمر"));
-ok("global entries reach the model", context.includes("الطفل بيتكلم عربي وإنجليزي"));
-ok("scopes are labelled", context.includes("global.md"));
+ok("global entries cannot leak into a group", !context.includes("الطفل بيتكلم عربي وإنجليزي"));
+ok("only the current chat scope is labelled", context.includes("120363-test@g.us.md") && !context.includes("global.md"));
 
 // The hand-editing contract: prose written from the panel is part of memory.
-const globalFile = memory.GLOBAL_FILE;
+const globalFile = memory.memoryFilePath("chat", "120363-test@g.us");
 fs.writeFileSync(
   globalFile,
   [
@@ -66,9 +66,8 @@ section("budget");
 const tiny = memory.buildMemoryContext("120363-test@g.us", { limitChars: 60 });
 ok("tiny budget produces a short block", tiny.length < 400 && tiny.length > 0);
 ok(
-  "a chat with no memory file of its own gets only the global block",
-  memory.buildMemoryContext("9999-never-seen@g.us").includes("global.md") &&
-    !memory.buildMemoryContext("9999-never-seen@g.us").includes("chats/"),
+  "a chat with no memory receives no other chat or global content",
+  memory.buildMemoryContext("9999-never-seen@g.us") === "",
 );
 
 section("scopes stay separate");
@@ -79,15 +78,15 @@ const chatFile = memory.memoryFilePath("chat", "120363-test@g.us");
 ok("chat file path lives under chats/", path.dirname(chatFile).endsWith("chats"));
 ok(
   "chat file exists on disk",
-  fs.existsSync(chatFile) && fs.readFileSync(chatFile, "utf8").includes("عمر"),
+  fs.existsSync(chatFile) && fs.readFileSync(chatFile, "utf8").includes("a bot entry"),
 );
 
-ok("removeMemory drops a matching entry", memory.removeMemory({ scope: "chat", chatId: "120363-test@g.us", ref: "عمر" }) !== null);
+ok("removeMemory drops a matching entry", memory.removeMemory({ scope: "chat", chatId: "120363-test@g.us", ref: "a bot entry" }) !== null);
 ok(
   "removed entry is gone",
   !memory
     .buildMemoryContext("120363-test@g.us")
-    .includes("صاحب الجروب اسمه عمر"),
+    .includes("a bot entry"),
 );
 
 finish();

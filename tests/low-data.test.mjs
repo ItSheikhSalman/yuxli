@@ -162,6 +162,7 @@ section("full group syncs are TTL-gated");
   };
 
   const t0 = 1_000_000_000_000;
+  require("./src/services/intelligence/runtime.cjs").bindSocket(sock, "conn_default");
 
   // First open after a process start: fetch.
   await cacheAllGroups(sock, { now: t0 });

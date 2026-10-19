@@ -47,7 +47,17 @@ function hasUserContent(message) {
 
 // Handle incoming messages
 export async function handleIncomingMessage(sock, m) {
+  const scope = require("../services/intelligence/runtime.cjs").socketScope(sock);
+  if (!scope) return;
+  return require("../services/workspaceScope.cjs").forSocket(sock, () => handleScopedIncomingMessage(sock, m), m.messages?.[0]?.key?.remoteJid || null);
+}
+
+async function handleScopedIncomingMessage(sock, m) {
   if (m.type !== "notify" || !m.messages[0]) return;
+  if (m.messages.length > 1) {
+    for (const message of m.messages) await handleIncomingMessage(sock, { ...m, messages: [message] });
+    return;
+  }
 
   const msg = m.messages[0];
 
@@ -65,6 +75,9 @@ export async function handleIncomingMessage(sock, m) {
     rememberMessage(msg.key.id, msg);
   }
 
+  if (msg.message?.reactionMessage && botAccess.isMessageAllowed(sock, msg, msg.key?.remoteJid?.endsWith("@g.us"))) {
+    require("../services/intelligence/whatsapp.cjs").observeReaction(sock, msg);
+  }
   if (!hasUserContent(msg.message)) return;
 
   // Track forwarded messages
@@ -97,23 +110,6 @@ export async function handleIncomingMessage(sock, m) {
     logger.error({ err: error }, "auto-delete hook failed");
   }
 
-  // If the message is from the account owner and not a command, record it in chat history
-  // so the AI knows what the owner previously said when the other person replies!
-  if (msg.key?.fromMe && body && typeof body === "string") {
-    const rawChatId = msg.key.remoteJid;
-    const prefix = runtimeConfig.getPrefix();
-    if (
-      !body.startsWith(prefix) &&
-      rawChatId &&
-      !rawChatId.endsWith("@g.us") &&
-      !rawChatId.includes("@broadcast") &&
-      !rawChatId.includes("@newsletter")
-    ) {
-      const { recordOutgoingTurnAsync } = require("../utils/storage-hub.cjs");
-      recordOutgoingTurnAsync(normalizeJid(rawChatId), body).catch(() => {});
-    }
-  }
-
   // Everything the bot says about this message — a moderation warning, a
   // command's reply — goes out in one language (see utils/i18n.cjs). A
   // command narrows this down to its own arguments.
@@ -143,11 +139,15 @@ async function processMessage(sock, msg, body) {
   if (!botAccess.isMessageAllowed(sock, msg, isGroup)) {
     return;
   }
+  require("../services/intelligence/chatDirectory.cjs").observe(sock, msg.key.remoteJid, isGroup ? null : msg.pushName);
 
   if (isGroup) {
     const isBlacklisted = await checkBlacklist(sock, msg);
     if (isBlacklisted) return;
   }
+
+  if (await require("../services/intelligence/whatsapp.cjs").privacyCommand(sock, msg, body)) return;
+  if (await require("../services/intelligence/whatsapp.cjs").memoryCommand(sock, msg, body)) return;
 
   // Try to handle as command
   try {
@@ -175,6 +175,13 @@ async function processMessage(sock, msg, body) {
 
 async function handleAutoAiReply(sock, msg, body, isGroup) {
   if (msg.key?.fromMe) return false;
+
+  const adaptive = require("../services/intelligence/whatsapp.cjs");
+  if (adaptive.optedOut(sock, msg)) return true;
+  if (adaptive.configured(sock, msg.key.remoteJid)) {
+    return adaptive.handle({ socket: sock, message: msg, text: body,
+      groupMetadata: isGroup ? await resolveGroupMetadata(sock, msg.key.remoteJid) : null });
+  }
 
   const hasVoice = Boolean(msg.message?.audioMessage);
   const hasImage = Boolean(msg.message?.imageMessage);

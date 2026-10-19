@@ -192,9 +192,17 @@ async function saveBotOwnerMetadata(sock) {
 // `groups.update` events keep the cache current, and per-message reads fall
 // back to single-group queries through resolveGroupMetadata() on a miss.
 export const GROUP_SYNC_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
-let lastFullGroupSyncAt = 0;
+const fullGroupSyncs = new Map();
 
 export async function cacheAllGroups(sock, { force = false, now = Date.now() } = {}) {
+  const scope = require("../services/intelligence/runtime.cjs").socketScope(sock);
+  if (!scope) return;
+  const workspaceScope = require("../services/workspaceScope.cjs");
+  if (workspaceScope.current().connectionId !== scope.connectionId) {
+    return workspaceScope.forSocket(sock, () => cacheAllGroups(sock, { force, now }));
+  }
+  const syncKey = scope.connectionId;
+  const lastFullGroupSyncAt = fullGroupSyncs.get(syncKey) || 0;
   if (!force && lastFullGroupSyncAt && now - lastFullGroupSyncAt < GROUP_SYNC_TTL_MS) {
     logger.info("[Cache] Recent full group sync is still fresh — skipping groupFetchAllParticipating");
     return;
@@ -207,6 +215,7 @@ export async function cacheAllGroups(sock, { force = false, now = Date.now() } =
     let cachedCount = 0;
 
     for (const jid in groups) {
+      require("../services/intelligence/chatDirectory.cjs").observe(sock, jid, groups[jid]?.subject);
       groupMetadataCache.set(jid, groups[jid]);
       upsertGroupDirectory(jid, {
         subject: groups[jid]?.subject || null,
@@ -217,7 +226,7 @@ export async function cacheAllGroups(sock, { force = false, now = Date.now() } =
 
     // Only a successful fetch counts as fresh — a failed one retries on the
     // next connection open.
-    lastFullGroupSyncAt = now;
+    fullGroupSyncs.set(syncKey, now);
     logger.info(`[Cache] Successfully cached ${cachedCount} groups.`);
   } catch (err) {
     logger.error("[Error] Failed to fetch and cache groups:", err);

@@ -139,14 +139,11 @@ function formatSetupCodeLine(code = getSetupCode()) {
 }
 
 function setupCodeMatches(candidate) {
-  // If setup code is not explicitly enforced, allow instant setup
-  if (process.env.REQUIRE_SETUP_CODE !== "true") return true;
-  if (!candidate || typeof candidate !== "string") return true;
+  if (process.env.DISABLE_SETUP_CODE === "true") return true;
+  if (!candidate || typeof candidate !== "string") return false;
   const input = candidate.trim().toUpperCase();
   const currentCode = getSetupCode().toUpperCase();
-  if (input === currentCode) return true;
-  if (input === "12345678" || input === "YUXLI123" || input === "ADMIN") return true;
-  return false;
+  return input === currentCode;
 }
 
 module.exports = {

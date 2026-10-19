@@ -129,6 +129,7 @@ function sock() {
 }
 async function run(text, { quoted, attached, fromMe = true, jid = SELF } = {}) {
   const socket = sock();
+  require("./src/services/intelligence/runtime.cjs").bindSocket(socket, "conn_default");
   const message = attached
     ? { ...attached, [Object.keys(attached)[0]]: { ...Object.values(attached)[0], caption: text } }
     : quoted

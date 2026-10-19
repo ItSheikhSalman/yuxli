@@ -5,6 +5,7 @@ const store = require("../db/store.cjs");
 
 function isPanelSessionValid(session) {
   if (!session?.loggedIn) return false;
+  if (session.installationOperator && (!secrets.hasDashboardPassword() || session.passwordUpdatedAt !== secrets.getPasswordUpdatedAt())) return false;
   if (session?.saasUserId) {
     const user = store.getSaasUserById(session.saasUserId);
     return Boolean(user);
@@ -13,8 +14,10 @@ function isPanelSessionValid(session) {
   return session.passwordUpdatedAt === secrets.getPasswordUpdatedAt();
 }
 
-function stampPanelSession(session, user = null) {
+function stampPanelSession(session, user = null, { operator = !user } = {}) {
   session.loggedIn = true;
+  session.installationOperator = operator;
+  if (operator) session.passwordUpdatedAt = secrets.getPasswordUpdatedAt();
   if (user) {
     session.saasUserId = user.id;
     session.saasUser = {
@@ -24,6 +27,7 @@ function stampPanelSession(session, user = null) {
       company: user.company,
       role: user.role,
       plan: user.plan || "Enterprise Pro",
+      ...(user.workspaceId ? { workspaceId: user.workspaceId } : {}),
     };
   } else {
     session.passwordUpdatedAt = secrets.getPasswordUpdatedAt();

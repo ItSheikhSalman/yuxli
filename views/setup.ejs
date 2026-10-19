@@ -50,12 +50,28 @@
 
       <section class="gateway-panel">
         <div class="gateway-panel-inner">
-          <form class="card auth-card" id="signup-card" action="/signup" method="post">
+          <form class="card auth-card" id="setup-card" action="/setup" method="post">
             <div class="auth-head">
               <span class="eyebrow">Enterprise Onboarding</span>
               <h1>Create Workspace</h1>
               <p class="sub">Set up your company's dedicated WhatsApp automation control deck.</p>
             </div>
+
+            <% if (typeof needsCode !== 'undefined' && needsCode) { %>
+            <label class="field" style="border: 1px solid rgba(239,68,68,0.4); padding: 12px; border-radius: 8px; background: rgba(239,68,68,0.06);">
+              <span style="color: #f87171; font-weight: 600;">Setup code (printed in server terminal)</span>
+              <div class="input-wrap">
+                <input
+                  type="text"
+                  name="code"
+                  autocomplete="off"
+                  placeholder="8-character setup code"
+                  required
+                  autofocus
+                />
+              </div>
+            </label>
+            <% } %>
 
             <label class="field">
               <span>Organization / Company Name</span>
@@ -65,7 +81,6 @@
                   name="company"
                   autocomplete="organization"
                   placeholder="Acme Global Inc."
-                  required
                   autofocus
                 />
               </div>
@@ -79,7 +94,6 @@
                   name="name"
                   autocomplete="name"
                   placeholder="Alex Mercer"
-                  required
                 />
               </div>
             </label>
@@ -92,7 +106,6 @@
                   name="email"
                   autocomplete="email"
                   placeholder="alex@acmeglobal.com"
-                  required
                 />
               </div>
             </label>

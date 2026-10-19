@@ -64,7 +64,25 @@ export async function bootstrapCore({ autoStart = false } = {}) {
     initializeScheduledJobs,
     stopScheduledJobs: stopAllScheduledJobs,
     log: logger,
+    connectionId: "conn_default",
+    workspaceId: "ws_default",
   });
+
+  const { connectionManager } = require("../core/connectionManager.cjs");
+  await connectionManager.initialize({
+    sessionFactory: (opts) =>
+      new WhatsAppSession({
+        emit: sink.emit,
+        initializeScheduledJobs,
+        stopScheduledJobs: stopAllScheduledJobs,
+        log: logger,
+        ...opts,
+      }),
+    emit: sink.emit,
+    initializeScheduledJobs,
+    stopScheduledJobs: stopAllScheduledJobs,
+  });
+  connectionManager.sessions.set("conn_default", session);
 
   // WhatsApp commands (!stopbot, !restart) drive the same state machine the
   // panel does — nothing here ever touches a socket directly.
@@ -75,6 +93,7 @@ export async function bootstrapCore({ autoStart = false } = {}) {
 
   return {
     session,
+    connectionManager,
     commandCount: getLoadedCommands().size,
     wasPaired,
     /** The live socket, or null. Re-read it; a reconnect replaces it. */

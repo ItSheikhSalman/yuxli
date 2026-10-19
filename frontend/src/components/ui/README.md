@@ -191,6 +191,8 @@ One `ArrowUpDown` button. `options` is `{ value, label }[]`. The current value g
 
 Both take `value`, `onChange`, `options` (`{ value, label, icon? }`), and `aria-label`. `SegmentedControl` is one enclosed group (source switch, short modes). `Tabs` is a row of pills for a scrolling section switch.
 
+Both use a single tab stop, direction-aware arrow keys, Home/End navigation, and 40px-high targets. Focus moves with selection; Arabic follows RTL arrow direction.
+
 ### Chip / ChipInput
 
 `Chip` is a token. Pass `onRemove` and `removeLabel` to make it removable (an `IconButton`). `dir` defaults to `auto` for text the operator typed.

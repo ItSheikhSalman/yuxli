@@ -66,6 +66,7 @@ section("AI privileges distinguish bot admins from WhatsApp group admins");
 // them — a plain object with owner flags is nobody (tests/ai-tool-authz.test.mjs).
 const { resolveCaller } = require("./src/services/aiToolAuth.cjs");
 const aiSock = { user: { id: "201999999999@s.whatsapp.net" } };
+require("./src/services/intelligence/runtime.cjs").bindSocket(aiSock, "conn_default");
 const aiGroup = "120363-security@g.us";
 const aiGroupMetadata = {
   id: aiGroup,
@@ -97,7 +98,7 @@ ok("a group admin cannot enumerate bot roles", Boolean(result.error));
 result = await runTool(
   "save_memory",
   { scope: "chat", content: "chat-scoped fact" },
-  { caller: groupAdmin },
+  { caller: await aiCaller("111@s.whatsapp.net", "!ai remember chat-scoped fact") },
 );
 equal("a group admin can still manage that chat's memory", result.saved, true);
 result = await runTool("forget_memory", { scope: "chat", ref: result.id }, { caller: groupAdmin });

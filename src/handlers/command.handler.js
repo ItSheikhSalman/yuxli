@@ -76,6 +76,30 @@ const EDIT_IN_PLACE_EXCLUDE = new Set([
   "autoreply",
   "mode",
   "model",
+  "screenshot",
+  "snap",
+  "webshot",
+  "tempmail",
+  "tmail",
+  "handwrite",
+  "handwriting",
+  "wikipdf",
+  "wikidoc",
+  "certificate",
+  "cert",
+  "diploma",
+  "alldl",
+  "movie",
+  "cine",
+  "medicine",
+  "course",
+  "courses",
+  "n8n",
+  "manga",
+  "novel",
+  "unovel",
+  "webzip",
+  "transcribe",
 ]);
 
 // Wrap a socket so commands reply nicely:
@@ -329,6 +353,11 @@ function tryDynamicLoadCommand(name) {
 
 // Handle command execution
 export async function handleCommand(sock, msg, body) {
+  if (!require("../services/intelligence/runtime.cjs").socketScope(sock)) return false;
+  return require("../services/workspaceScope.cjs").forSocket(sock, () => handleScopedCommand(sock, msg, body), msg.key.remoteJid);
+}
+
+async function handleScopedCommand(sock, msg, body) {
   const isGroup = msg.key.remoteJid.endsWith("@g.us");
 
   const prefix = runtimeConfig.getPrefix();
@@ -352,6 +381,14 @@ export async function handleCommand(sock, msg, body) {
 }
 
 async function runCommand(sock, msg, body, { command, args, invokedName, isGroup }) {
+  if (["schedule", "autoschedule", "listschedules", "deleteschedule", "autodelete", "pack", "sticker", "stickers"].includes(command.name)
+    && !require("../services/workspaceScope.cjs").installationContext()) {
+    await sendBotMessage(sock, msg.key.remoteJid, { text: tr(
+      "This legacy feature is only available on the installation's default connection until connection-specific storage is supported.",
+      "هذه الميزة القديمة متاحة فقط في اتصال التثبيت الافتراضي حتى يتوفر تخزين مستقل لكل اتصال.",
+    ) }, { replyTo: msg });
+    return true;
+  }
   // Turned off from the dashboard. Answered rather than ignored so the user
   // knows the command exists and isn't broken.
   if (runtimeConfig.isDisabled(command.name)) {
@@ -465,6 +502,8 @@ async function runCommand(sock, msg, body, { command, args, invokedName, isGroup
     // place instead of posting a second message (see EDIT_IN_PLACE_EXCLUDE).
     const editInPlace = !EDIT_IN_PLACE_EXCLUDE.has(command.name);
     const proxiedSock = wrapSockWithReply(sock, msg, editInPlace);
+    const runtime = require("../services/intelligence/runtime.cjs");
+    runtime.aliasSocket(proxiedSock, sock);
     await command.execute(proxiedSock, msg, args, body, groupMetadata, ctx);
     return true;
   } catch (error) {

@@ -230,7 +230,7 @@ section("secrets at rest");
   equal("legacy session still reads", store.authRead("legacy"), "plain-legacy-creds");
 
   const keyStat = fs.statSync(vault.keyPath());
-  ok("encryption key is not world-readable", (keyStat.mode & 0o077) === 0);
+  ok("encryption key is not world-readable", process.platform === "win32" || (keyStat.mode & 0o077) === 0);
   ok("encryption key is not stored in the database", store.getBotSetting("levix.key", null) === null);
 
   store.authRemove("legacy");

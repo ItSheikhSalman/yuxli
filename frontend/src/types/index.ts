@@ -304,3 +304,25 @@ export interface Capabilities {
     packsMax: number;
   };
 }
+
+export interface WhatsappConnectionItem {
+  id: string;
+  workspaceId: string;
+  name: string;
+  phoneNumber?: string | null;
+  isDefault: boolean;
+  status: SessionState | string;
+  connected: boolean;
+  hasQr?: boolean;
+  qr?: string | null;
+  pairingCode?: string | null;
+  user?: { id: string; name?: string } | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface ConnectionQuota {
+  plan: string;
+  allowed: number;
+  used: number;
+}

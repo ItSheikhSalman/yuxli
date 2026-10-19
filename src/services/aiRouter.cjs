@@ -177,8 +177,8 @@ function detectModelCapabilities(provider = settings.get("ai_provider"), model =
     model: m,
     capabilities: caps,
     capabilitySource: resolved.capabilitySource,
-    supportsVision: known ? Boolean(caps.vision) : true,
-    supportsAudioStt: known ? Boolean(caps.stt) : true,
+    supportsVision: Boolean(caps.vision),
+    supportsAudioStt: Boolean(caps.stt),
     visionRecommended: Boolean(caps.vision) && !settings.get("ai_vision_enabled"),
   };
 }

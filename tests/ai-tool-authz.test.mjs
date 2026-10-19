@@ -43,6 +43,7 @@ await permissions.grantRole(OWNER, "owner");
 await permissions.grantRole(ADMIN, "admin");
 
 const sock = { user: { id: "201999999999:7@s.whatsapp.net" }, async sendMessage() {} };
+require("./src/services/intelligence/runtime.cjs").bindSocket(sock, "conn_default");
 const groupMetadata = {
   id: GROUP,
   subject: "Test group",
@@ -159,11 +160,15 @@ try {
   result = await runTool(
     "save_memory",
     { scope: "global", content: "owner fact" },
-    { caller: owner },
+    { caller: await inDm(OWNER, "!ai remember owner fact") },
   );
   equal("owner: global memory write", result.saved, true);
-  result = await runTool("forget_memory", { scope: "global", ref: result.id }, { caller: owner });
+  result = await runTool("forget_memory", { scope: "global", ref: result.id }, { caller: ownerDm });
   equal("owner: global memory delete", result.removed, true);
+  result = await runTool("save_memory", { scope: "global", content: "group poison" }, {
+    caller: await inGroup(OWNER, { text: "!ai remember group poison globally" }),
+  });
+  ok("even an owner cannot write global memory from a group", refused(result));
 
   result = await runTool("list_roles", {}, { caller: owner });
   ok("owner: list_roles returns the roster", Array.isArray(result.owners) && !result.error);
@@ -220,7 +225,7 @@ try {
   result = await runTool(
     "save_memory",
     { scope: "global", content: "admin fact" },
-    { caller: admin },
+    { caller: await inDm(ADMIN, "!ai remember admin fact") },
   );
   equal("bot admin: global memory write, like !memory add global", result.saved, true);
   result = await runTool(
@@ -232,7 +237,7 @@ try {
   result = await runTool(
     "save_memory",
     { scope: "chat", content: "chat fact" },
-    { caller: member },
+    { caller: await inGroup(MEMBER, { text: "!ai remember chat fact" }) },
   );
   result = await runTool("forget_memory", { scope: "chat", ref: result.id }, { caller: mod });
   equal("group admin: may tidy this chat's memory, like !memory forget", result.removed, true);
@@ -311,10 +316,12 @@ try {
   result = await runTool(
     "save_memory",
     { scope: "chat", content: "member chat fact" },
-    { caller: member },
+    { caller: await inGroup(MEMBER, { text: "!ai remember member chat fact" }) },
   );
   equal("member: chat memory still works, like !memory add", result.saved, true);
   result = await runTool("search_memory", { scope: "all" }, { caller: member });
+  ok("member cannot search global memories from a group", refused(result));
+  result = await runTool("search_memory", { scope: "chat" }, { caller: member });
   ok("member: search_memory still works, like !memory search", Array.isArray(result.chat));
   result = await runTool("get_datetime", {}, {});
   ok("get_datetime needs no caller at all", typeof result.iso === "string");

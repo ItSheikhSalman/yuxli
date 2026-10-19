@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { finish, ok, ROOT, section } from "./harness.mjs";
@@ -7,9 +7,22 @@ import { finish, ok, ROOT, section } from "./harness.mjs";
 const installer = join(ROOT, "deploy", "install.sh");
 const source = readFileSync(installer, "utf8");
 
+function findBash() {
+  if (process.platform === "win32") {
+    const gitBash = "C:\\Program Files\\Git\\bin\\bash.exe";
+    if (existsSync(gitBash)) return gitBash;
+  }
+  return "bash";
+}
+const BASH_CMD = findBash();
+const toUnix = (p) =>
+  typeof p === "string"
+    ? p.replace(/\\/g, "/").replace(/^([A-Za-z]):/, (_, d) => `/${d.toLowerCase()}`)
+    : p;
+
 section("fresh-server Node bootstrap");
 
-ok("installer remains valid bash", spawnSync("bash", ["-n", installer]).status === 0);
+ok("installer remains valid bash", spawnSync(BASH_CMD, ["-n", toUnix(installer)]).status === 0);
 ok(
   "missing or old Node enters the bootstrap path",
   /if \[ "\$NODE_MAJOR" -lt "\$MIN_NODE_MAJOR" \] \|\| ! command -v npm/.test(source) &&
@@ -57,7 +70,7 @@ if (readOsIdFunction) {
   writeFileSync(fakeOsRelease, 'ID=ubuntu\nVERSION="24.04.4 LTS (Noble Numbat)"\n');
 
   const probe = spawnSync(
-    "bash",
+    BASH_CMD,
     [
       "-c",
       `set -euo pipefail
@@ -67,7 +80,7 @@ distro="$(read_os_id "$1")"
 printf '%s|%s\\n' "$distro" "$VERSION"
 `,
       "bash",
-      fakeOsRelease,
+      toUnix(fakeOsRelease),
     ],
     { encoding: "utf8" },
   );

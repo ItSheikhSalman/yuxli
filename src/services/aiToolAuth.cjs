@@ -19,6 +19,9 @@ const { evaluatePermissionLevel } = require("../utils/permissionLevel.cjs");
 
 /** Every caller this module has resolved from a real message. */
 const minted = new WeakSet();
+const sources = new WeakMap();
+const workspaceScope = require("./workspaceScope.cjs");
+const runtime = require("./intelligence/runtime.cjs");
 
 /**
  * Roles some commands demand on top of their permission level, named the way
@@ -51,11 +54,15 @@ const ROLE_ERRORS = Object.freeze({
  */
 async function resolveCaller({ msg, sock, groupMetadata = null, text = "" }) {
   if (!msg?.key?.remoteJid) throw new Error("resolveCaller needs the incoming message");
+  const scope = runtime.socketScope(sock);
+  if (!scope) throw workspaceScope.denied("Tool caller requires a bound WhatsApp connection");
   const { resolveSender } = await import("../middleware/permissions.middleware.js");
-  const sender = resolveSender(msg, groupMetadata, sock);
+  const sender = workspaceScope.run(scope, () => resolveSender(msg, groupMetadata, sock));
   const contextInfo = msg.message?.extendedTextMessage?.contextInfo;
 
   const caller = Object.freeze({
+    workspaceId: scope.workspaceId,
+    connectionId: scope.connectionId,
     chatId: msg.key.remoteJid,
     chatName: groupMetadata?.subject || null,
     isGroup: sender.isGroup,
@@ -73,12 +80,21 @@ async function resolveCaller({ msg, sock, groupMetadata = null, text = "" }) {
     text: String(text || ""),
   });
   minted.add(caller);
+  sources.set(caller, { msg, sock, groupMetadata, resolveSender });
   return caller;
 }
 
 /** True only for a caller resolveCaller() produced. */
 function isTrustedCaller(caller) {
-  return Boolean(caller) && typeof caller === "object" && minted.has(caller);
+  if (!caller || typeof caller !== "object" || !minted.has(caller)) return false;
+  const bound = runtime.socketScope(sources.get(caller).sock);
+  return bound?.workspaceId === caller.workspaceId && bound?.connectionId === caller.connectionId;
+}
+
+function ownsOutputSocket(caller, socket) {
+  if (!isTrustedCaller(caller)) return false;
+  const bound = runtime.socketScope(socket);
+  return bound?.workspaceId === caller.workspaceId && bound?.connectionId === caller.connectionId;
 }
 
 /**
@@ -94,8 +110,12 @@ function authorize(access, caller) {
     return { allowed: false, error: "this action needs a verified sender, and there is none" };
   }
 
-  const level = runtimeConfig.getPermission(access.command);
-  const { hasPermission } = evaluatePermissionLevel(level, caller);
+  const source = sources.get(caller);
+  const live = workspaceScope.run(caller, () => source.resolveSender(source.msg,
+    require("../utils/groupMetadataCache.cjs").getCached(caller.chatId) || source.groupMetadata,
+    source.sock));
+  const level = workspaceScope.run(caller, () => runtimeConfig.getPermission(access.command));
+  const { hasPermission } = evaluatePermissionLevel(level, live);
   if (!hasPermission) {
     return {
       allowed: false,
@@ -106,9 +126,9 @@ function authorize(access, caller) {
   if (access.role) {
     const check = ROLES[access.role];
     if (!check) return { allowed: false, error: `unknown role requirement: ${access.role}` };
-    if (!check(caller)) return { allowed: false, error: ROLE_ERRORS[access.role] };
+    if (!check(live)) return { allowed: false, error: ROLE_ERRORS[access.role] };
   }
   return { allowed: true };
 }
 
-module.exports = { resolveCaller, isTrustedCaller, authorize, ROLES };
+module.exports = { resolveCaller, isTrustedCaller, ownsOutputSocket, authorize, ROLES };

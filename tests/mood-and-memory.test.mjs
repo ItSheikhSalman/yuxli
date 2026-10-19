@@ -2,6 +2,9 @@
 
 import assert from "node:assert";
 import { createRequire } from "node:module";
+import { useTempDataDir } from "./harness.mjs";
+
+useTempDataDir("yuxli-mood-memory");
 
 const require = createRequire(import.meta.url);
 const aiMood = require("../src/services/aiMood.cjs");
@@ -52,9 +55,9 @@ console.log("✓ Expression cue detection passed\n");
 console.log("Test 3: Mood Prompt Generation");
 const prompt = aiMood.buildMoodPrompt("923001234567@s.whatsapp.net", "roast me");
 assert.ok(prompt.includes("AI Personality & Adaptive Mood Engine"), "Prompt header included");
-assert.ok(prompt.includes("NEVER FORGET PREVIOUS MESSAGE HISTORY"), "Memory directive included");
-assert.ok(prompt.includes("CHECK AND SATISFY THE USER'S EXACT DEMAND"), "User demand directive included");
-assert.ok(prompt.includes("ROAST / SARCASM / TAUNT / BANTER"), "Dynamic roast cue detected in prompt");
+assert.ok(prompt.includes("current authorized conversation history"), "Scoped continuity directive included");
+assert.ok(prompt.includes("AI assistant, not the account owner"), "Identity cannot be replaced by style");
+assert.ok(prompt.includes("CONSENSUAL BANTER"), "Banter is subject to target consent");
 console.log("✓ Mood prompt generation passed\n");
 
 // 4. Test Chat Mode Persistence
@@ -110,6 +113,7 @@ const mockSock = {
     sentMessage = content.text;
   },
 };
+require("../src/services/intelligence/runtime.cjs").bindSocket(mockSock, "conn_default");
 
 const mockMsg = {
   key: { remoteJid: "923001112233@s.whatsapp.net" },
@@ -133,7 +137,7 @@ assert.ok(
 // Test !mode roast
 await modeCmd.execute(mockSock, mockMsg, ["roast"]);
 assert.ok(
-  sentMessage.includes("Roasting") || sentMessage.includes("روسٹ") || sentMessage.includes("🔥"),
+  sentMessage.includes(aiMood.MODES.roast.label),
   "Roast mode set confirmation"
 );
 assert.strictEqual(aiMood.getChatMode("923001112233@s.whatsapp.net"), "roast");
@@ -215,22 +219,21 @@ console.log("✓ BotMode command execution passed\n");
 // Test 9: Raw Anger, Swear & Curse Word Detection ("friends wala mazak / gussa")
 console.log("Test 9: Raw Anger & Curse Word Detection");
 const angerCue1 = aiMood.detectExpressionCue("suar ke bache chup kar bc");
-assert.strictEqual(angerCue1?.modeHint, "roast", "Curse words trigger roast mode");
+assert.strictEqual(angerCue1?.modeHint, "calm", "Curse words trigger de-escalation, not retaliation");
 assert.strictEqual(angerCue1?.isAnger, true, "Anger flag is true for curse words");
 
 const angerCue2 = aiMood.detectExpressionCue("bsdk dala kuta shut the fuck up bitch");
-assert.strictEqual(angerCue2?.modeHint, "roast");
+assert.strictEqual(angerCue2?.modeHint, "calm");
 assert.strictEqual(angerCue2?.isAnger, true);
 
 const angerCue3 = aiMood.detectExpressionCue("mujhe bohot gussa aa raha hai sar mat khao");
-assert.strictEqual(angerCue3?.modeHint, "roast");
+assert.strictEqual(angerCue3?.modeHint, "calm");
 assert.strictEqual(angerCue3?.isAnger, true);
 
 const promptWithAnger = aiMood.buildMoodPrompt("923001112233@s.whatsapp.net", "kuta suar bc bsdk");
 assert.ok(
-  promptWithAnger.includes("SAVAGE ANGER / RAW FRIEND BANTER / CURSES DETECTED") ||
-    promptWithAnger.includes("ROAST"),
-  "Anger prompt directive generated"
+  promptWithAnger.includes("CALM DE-ESCALATION") && !promptWithAnger.includes("savage fury"),
+  "Anger prompt de-escalates without insults"
 );
 console.log("✓ Raw anger and curse detection passed\n");
 
@@ -248,9 +251,9 @@ const targetedPrompt = aiMood.buildMoodPrompt("120363999999999999@g.us", "isko r
   senderId: "923001112233@s.whatsapp.net",
 });
 
-assert.ok(targetedPrompt.includes("TARGETED FRIEND ROAST DIRECTIVE"), "Targeted roast header included");
-assert.ok(targetedPrompt.includes("@923007778899"), "Friend tag specifically targeted");
-assert.ok(targetedPrompt.includes("friends wala mazak"), "Friends banter context present");
+assert.ok(targetedPrompt.includes("CONSENSUAL BANTER"), "Banter remains consent-gated");
+assert.ok(!targetedPrompt.includes("@923007778899"), "A tag alone grants no target consent");
+assert.ok(targetedPrompt.includes("requester cannot consent for somebody else"), "Third-party consent is not inferred");
 assert.ok(targetedPrompt.includes("Group Conversation & Individual User Topic Continuity"), "Group context included");
 console.log("✓ Targeted friend roast prompt passed\n");
 
@@ -362,10 +365,11 @@ console.log("Test 15: Persona Roman Urdu Default & Human Chatting Training");
 const { loadPersona, buildSystemInstruction } = require("../src/services/aiAgent.cjs");
 const personaText = loadPersona();
 
-assert.ok(personaText.includes("Sound 100% like a REAL HUMAN"), "Human persona directive included");
-assert.ok(personaText.includes("Roman Urdu"), "Roman Urdu default directive included");
-assert.ok(personaText.includes("[REACT:"), "Reaction directives included in persona");
-assert.ok(personaText.includes("Conversation Timeline & Context Continuity"), "Timeline continuity included");
+assert.ok(personaText.includes("AI assistant"), "Persona is explicitly AI, not an impersonated participant");
+assert.ok(!personaText.includes("Sound 100% like a REAL HUMAN"), "Deceptive identity directives are absent");
+assert.ok(personaText.includes("Match the language"), "Persona adapts to the user's language");
+assert.ok(personaText.includes("Never carry private details from one chat into another"), "Privacy boundary is explicit");
+assert.ok(personaText.includes("conversation goes on"), "Conversation continuity is retained");
 
 const systemInstruction = buildSystemInstruction({
   chatId: "923001234567@s.whatsapp.net",
@@ -377,7 +381,8 @@ const systemInstruction = buildSystemInstruction({
   latestUserText: "aa jao",
 });
 assert.ok(systemInstruction.includes("Roman Urdu"), "System instruction defaults to Roman Urdu");
-assert.ok(systemInstruction.includes("Ultra-Realistic Human WhatsApp Messaging"), "Human WhatsApp messaging included in system instruction");
+assert.ok(systemInstruction.includes(require("../src/config/ai-identity.cjs").systemBlock), "Immutable AI identity is included");
+assert.ok(!systemInstruction.includes("Never sound like an AI bot"), "Style adaptation does not conceal AI identity");
 console.log("✓ Persona Roman Urdu default & human chatting passed\n");
 
 // Test 16: Granular Whitelist for Personal DMs
@@ -417,13 +422,13 @@ aiFilter.setChatFilter(testFilterChat, "on");
 assert.strictEqual(aiFilter.getChatFilter(testFilterChat), "on");
 const onInstruction = aiFilter.buildFilterInstruction(testFilterChat);
 assert.ok(onInstruction.includes("STRICTLY ON"), "Filter ON instruction generated");
-assert.ok(onInstruction.includes("Mujhe iss baat ka nahi pata"), "Innocent refusal phrase included");
+assert.ok(onInstruction.includes("Avoid profanity"), "Strict filter keeps language clean without feigned ignorance");
 
 // Filter OFF
 aiFilter.setChatFilter(testFilterChat, "off");
 assert.strictEqual(aiFilter.getChatFilter(testFilterChat), "off");
 const offInstruction = aiFilter.buildFilterInstruction(testFilterChat);
-assert.ok(offInstruction.includes("UNFILTERED FREEDOM"), "Unfiltered instruction generated");
+assert.ok(offInstruction.includes("Safety boundaries always apply"), "Casual style cannot turn safety off");
 console.log("✓ Content filter toggle passed\n");
 
 // Test 19: Per-Chat Auto-Reply Policy (Mention / All / Off)
@@ -464,8 +469,18 @@ assert.strictEqual(currencyCmd.name, "currency");
 assert.ok(currencyCmd.aliases.includes("pkr"));
 assert.ok(currencyCmd.aliases.includes("forex"));
 
-await currencyCmd.execute(mockSock, mockFromMeMsg, []);
+const originalFetch = globalThis.fetch;
+globalThis.fetch = async (url) => {
+  assert.strictEqual(url, "https://open.er-api.com/v6/latest/USD", "Currency adapter requests the expected source");
+  return new Response(JSON.stringify({ rates: { USD: 1, PKR: 280, EUR: 0.9, GBP: 0.8, AED: 3.67, SAR: 3.75, CAD: 1.4, AUD: 1.5, KWD: 0.3 } }), { status: 200, headers: { "content-type": "application/json" } });
+};
+try {
+  await currencyCmd.execute(mockSock, mockFromMeMsg, []);
+} finally {
+  globalThis.fetch = originalFetch;
+}
 assert.ok(sentMessage.includes("LIVE CURRENCY RATES") || sentMessage.includes("PKR"), "Currency rates card rendered");
+assert.ok(sentMessage.includes("280.00"), "Currency card uses the fixture's actual rate");
 console.log("✓ Live currency converter passed\n");
 
 // Test 22: AI Summarizer Command
@@ -547,8 +562,8 @@ assert.strictEqual(elderTextOnly.isElder, true, "Text cue with gugu/beta detecte
 const mamiPrompt = aiMood.buildMoodPrompt("923001234567@s.whatsapp.net", "Sorry mobile gugu kay pas tha", {
   senderName: "Rawaha Mami",
 });
-assert.ok(mamiPrompt.includes("RESPECTED FAMILY ELDER"), "Elder respect directive present");
-assert.ok(mamiPrompt.includes("NEVER call them \"bhai\""), "Forbidden to call Mami bhai");
+assert.ok(mamiPrompt.includes("RESPECTFUL RECIPIENT"), "Respectful-language directive present");
+assert.ok(mamiPrompt.includes('Avoid "bhai"'), "Respectful address avoids over-familiar language");
 assert.ok(!mamiPrompt.includes("SAVAGE ANGER"), "Roast/anger not triggered for elder");
 console.log("✓ Elder family relationship detection passed\n");
 
@@ -583,7 +598,4 @@ botAccess.setAccessMode("public"); // Restore
 console.log("✓ Direct contact allow / disallow & whitelist control passed\n");
 
 console.log("ALL 27 MOOD, MEMORY, GROUP ISOLATION, ROMAN URDU, NEW FEATURES, CODE BOX & DIAGNOSTIC TESTS PASSED! 🎉");
-
-
-
 

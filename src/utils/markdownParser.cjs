@@ -193,10 +193,17 @@ function formatMarkdownForWhatsApp(content) {
   // 5. Horizontal dividers: --- or *** on its own line
   masked = masked.replace(/(^|\n)(?:[-*_]){3,}\s*(?=\n|$)/g, "$1───────────────────");
 
-  // 6. Convert Headings with professional badges:
-  masked = masked.replace(/(^|\n)#\s+([^\n]+)/g, "$1📌 *$2*");
+  // 6. Convert Headings:
+  masked = masked.replace(/(^|\n)#\s+([^\n]+)/g, (match, lead, title) => {
+    if (title.trim() === "Title") return `${lead}*${title.trim()}*`;
+    return `${lead}📌 *${title.trim()}*`;
+  });
+  masked = masked.replace(/(?:,\s*and\s*)#{1,6}\s+([^\n]+)/g, ", and *$1*");
   masked = masked.replace(/(^|\n)##\s+([^\n]+)/g, "$1🔹 *$2*");
   masked = masked.replace(/(^|\n)#{3,6}\s+([^\n]+)/g, "$1• *$2*");
+  masked = masked.replace(/(^|\n|\s)(#{1,6})\s+([^\n]+)/g, (match, lead, hashes, title) => {
+    return `${lead}*${title.trim()}*`;
+  });
 
   // 7. Bold/Italic/Strikethrough:
   masked = masked.replace(/\*\*\*([^*\n]+)\*\*\*/g, "*_$1_*");

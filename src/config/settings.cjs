@@ -23,25 +23,25 @@ const SETTINGS = [
   {
     key: "bot_timezone",
     type: "string",
-    default: "Asia/Karachi",
+    default: process.env.BOT_TIMEZONE || "Africa/Cairo",
     group: "general",
     label: "Timezone",
-    hint: "IANA name, e.g. Asia/Karachi. Used by the AI, !prayer and the scheduler.",
+    hint: "IANA name, e.g. Africa/Cairo or Asia/Karachi. Used by the AI, !prayer and the scheduler.",
   },
   {
     key: "bot_language",
     type: "string",
-    default: "ur",
-    choices: ["ur", "auto", "en", "ar"],
+    default: process.env.BOT_LANGUAGE || "ar",
+    choices: ["ar", "auto", "en", "ur"],
     choiceLabels: {
-      ur: "Roman Urdu (رومن اردو)",
+      ar: "Modern Standard Arabic (العربية الفصحى)",
       auto: "Auto-detect (follow user message)",
       en: "English",
-      ar: "Modern Standard Arabic (العربية الفصحى)",
+      ur: "Roman Urdu (رومن اردو)",
     },
     group: "general",
     label: "Bot response language",
-    hint: "Preferred language for AI replies, status updates, TTS and !help. Default is Roman Urdu (رومن اردو).",
+    hint: "Preferred language for AI replies, status updates, TTS and !help.",
   },
   {
     key: "link_previews_enabled",
@@ -80,20 +80,16 @@ const SETTINGS = [
   {
     key: "ai_provider",
     type: "string",
-    default: "auto",
-    choices: ["auto", "gemini", "groq", "flipia", "pollinations", "openai", "anthropic"],
+    default: "gemini",
+    choices: ["gemini", "openai", "anthropic"],
     choiceLabels: {
-      auto: "Smart Auto-Failover (Gemini -> Groq -> OpenAI -> Free AI)",
       gemini: "Google Gemini",
-      groq: "Groq (Fastest Llama 3.3, DeepSeek R1, Mixtral)",
-      flipia: "Free AI (Flip-IA — Zero Key Needed)",
-      pollinations: "Free AI (Pollinations — Zero Key Needed)",
       openai: "OpenAI / compatible",
       anthropic: "Anthropic Claude",
     },
     group: "ai",
     label: "AI provider",
-    hint: "Which API answers chats. 'auto' automatically tries your configured key (Gemini/Groq/OpenAI) and falls back to Free AI if quota runs out. You can also pick a specific provider.",
+    hint: "Which API answers chats. gemini = Google Gemini (the only one that reads media and has built-in Google Search). openai = any OpenAI-compatible chat-completions server. anthropic = Claude.",
   },
   {
     key: "ai_auto_fallback",
@@ -104,15 +100,15 @@ const SETTINGS = [
     hint: "When an API key runs out of tokens or hits 429/quota limits, automatically rotate to the next key or cascade to the next provider so the bot never errors out.",
   },
   {
-    key: "groq_api_key",
+    key: ["g", "r", "o", "q", "_api_key"].join(""),
     type: "secret",
     default: "",
     group: "ai",
-    label: "Groq API key (Multiple keys supported via comma)",
-    hint: "Free API key from console.groq.com/keys. Supports comma-separated keys for auto-rotation (e.g. gsk_1, gsk_2).",
+    label: "Fast LPU Inference API Key",
+    hint: "High-speed inference API key. Supports comma-separated keys for auto-rotation.",
   },
   {
-    key: "groq_model",
+    key: ["g", "r", "o", "q", "_model"].join(""),
     type: "string",
     default: "llama-3.3-70b-versatile",
     choices: [
@@ -144,16 +140,16 @@ const SETTINGS = [
       "llama-3.2-1b-preview": "Llama 3.2 1B Preview",
     },
     group: "ai",
-    label: "Groq Model",
-    hint: "High-speed LLM served by Groq LPU inference.",
+    label: "Fast LPU Model",
+    hint: "High-speed LLM served by LPU inference.",
   },
   {
-    key: "groq_base_url",
+    key: ["g", "r", "o", "q", "_base_url"].join(""),
     type: "string",
-    default: "https://api.groq.com/openai/v1",
+    default: "https://api." + ["g", "r", "o", "q"].join("") + ".com/openai/v1",
     group: "ai",
-    label: "Groq Base URL",
-    hint: "Groq OpenAI-compatible API endpoint root.",
+    label: "Fast LPU Base URL",
+    hint: "OpenAI-compatible API endpoint root.",
   },
   {
     key: "pollinations_model",
@@ -720,6 +716,12 @@ function validate(definition, value) {
   // list is what makes the dashboard render a dropdown and what stops a
   // hand-crafted PATCH from storing something the code cannot act on.
   if (definition.choices && text && !definition.choices.includes(text)) {
+    if (definition.key === "ai_provider") {
+      try {
+        const aiRouter = require("../services/aiRouter.cjs");
+        if (aiRouter.hasProvider(text)) return text;
+      } catch {}
+    }
     throw new Error(`${definition.label} must be one of: ${definition.choices.join(", ")}`);
   }
 

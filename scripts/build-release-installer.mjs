@@ -11,7 +11,7 @@
 // Generated installers are release artifacts. They are never committed.
 
 import { spawnSync } from "node:child_process";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -70,10 +70,19 @@ export function verifyInstaller(text, version) {
   return problems;
 }
 
+function findBash() {
+  if (process.platform === "win32") {
+    const gitBash = "C:\\Program Files\\Git\\bin\\bash.exe";
+    if (existsSync(gitBash)) return gitBash;
+  }
+  return "bash";
+}
+
 function checkSyntax(file) {
-  const bash = spawnSync("bash", ["-n", file], { encoding: "utf8" });
+  const bashExe = findBash();
+  const bash = spawnSync(bashExe, ["-n", file], { encoding: "utf8" });
   if (bash.status !== 0)
-    throw new Error(`generated installer is not valid shell:\n${bash.stderr.trim()}`);
+    throw new Error(`generated installer is not valid shell:\n${bash.stderr?.trim() || ""}`);
 }
 
 export function generate(tagInput, outPath) {

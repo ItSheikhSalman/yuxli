@@ -11,6 +11,7 @@
 // on any Arabic letter that comes back.
 
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import { equal, finish, ok, ROOT, require, section, useTempDataDir } from "./harness.mjs";
 
 useTempDataDir("levix-reply-language");
@@ -109,7 +110,7 @@ section("the language rides along with everything the message causes");
 // ---------------------------------------------------------------------------
 // Through the real dispatcher.
 
-const { loadCommands, handleCommand } = await import(join(ROOT, "src/handlers/command.handler.js"));
+const { loadCommands, handleCommand } = await import(pathToFileURL(join(ROOT, "src/handlers/command.handler.js")).href);
 await loadCommands();
 
 const SELF = "201999999999@s.whatsapp.net";
@@ -147,6 +148,7 @@ function messageFrom(chat, text, { fromMe = true, participant } = {}) {
 /** Run `text` as a command in `chat`; return every text/caption it sent. */
 async function run(text, { chat = SELF, fromMe = true, participant } = {}) {
   const sock = makeSock();
+  require("./src/services/intelligence/runtime.cjs").bindSocket(sock, "conn_default");
   const msg = messageFrom(chat, text, { fromMe, participant });
   try {
     await handleCommand(sock, msg, text);
